@@ -50,3 +50,47 @@ class MachineInviteStatus(StrEnum):
     REVOKED = "revoked"
     INVALIDATED = "invalidated"
     EXPIRED = "expired"
+
+
+class CommandRunner(StrEnum):
+    SHELL = "shell"
+    POWERSHELL = "powershell"
+
+
+class CommandParameterType(StrEnum):
+    ENUM = "enum"
+
+
+class TaskStatus(StrEnum):
+    QUEUED = "queued"
+    DISPATCHED = "dispatched"
+    ACCEPTED = "accepted"
+    RUNNING = "running"
+    SUCCEEDED = "succeeded"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+
+
+class TaskKind(StrEnum):
+    SYSTEM_TEMPLATE = "system_template"
+    CUSTOM_TEMPLATE = "custom_template"
+
+
+class TaskFailureKind(StrEnum):
+    TRANSIENT = "transient"
+    PERMANENT = "permanent"
+    CANCELLED = "cancelled"
+
+
+class TaskLogStream(StrEnum):
+    STDOUT = "stdout"
+    STDERR = "stderr"
+    SYSTEM = "system"
+
+
+class ResultParserKind(StrEnum):
+    NONE = "none"
+    BASIC_DIAGNOSTICS = "basic_diagnostics"
+    DISK_USAGE = "disk_usage"
+    NETWORK_CONTEXT = "network_context"
+    MEMORY_USAGE = "memory_usage"

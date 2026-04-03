@@ -45,3 +45,15 @@ def ensure_can_grant_role(
         raise AppError("machine_access_denied", "Только создатель машины может назначать владельца.", 403)
     if actor_role == MachineAccessRole.ADMIN and requested_role in {MachineAccessRole.ADMIN, MachineAccessRole.OWNER}:
         raise AppError("machine_access_denied", "Администратор может выдавать только operator и viewer.", 403)
+
+
+def ensure_can_manage_commands(*, actor_role: MachineAccessRole | None, actor_is_creator_owner: bool) -> None:
+    if actor_role not in {MachineAccessRole.OWNER, MachineAccessRole.ADMIN}:
+        raise AppError("machine_access_denied", "Недостаточно прав для управления командами.", 403)
+    if actor_role == MachineAccessRole.OWNER and not actor_is_creator_owner:
+        return
+
+
+def ensure_can_run_tasks(actor_role: MachineAccessRole | None) -> None:
+    if actor_role not in {MachineAccessRole.OWNER, MachineAccessRole.ADMIN, MachineAccessRole.OPERATOR}:
+        raise AppError("machine_access_denied", "Недостаточно прав для запуска задач.", 403)

@@ -19,6 +19,7 @@ class Machine(Base):
     status: Mapped[MachineStatus] = mapped_column(
         Enum(MachineStatus), default=MachineStatus.PENDING, nullable=False, index=True
     )
+    concurrency_limit: Mapped[int] = mapped_column(default=1, nullable=False)
     machine_token_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True)
     last_heartbeat_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)

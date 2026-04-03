@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 
 from app.api.v1.router import v1_router
+from app.api.ws import router as ws_router
 
 api_router = APIRouter()
 
@@ -16,3 +17,4 @@ def version() -> dict[str, str]:
 
 
 api_router.include_router(v1_router)
+api_router.include_router(ws_router)

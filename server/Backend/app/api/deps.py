@@ -10,7 +10,10 @@ from app.core.security import hash_token
 from app.db.session import get_db_session
 from app.domains.access.repository import AccessRepository
 from app.domains.auth.repository import AuthRepository
+from app.domains.commands.repository import CommandRepository
 from app.domains.machines.repository import MachineRepository
+from app.domains.results.repository import ResultRepository
+from app.domains.tasks.repository import TaskRepository
 from app.shared.time import utc_now
 
 
@@ -24,6 +27,18 @@ def get_machine_repository(db: Annotated[Session, Depends(get_db_session)]) -> M
 
 def get_access_repository(db: Annotated[Session, Depends(get_db_session)]) -> AccessRepository:
     return AccessRepository(db)
+
+
+def get_command_repository(db: Annotated[Session, Depends(get_db_session)]) -> CommandRepository:
+    return CommandRepository(db)
+
+
+def get_task_repository(db: Annotated[Session, Depends(get_db_session)]) -> TaskRepository:
+    return TaskRepository(db)
+
+
+def get_result_repository(db: Annotated[Session, Depends(get_db_session)]) -> ResultRepository:
+    return ResultRepository(db)
 
 
 def build_client_context(request: Request):
