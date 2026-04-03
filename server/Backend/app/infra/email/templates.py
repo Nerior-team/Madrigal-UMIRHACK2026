@@ -38,3 +38,29 @@ def build_password_reset_email(*, reset_link: str, email: str) -> tuple[str, str
         "</body></html>"
     )
     return subject, html_body, text_body
+
+
+def build_machine_invite_email(
+    *,
+    invite_link: str,
+    machine_display_name: str,
+    email: str,
+    role: str,
+) -> tuple[str, str, str]:
+    subject = f"{get_settings().brand_display_name}: приглашение к машине"
+    html_body = f"""
+    <html>
+      <body>
+        <h2>Приглашение к машине в {get_settings().brand_display_name}</h2>
+        <p>Для email <strong>{email}</strong> создан доступ к машине <strong>{machine_display_name}</strong>.</p>
+        <p>Роль: <strong>{role}</strong>.</p>
+        <p><a href="{invite_link}">Принять приглашение</a></p>
+      </body>
+    </html>
+    """.strip()
+    text_body = (
+        f"Для {email} создан доступ к машине {machine_display_name}.\n"
+        f"Роль: {role}.\n"
+        f"Принять приглашение: {invite_link}"
+    )
+    return subject, html_body, text_body

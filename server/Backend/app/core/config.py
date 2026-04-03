@@ -31,6 +31,8 @@ class Settings(BaseSettings):
     auth_challenge_ttl_minutes: int = 10
     auth_reauth_ttl_minutes: int = 10
     auth_code_max_attempts: int = 5
+    machine_registration_ttl_minutes: int = 15
+    machine_invite_ttl_hours: int = 72
 
     smtp_host: str = "smtp.yandex.ru"
     smtp_port: int = 465

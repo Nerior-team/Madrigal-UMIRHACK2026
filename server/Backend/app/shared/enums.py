@@ -22,3 +22,31 @@ class TwoFactorMethod(StrEnum):
 class AuditStatus(StrEnum):
     SUCCESS = "success"
     FAILURE = "failure"
+
+
+class OperatingSystemFamily(StrEnum):
+    WINDOWS = "windows"
+    LINUX = "linux"
+    MACOS = "macos"
+    UNKNOWN = "unknown"
+
+
+class MachineStatus(StrEnum):
+    PENDING = "pending"
+    ONLINE = "online"
+    OFFLINE = "offline"
+
+
+class MachineAccessRole(StrEnum):
+    OWNER = "owner"
+    ADMIN = "admin"
+    OPERATOR = "operator"
+    VIEWER = "viewer"
+
+
+class MachineInviteStatus(StrEnum):
+    PENDING = "pending"
+    ACCEPTED = "accepted"
+    REVOKED = "revoked"
+    INVALIDATED = "invalidated"
+    EXPIRED = "expired"
