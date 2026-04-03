@@ -1,5 +1,7 @@
 from fastapi import APIRouter
 
+from app.api.v1.router import v1_router
+
 api_router = APIRouter()
 
 
@@ -11,3 +13,6 @@ def healthcheck() -> dict[str, str]:
 @api_router.get("/version", tags=["system"])
 def version() -> dict[str, str]:
     return {"service": "madrigal-backend", "version": "0.1.0"}
+
+
+api_router.include_router(v1_router)
