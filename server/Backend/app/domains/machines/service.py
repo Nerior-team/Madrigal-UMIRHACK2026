@@ -27,6 +27,8 @@ from app.domains.machines.schemas import (
     MachineSummary,
 )
 from app.infra.observability.audit import record_audit_event
+from app.realtime.broker import operator_feed
+from app.realtime.events import operator_event
 from app.shared.enums import AuditStatus, MachineAccessRole, MachineStatus
 from app.shared.time import has_expired, utc_now
 
@@ -41,6 +43,9 @@ class MachineService:
     def __init__(self, machine_repository: MachineRepository, access_repository: AccessRepository) -> None:
         self.machine_repository = machine_repository
         self.access_repository = access_repository
+
+    def _publish_operator_event(self, *, event_type: str, machine_id: str, payload: dict) -> None:
+        operator_feed.publish(operator_event(event_type=event_type, machine_id=machine_id, payload=payload))
 
     def start_registration(self, *, payload: MachineRegistrationStartRequest) -> MachineRegistrationStartResponse:
         raw_token = issue_registration_token()
@@ -221,4 +226,15 @@ class MachineService:
         heartbeat.status_payload = payload.status_payload
         self.machine_repository.save(heartbeat)
         self.machine_repository.commit()
+        self._publish_operator_event(
+            event_type="machine_status_changed",
+            machine_id=machine.id,
+            payload={
+                "machine_id": machine.id,
+                "status": machine.status.value,
+                "last_heartbeat_at": machine.last_heartbeat_at.isoformat(),
+                "hostname": machine.hostname,
+                "os_family": machine.os_family.value,
+            },
+        )
         return MachineHeartbeatResponse(status="ok", machine_id=machine.id, last_seen_at=heartbeat.last_seen_at)

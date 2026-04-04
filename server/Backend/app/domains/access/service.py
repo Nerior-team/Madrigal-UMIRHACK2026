@@ -20,6 +20,8 @@ from app.domains.access.sharing import ensure_invite_is_active
 from app.domains.machines.repository import MachineRepository
 from app.infra.email.client import get_mail_transport
 from app.infra.observability.audit import record_audit_event
+from app.realtime.broker import operator_feed
+from app.realtime.events import operator_event
 from app.shared.enums import AuditStatus, MachineInviteStatus
 from app.shared.time import utc_now
 
@@ -37,6 +39,9 @@ class AccessService:
         self.access_repository = access_repository
         self.machine_repository = machine_repository
         self.mailer = get_mail_transport()
+
+    def _publish_operator_event(self, *, event_type: str, machine_id: str, payload: dict) -> None:
+        operator_feed.publish(operator_event(event_type=event_type, machine_id=machine_id, payload=payload))
 
     def _get_context(self, *, machine_id: str, actor_user_id: str) -> AccessContext:
         machine = self.machine_repository.get_machine(machine_id)
@@ -138,6 +143,17 @@ class AccessService:
             details={"machine_id": machine_id, "email": invite.email, "role": invite.role.value},
         )
         self.access_repository.commit()
+        self._publish_operator_event(
+            event_type="invite_updated",
+            machine_id=machine_id,
+            payload={
+                "invite_id": invite.id,
+                "machine_id": machine_id,
+                "email": invite.email,
+                "role": invite.role.value,
+                "status": invite.status.value,
+            },
+        )
 
         return MachineInviteRead(
             id=invite.id,
@@ -191,6 +207,17 @@ class AccessService:
                 details={"machine_id": invite.machine_id, "email": invite.email},
             )
             self.access_repository.commit()
+            self._publish_operator_event(
+                event_type="invite_updated",
+                machine_id=invite.machine_id,
+                payload={
+                    "invite_id": invite.id,
+                    "machine_id": invite.machine_id,
+                    "email": invite.email,
+                    "status": invite.status.value,
+                    "reason": invite.invalidated_reason,
+                },
+            )
             raise AppError("invite_email_mismatch", "Это приглашение создано для другого email.", 403)
 
         self.access_repository.upsert_access(
@@ -214,6 +241,26 @@ class AccessService:
             details={"machine_id": invite.machine_id, "role": invite.role.value},
         )
         self.access_repository.commit()
+        self._publish_operator_event(
+            event_type="invite_updated",
+            machine_id=invite.machine_id,
+            payload={
+                "invite_id": invite.id,
+                "machine_id": invite.machine_id,
+                "email": invite.email,
+                "status": invite.status.value,
+            },
+        )
+        self._publish_operator_event(
+            event_type="access_updated",
+            machine_id=invite.machine_id,
+            payload={
+                "machine_id": invite.machine_id,
+                "target_user_id": actor_user.id,
+                "role": invite.role.value,
+                "action": "accepted",
+            },
+        )
 
         return MachineInviteAcceptResponse(machine_id=invite.machine_id, role=invite.role)
 
@@ -261,6 +308,16 @@ class AccessService:
             details={"machine_id": machine_id, "target_user_id": target.user_id, "role": payload.role.value},
         )
         self.access_repository.commit()
+        self._publish_operator_event(
+            event_type="access_updated",
+            machine_id=machine_id,
+            payload={
+                "machine_id": machine_id,
+                "target_user_id": target.user_id,
+                "role": payload.role.value,
+                "action": "role_updated",
+            },
+        )
 
         return self._build_access_entry(
             access=target,
@@ -296,4 +353,14 @@ class AccessService:
         )
         self.access_repository.commit()
 
+        self._publish_operator_event(
+            event_type="access_updated",
+            machine_id=machine_id,
+            payload={
+                "machine_id": machine_id,
+                "target_user_id": target.user_id,
+                "role": target.role.value,
+                "action": "revoked",
+            },
+        )
         return MessageResponse(message="Доступ отозван.")

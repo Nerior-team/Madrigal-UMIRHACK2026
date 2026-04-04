@@ -54,6 +54,13 @@ class AccessRepository:
     def get_access(self, machine_id: str, user_id: str) -> MachineAccess | None:
         return self.db.scalar(select(MachineAccess).where(MachineAccess.machine_id == machine_id, MachineAccess.user_id == user_id))
 
+    def list_machine_ids_for_user(self, user_id: str) -> set[str]:
+        statement = select(MachineAccess.machine_id).where(
+            MachineAccess.user_id == user_id,
+            MachineAccess.revoked_at.is_(None),
+        )
+        return {machine_id for machine_id in self.db.scalars(statement).all()}
+
     def get_access_by_id(self, access_id: str) -> MachineAccess | None:
         return self.db.get(MachineAccess, access_id)
 

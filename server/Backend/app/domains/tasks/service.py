@@ -25,6 +25,8 @@ from app.domains.tasks.schemas import (
     TaskResultRequest,
 )
 from app.infra.observability.audit import record_audit_event
+from app.realtime.broker import operator_feed
+from app.realtime.events import operator_event
 from app.shared.enums import AuditStatus, ResultParserKind, TaskFailureKind, TaskStatus
 from app.shared.time import utc_now
 
@@ -60,6 +62,16 @@ class TaskService:
             self.task_repository,
             machine_repository,
             access_repository,
+        )
+
+    def _publish_operator_event(self, *, event_type: str, machine_id: str, payload: dict, task_id: str | None = None) -> None:
+        operator_feed.publish(
+            operator_event(
+                event_type=event_type,
+                machine_id=machine_id,
+                task_id=task_id,
+                payload=payload,
+            )
         )
 
     def _require_machine_access(self, *, machine_id: str, actor_user_id: str):
@@ -155,6 +167,18 @@ class TaskService:
             details={"task_id": task.id, "machine_id": machine.id, "template_key": rendered.template_key},
         )
         self.task_repository.commit()
+        self._publish_operator_event(
+            event_type="task_created",
+            machine_id=task.machine_id,
+            task_id=task.id,
+            payload={
+                "task_id": task.id,
+                "attempt_id": attempt.id,
+                "template_key": task.template_key,
+                "template_name": task.template_name,
+                "status": TaskStatus.QUEUED.value,
+            },
+        )
         return self._build_task_read(task)
 
     def list_tasks(self, *, actor_user_id: str, machine_id: str) -> list[TaskRead]:
@@ -199,6 +223,16 @@ class TaskService:
             message="Task dispatched to daemon",
         )
         self.task_repository.commit()
+        self._publish_operator_event(
+            event_type="task_updated",
+            machine_id=task.machine_id,
+            task_id=task.id,
+            payload={
+                "task_id": task.id,
+                "attempt_id": attempt.id,
+                "status": TaskStatus.DISPATCHED.value,
+            },
+        )
 
         return AgentClaimTaskResponse(
             task_id=task.id,
@@ -228,6 +262,16 @@ class TaskService:
         self.task_repository.save(task)
         self.task_repository.create_event(task_id=task.id, attempt_id=attempt.id, status=TaskStatus.ACCEPTED, message="Task accepted")
         self.task_repository.commit()
+        self._publish_operator_event(
+            event_type="task_updated",
+            machine_id=task.machine_id,
+            task_id=task.id,
+            payload={
+                "task_id": task.id,
+                "attempt_id": attempt.id,
+                "status": TaskStatus.ACCEPTED.value,
+            },
+        )
         return TaskActionResponse(message="Task accepted")
 
     def update_progress(self, *, attempt_id: str, machine_token: str, payload: TaskProgressRequest) -> TaskActionResponse:
@@ -253,6 +297,18 @@ class TaskService:
             payload={"percent": payload.percent},
         )
         self.task_repository.commit()
+        self._publish_operator_event(
+            event_type="task_updated",
+            machine_id=task.machine_id,
+            task_id=task.id,
+            payload={
+                "task_id": task.id,
+                "attempt_id": attempt.id,
+                "status": TaskStatus.RUNNING.value,
+                "progress_message": payload.message,
+                "progress_percent": payload.percent,
+            },
+        )
         return TaskActionResponse(message="Progress updated")
 
     def append_log(self, *, attempt_id: str, machine_token: str, payload: TaskLogRequest) -> TaskActionResponse:
@@ -264,7 +320,7 @@ class TaskService:
         if task is None:
             raise AppError("task_not_found", "Задача не найдена.", 404)
 
-        self.task_repository.create_log_chunk(
+        log_chunk = self.task_repository.create_log_chunk(
             task_id=task.id,
             attempt_id=attempt.id,
             stream=payload.stream,
@@ -272,6 +328,19 @@ class TaskService:
             chunk=payload.chunk,
         )
         self.task_repository.commit()
+        self._publish_operator_event(
+            event_type="task_log_appended",
+            machine_id=task.machine_id,
+            task_id=task.id,
+            payload={
+                "task_id": task.id,
+                "attempt_id": attempt.id,
+                "stream": payload.stream.value,
+                "sequence": payload.sequence,
+                "message": payload.chunk,
+                "created_at": log_chunk.created_at.isoformat(),
+            },
+        )
         return TaskActionResponse(message="Log chunk saved")
 
     def complete_attempt(self, *, attempt_id: str, machine_token: str, payload: TaskResultRequest) -> CommandExecutionResultRead:
@@ -315,6 +384,30 @@ class TaskService:
             payload={"result_id": result.id},
         )
         self.result_repository.commit()
+        self._publish_operator_event(
+            event_type="task_finished",
+            machine_id=task.machine_id,
+            task_id=task.id,
+            payload={
+                "task_id": task.id,
+                "attempt_id": attempt.id,
+                "status": TaskStatus.SUCCEEDED.value,
+                "result_id": result.id,
+                "duration_ms": payload.duration_ms,
+                "exit_code": payload.exit_code,
+            },
+        )
+        self._publish_operator_event(
+            event_type="result_created",
+            machine_id=task.machine_id,
+            task_id=task.id,
+            payload={
+                "result_id": result.id,
+                "task_id": task.id,
+                "summary": summary,
+                "parser_kind": parser_kind.value,
+            },
+        )
         return self.result_service.get_result(result.id)
 
     def fail_attempt(self, *, attempt_id: str, machine_token: str, payload: TaskFailureRequest) -> TaskActionResponse:
@@ -333,7 +426,7 @@ class TaskService:
             stderr=payload.stderr,
             exit_code=1,
         )
-        self.result_repository.create_result(
+        result = self.result_repository.create_result(
             task_id=task.id,
             attempt_id=attempt.id,
             parser_kind=parser_kind,
@@ -360,6 +453,32 @@ class TaskService:
             payload={"error_kind": payload.error_kind.value},
         )
         self.result_repository.commit()
+        self._publish_operator_event(
+            event_type="task_finished",
+            machine_id=task.machine_id,
+            task_id=task.id,
+            payload={
+                "task_id": task.id,
+                "attempt_id": attempt.id,
+                "status": TaskStatus.FAILED.value,
+                "result_id": result.id,
+                "duration_ms": payload.duration_ms,
+                "exit_code": 1,
+                "error_kind": payload.error_kind.value,
+                "error_message": payload.error_message,
+            },
+        )
+        self._publish_operator_event(
+            event_type="result_created",
+            machine_id=task.machine_id,
+            task_id=task.id,
+            payload={
+                "result_id": result.id,
+                "task_id": task.id,
+                "summary": summary,
+                "parser_kind": parser_kind.value,
+            },
+        )
         return TaskActionResponse(message="Task failed")
 
     def retry_task(self, *, actor_user, task_id: str, client) -> TaskRead:
@@ -392,6 +511,17 @@ class TaskService:
             details={"task_id": task.id, "attempt_no": attempt.attempt_no},
         )
         self.task_repository.commit()
+        self._publish_operator_event(
+            event_type="task_updated",
+            machine_id=task.machine_id,
+            task_id=task.id,
+            payload={
+                "task_id": task.id,
+                "attempt_id": attempt.id,
+                "status": TaskStatus.QUEUED.value,
+                "attempt_no": attempt.attempt_no,
+            },
+        )
         return self._build_task_read(task)
 
     def cancel_task(self, *, actor_user, task_id: str, client) -> TaskCancelOutcome:
@@ -432,6 +562,17 @@ class TaskService:
             details={"task_id": task.id, "attempt_id": latest_attempt.id},
         )
         self.task_repository.commit()
+        self._publish_operator_event(
+            event_type="task_finished" if not notify_machine else "task_updated",
+            machine_id=task.machine_id,
+            task_id=task.id,
+            payload={
+                "task_id": task.id,
+                "attempt_id": latest_attempt.id,
+                "status": (TaskStatus.CANCELLED if not notify_machine else latest_attempt.status).value,
+                "message": "Task cancel requested" if notify_machine else "Task cancelled",
+            },
+        )
         return TaskCancelOutcome(
             response=TaskActionResponse(message="Task cancellation scheduled" if notify_machine else "Task cancelled"),
             should_notify_machine=notify_machine,
