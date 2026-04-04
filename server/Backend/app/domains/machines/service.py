@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from datetime import timedelta
 
 from app.core.exceptions import AppError
-from app.core.security import hash_token
+from app.core.security import generate_session_token, hash_token
 from app.domains.access.repository import AccessRepository
 from app.domains.machines.inventory import resolve_display_name
 from app.domains.machines.pairing import (
@@ -208,6 +208,43 @@ class MachineService:
         if machine is None:
             raise AppError("machine_unauthorized", "Токен машины недействителен.", 401)
         return machine
+
+    def get_agent_identity(self, *, machine_token: str):
+        return self.authenticate_machine(machine_token=machine_token)
+
+    def unpair_machine(self, *, machine_token: str, client) -> str:
+        machine = self.authenticate_machine(machine_token=machine_token)
+        machine.machine_token_hash = hash_token(generate_session_token(), purpose="machine_access")
+        machine.status = MachineStatus.OFFLINE
+        self.machine_repository.save(machine)
+
+        heartbeat = self.machine_repository.get_heartbeat(machine.id)
+        if heartbeat is not None:
+            heartbeat.last_seen_at = utc_now()
+            self.machine_repository.save(heartbeat)
+
+        record_audit_event(
+            self.machine_repository,
+            user_id=None,
+            action="machine.unpaired",
+            status=AuditStatus.SUCCESS,
+            ip_address=client.ip_address,
+            user_agent=client.user_agent,
+            details={"machine_id": machine.id, "hostname": machine.hostname},
+        )
+        self.machine_repository.commit()
+        self._publish_operator_event(
+            event_type="machine_status_changed",
+            machine_id=machine.id,
+            payload={
+                "machine_id": machine.id,
+                "status": machine.status.value,
+                "last_heartbeat_at": machine.last_heartbeat_at.isoformat() if machine.last_heartbeat_at else None,
+                "hostname": machine.hostname,
+                "os_family": machine.os_family.value,
+            },
+        )
+        return machine.id
 
     def apply_heartbeat(self, *, machine_token: str, payload: MachineHeartbeatRequest, client) -> MachineHeartbeatResponse:
         machine = self.authenticate_machine(machine_token=machine_token)

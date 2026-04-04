@@ -1,6 +1,7 @@
 from datetime import datetime
 
 from pydantic import BaseModel
+from app.shared.enums import MachineStatus, OperatingSystemFamily
 
 
 class AgentRegistrationStartResponse(BaseModel):
@@ -19,3 +20,19 @@ class AgentHeartbeatAck(BaseModel):
     status: str
     machine_id: str
     last_seen_at: datetime
+
+
+class AgentIdentityResponse(BaseModel):
+    machine_id: str
+    display_name: str
+    hostname: str
+    os_family: OperatingSystemFamily
+    os_version: str | None
+    status: MachineStatus
+    concurrency_limit: int
+    last_heartbeat_at: datetime | None
+
+
+class AgentUnpairResponse(BaseModel):
+    machine_id: str
+    message: str
