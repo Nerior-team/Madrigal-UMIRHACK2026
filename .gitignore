@@ -56,6 +56,9 @@ Desktop/**/out/
 Desktop/**/coverage/
 Desktop/**/.vite/
 Desktop/**/.turbo/
+!Desktop/daemon/dist/
+Desktop/daemon/dist/*
+!Desktop/daemon/dist/.gitkeep
 
 server/**/node_modules/
 server/**/dist/
@@ -65,3 +68,9 @@ server/**/.nuxt/
 server/**/coverage/
 server/**/.pytest_cache/
 server/**/__pycache__/
+server/downloads/windows/*
+server/downloads/linux/*
+!server/downloads/windows/
+!server/downloads/windows/.gitkeep
+!server/downloads/linux/
+!server/downloads/linux/.gitkeep
