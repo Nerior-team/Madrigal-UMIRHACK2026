@@ -31,6 +31,14 @@ class Settings(BaseSettings):
     auth_challenge_ttl_minutes: int = 10
     auth_reauth_ttl_minutes: int = 10
     auth_code_max_attempts: int = 5
+    auth_endpoint_rate_limit_window_seconds: int = 60
+    auth_endpoint_rate_limit_max_requests: int = 30
+    auth_login_lockout_threshold: int = 5
+    auth_login_lockout_seconds: int = 900
+    auth_totp_lockout_threshold: int = 5
+    auth_totp_lockout_seconds: int = 600
+    auth_reauth_lockout_threshold: int = 5
+    auth_reauth_lockout_seconds: int = 600
     machine_registration_ttl_minutes: int = 15
     machine_invite_ttl_hours: int = 72
 

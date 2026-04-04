@@ -9,6 +9,7 @@ from app.domains.auth import registration as registration_flow
 from app.domains.auth import telegram_2fa as telegram_flow
 from app.domains.auth import totp as totp_flow
 from app.domains.auth.repository import AuthRepository
+from app.domains.auth.throttle import AuthThrottleService
 from app.domains.auth.schemas import (
     AuthSessionResponse,
     ForgotPasswordRequest,
@@ -45,6 +46,7 @@ class AuthService:
     def __init__(self, repository: AuthRepository) -> None:
         self.repository = repository
         self.mailer = get_mail_transport()
+        self.throttle = AuthThrottleService()
 
     def register(self, payload: RegisterRequest, client: ClientContext) -> MessageResponse:
         user = registration_flow.register_user(
@@ -85,13 +87,20 @@ class AuthService:
         return response, None if issued is None else issued.access_token
 
     def login(self, payload: LoginRequest, client: ClientContext) -> tuple[AuthSessionResponse, str | None]:
-        response, issued = login_flow.login_user(
-            repository=self.repository,
-            payload=payload,
-            ip_address=client.ip_address,
-            user_agent=client.user_agent,
-            verify_password=verify_password,
-        )
+        self.throttle.ensure_login_allowed(email=payload.email, ip_address=client.ip_address)
+        try:
+            response, issued = login_flow.login_user(
+                repository=self.repository,
+                payload=payload,
+                ip_address=client.ip_address,
+                user_agent=client.user_agent,
+                verify_password=verify_password,
+            )
+        except AppError as exc:
+            if exc.code == "invalid_credentials":
+                self.throttle.record_login_failure(email=payload.email, ip_address=client.ip_address)
+            raise
+        self.throttle.clear_login_failures(email=payload.email, ip_address=client.ip_address)
         record_audit_event(
             self.repository,
             user_id=response.user.id,
@@ -105,13 +114,20 @@ class AuthService:
         return response, None if issued is None else issued.access_token
 
     def login_totp(self, payload: LoginTwoFactorRequest, client: ClientContext) -> tuple[AuthSessionResponse, str | None]:
-        response, issued = login_flow.complete_totp_login(
-            repository=self.repository,
-            payload=payload,
-            ip_address=client.ip_address,
-            user_agent=client.user_agent,
-            verify_totp_code=totp_flow.verify_totp_code,
-        )
+        self.throttle.ensure_totp_allowed(challenge_id=payload.challenge_id, ip_address=client.ip_address)
+        try:
+            response, issued = login_flow.complete_totp_login(
+                repository=self.repository,
+                payload=payload,
+                ip_address=client.ip_address,
+                user_agent=client.user_agent,
+                verify_totp_code=totp_flow.verify_totp_code,
+            )
+        except AppError as exc:
+            if exc.code == "totp_invalid":
+                self.throttle.record_totp_failure(challenge_id=payload.challenge_id, ip_address=client.ip_address)
+            raise
+        self.throttle.clear_totp_failures(challenge_id=payload.challenge_id, ip_address=client.ip_address)
         record_audit_event(
             self.repository,
             user_id=response.user.id,
@@ -284,6 +300,7 @@ class AuthService:
         telegram_flow.disable_telegram_setup()
 
     def reauth(self, *, user, payload: ReauthRequest, client: ClientContext) -> ReauthResponse:
+        self.throttle.ensure_reauth_allowed(user_id=user.id, ip_address=client.ip_address)
         settings = self.repository.get_or_create_two_factor_settings(user.id)
         verified = False
         method = TwoFactorMethod.PASSWORD if payload.password else TwoFactorMethod.TOTP
@@ -294,6 +311,7 @@ class AuthService:
             verified = totp_flow.verify_totp_code(repository=self.repository, user_id=user.id, code=payload.totp_code)
 
         if not verified:
+            self.throttle.record_reauth_failure(user_id=user.id, ip_address=client.ip_address)
             raise AppError("reauth_failed", "Не удалось подтвердить личность.", 401)
 
         raw_token = generate_session_token()
@@ -313,4 +331,5 @@ class AuthService:
             user_agent=client.user_agent,
         )
         self.repository.commit()
+        self.throttle.clear_reauth_failures(user_id=user.id, ip_address=client.ip_address)
         return ReauthResponse(reauth_token=raw_token, expires_at=challenge.expires_at)

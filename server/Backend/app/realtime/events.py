@@ -49,6 +49,20 @@ def task_cancel_event(*, machine_id: str, task_id: str, attempt_id: str) -> Real
     )
 
 
+def config_updated_event(*, machine_id: str, reason: str) -> RealtimeEvent:
+    return RealtimeEvent(
+        type="config_updated",
+        payload={"machine_id": machine_id, "reason": reason},
+    )
+
+
+def access_revoked_event(*, machine_id: str, reason: str) -> RealtimeEvent:
+    return RealtimeEvent(
+        type="access_revoked",
+        payload={"machine_id": machine_id, "reason": reason},
+    )
+
+
 def operator_event(
     *,
     event_type: str,

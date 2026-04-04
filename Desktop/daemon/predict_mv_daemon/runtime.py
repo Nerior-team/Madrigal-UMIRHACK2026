@@ -80,6 +80,19 @@ class DaemonRuntime:
             return
         if event_type == "task_cancel":
             await self._cancel_attempt(payload.get("attempt_id"))
+            return
+        if event_type == "config_updated":
+            await asyncio.to_thread(self.api_client.get_agent_identity, machine_token=self.state.machine_token)
+            self.claim_event.set()
+            return
+        if event_type == "access_revoked":
+            await self._shutdown_running_attempts()
+            self.stop_event.set()
+
+    async def _shutdown_running_attempts(self) -> None:
+        for handle in list(self.active_attempts.values()):
+            handle.cancel_requested = True
+            await terminate_process(handle.process)
 
     async def _claim_loop(self) -> None:
         while not self.stop_event.is_set():

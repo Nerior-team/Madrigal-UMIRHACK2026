@@ -29,6 +29,7 @@ from app.domains.machines.schemas import (
 from app.infra.observability.audit import record_audit_event
 from app.realtime.broker import operator_feed
 from app.realtime.events import operator_event
+from app.realtime.task_stream import notify_access_revoked
 from app.shared.enums import AuditStatus, MachineAccessRole, MachineStatus
 from app.shared.time import has_expired, utc_now
 
@@ -214,6 +215,7 @@ class MachineService:
 
     def unpair_machine(self, *, machine_token: str, client) -> str:
         machine = self.authenticate_machine(machine_token=machine_token)
+        notify_access_revoked(machine_id=machine.id, reason="machine_unpaired")
         machine.machine_token_hash = hash_token(generate_session_token(), purpose="machine_access")
         machine.status = MachineStatus.OFFLINE
         self.machine_repository.save(machine)

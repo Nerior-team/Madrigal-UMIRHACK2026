@@ -26,6 +26,7 @@ from app.domains.commands.validation import (
 )
 from app.domains.machines.repository import MachineRepository
 from app.infra.observability.audit import record_audit_event
+from app.realtime.task_stream import notify_config_updated
 from app.shared.enums import AuditStatus, AuthChallengeKind, TaskKind
 from app.shared.time import utc_now
 
@@ -178,6 +179,7 @@ class CommandService:
             details={"machine_id": machine_id, "template_key": template.template_key},
         )
         self.command_repository.commit()
+        notify_config_updated(machine_id=machine_id, reason="command_templates_changed")
         return self._build_template_read(template, is_builtin=False)
 
     def update_custom_template(
@@ -228,6 +230,7 @@ class CommandService:
             details={"machine_id": machine_id, "template_key": template.template_key},
         )
         self.command_repository.commit()
+        notify_config_updated(machine_id=machine_id, reason="command_templates_changed")
         return self._build_template_read(template, is_builtin=False)
 
     def delete_custom_template(self, *, machine_id: str, template_id: str, actor_user, client) -> None:
@@ -252,6 +255,7 @@ class CommandService:
             details={"machine_id": machine_id, "template_key": template_key},
         )
         self.command_repository.commit()
+        notify_config_updated(machine_id=machine_id, reason="command_templates_changed")
 
     def reset_custom_templates(
         self,
@@ -282,6 +286,7 @@ class CommandService:
             details={"machine_id": machine_id, "removed_count": removed},
         )
         self.command_repository.commit()
+        notify_config_updated(machine_id=machine_id, reason="command_templates_changed")
         return removed
 
     def render_template_for_machine(

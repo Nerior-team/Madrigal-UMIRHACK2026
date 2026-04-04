@@ -16,5 +16,6 @@ RUN pip install --no-cache-dir \
     python-multipart
 
 COPY app ./app
+RUN find /app/app -maxdepth 1 -name '_tmp_verify*' -delete
 
 CMD ["python", "-m", "app.main"]
