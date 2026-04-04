@@ -8,7 +8,10 @@ daemon_root = Path(SPECPATH).resolve().parent
 candidate_cli_roots = [daemon_root / "daemon-cli", daemon_root.parent / "daemon-cli"]
 cli_root = next((path for path in candidate_cli_roots if path.exists()), candidate_cli_roots[0])
 icon_path = daemon_root / "assets" / "logo.ico"
-runtime_tmpdir = str(Path(os.environ.get("PROGRAMDATA", r"C:\ProgramData")) / "PredictMV" / "tmp")
+if os.name == "nt":
+    runtime_tmpdir = str(Path(os.environ.get("PROGRAMDATA", r"C:\ProgramData")) / "PredictMV" / "tmp")
+else:
+    runtime_tmpdir = str(Path("/var/tmp") / "PredictMV" / "tmp")
 
 a = Analysis(
     [str(cli_root / "main.py")],

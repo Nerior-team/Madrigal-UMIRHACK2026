@@ -70,6 +70,49 @@ cleanup() {
 }
 trap cleanup EXIT
 
+version_ge() {
+  local current="$1"
+  local required="$2"
+  [[ "$(printf '%s\n%s\n' "${required}" "${current}" | sort -V | head -n1)" == "${required}" ]]
+}
+
+detect_glibc_version() {
+  if command -v getconf >/dev/null 2>&1; then
+    local version
+    version="$(getconf GNU_LIBC_VERSION 2>/dev/null | awk '{print $2}')"
+    if [[ -n "${version}" ]]; then
+      echo "${version}"
+      return
+    fi
+  fi
+
+  if command -v ldd >/dev/null 2>&1; then
+    local version
+    version="$(ldd --version 2>&1 | head -n1 | grep -oE '[0-9]+\.[0-9]+' | head -n1 || true)"
+    if [[ -n "${version}" ]]; then
+      echo "${version}"
+      return
+    fi
+  fi
+
+  echo ""
+}
+
+ensure_runtime_compatibility() {
+  local glibc_version
+  glibc_version="$(detect_glibc_version)"
+
+  if [[ -z "${glibc_version}" ]]; then
+    echo "Unable to determine glibc version. PredictMV requires glibc 2.28+." >&2
+    exit 1
+  fi
+
+  if ! version_ge "${glibc_version}" "2.28"; then
+    echo "Unsupported glibc version ${glibc_version}. PredictMV requires glibc 2.28+." >&2
+    exit 1
+  fi
+}
+
 download_archive() {
   if [[ -n "${ARCHIVE_PATH}" ]]; then
     cp "${ARCHIVE_PATH}" "${ARCHIVE_TMP}"
@@ -113,6 +156,7 @@ ensure_service_user() {
 }
 
 download_archive
+ensure_runtime_compatibility
 ensure_service_user
 
 mkdir -p "${INSTALL_DIR}" "${STATE_DIR}/config" "${LOG_DIR}" "${SYSTEMD_DIR}"

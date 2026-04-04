@@ -7,7 +7,10 @@ from PyInstaller.utils.hooks import collect_submodules
 
 daemon_root = Path(SPECPATH).resolve().parent
 icon_path = daemon_root / "assets" / "logo.ico"
-runtime_tmpdir = str(Path(os.environ.get("PROGRAMDATA", r"C:\ProgramData")) / "PredictMV" / "tmp")
+if os.name == "nt":
+    runtime_tmpdir = str(Path(os.environ.get("PROGRAMDATA", r"C:\ProgramData")) / "PredictMV" / "tmp")
+else:
+    runtime_tmpdir = str(Path("/var/tmp") / "PredictMV" / "tmp")
 
 a = Analysis(
     [str(daemon_root / "main.py")],
