@@ -5,6 +5,7 @@ WORKDIR /app
 RUN pip install --no-cache-dir \
     fastapi \
     uvicorn \
+    websockets \
     pydantic-settings \
     sqlalchemy \
     psycopg[binary] \
