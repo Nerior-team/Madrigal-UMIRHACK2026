@@ -29,6 +29,7 @@ ArchitecturesInstallIn64BitMode=x64compatible
 PrivilegesRequired=admin
 WizardStyle=modern
 UninstallDisplayIcon={app}\predict-mv-daemon.exe
+ChangesEnvironment=yes
 
 [Dirs]
 Name: "{commonappdata}\PredictMV"
@@ -64,4 +65,92 @@ begin
     Exec(ExistingServiceExe, 'uninstall', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
   end;
   Result := '';
+end;
+
+function PathContainsItem(Paths: string; Item: string): Boolean;
+var
+  Search: string;
+begin
+  Search := ';' + Lowercase(Paths) + ';';
+  Result := Pos(';' + Lowercase(Item) + ';', Search) > 0;
+end;
+
+procedure AddAppToSystemPath();
+var
+  Paths: string;
+  NewPaths: string;
+begin
+  if not RegQueryStringValue(HKLM, 'SYSTEM\CurrentControlSet\Control\Session Manager\Environment', 'Path', Paths) then
+    Paths := '';
+
+  if PathContainsItem(Paths, ExpandConstant('{app}')) then
+    exit;
+
+  if Paths = '' then
+    NewPaths := ExpandConstant('{app}')
+  else
+    NewPaths := Paths + ';' + ExpandConstant('{app}');
+
+  RegWriteExpandStringValue(
+    HKLM,
+    'SYSTEM\CurrentControlSet\Control\Session Manager\Environment',
+    'Path',
+    NewPaths
+  );
+end;
+
+procedure RemoveAppFromSystemPath();
+var
+  Paths: string;
+  RemainingPaths: string;
+  Item: string;
+  NewPaths: string;
+  SeparatorPos: Integer;
+begin
+  if not RegQueryStringValue(HKLM, 'SYSTEM\CurrentControlSet\Control\Session Manager\Environment', 'Path', Paths) then
+    exit;
+
+  RemainingPaths := Paths;
+  NewPaths := '';
+  while RemainingPaths <> '' do
+  begin
+    SeparatorPos := Pos(';', RemainingPaths);
+    if SeparatorPos > 0 then
+    begin
+      Item := Trim(Copy(RemainingPaths, 1, SeparatorPos - 1));
+      Delete(RemainingPaths, 1, SeparatorPos);
+    end
+    else
+    begin
+      Item := Trim(RemainingPaths);
+      RemainingPaths := '';
+    end;
+
+    if (Item = '') or (CompareText(Item, ExpandConstant('{app}')) = 0) then
+      continue;
+
+    if NewPaths = '' then
+      NewPaths := Item
+    else
+      NewPaths := NewPaths + ';' + Item;
+  end;
+
+  RegWriteExpandStringValue(
+    HKLM,
+    'SYSTEM\CurrentControlSet\Control\Session Manager\Environment',
+    'Path',
+    NewPaths
+  );
+end;
+
+procedure CurStepChanged(CurStep: TSetupStep);
+begin
+  if CurStep = ssPostInstall then
+    AddAppToSystemPath();
+end;
+
+procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+begin
+  if CurUninstallStep = usUninstall then
+    RemoveAppFromSystemPath();
 end;
