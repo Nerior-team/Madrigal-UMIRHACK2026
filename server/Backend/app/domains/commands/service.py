@@ -2,11 +2,14 @@ from dataclasses import dataclass
 
 from app.core.exceptions import AppError
 from app.core.ids import generate_prefixed_id
+from app.core.security import hash_token
 from app.domains.access.repository import AccessRepository
 from app.domains.access.roles import ensure_can_manage_commands, ensure_can_run_tasks
+from app.domains.auth.repository import AuthRepository
 from app.domains.commands.repository import CommandRepository
 from app.domains.commands.runners import get_builtin_template, list_builtin_templates
 from app.domains.commands.schemas import (
+    CommandTemplatesResetRequest,
     MachineCommandTemplateCreateRequest,
     MachineCommandTemplateParameterRead,
     MachineCommandTemplateRead,
@@ -23,7 +26,8 @@ from app.domains.commands.validation import (
 )
 from app.domains.machines.repository import MachineRepository
 from app.infra.observability.audit import record_audit_event
-from app.shared.enums import AuditStatus, TaskKind
+from app.shared.enums import AuditStatus, AuthChallengeKind, TaskKind
+from app.shared.time import utc_now
 
 
 @dataclass(slots=True)
@@ -44,10 +48,12 @@ class CommandService:
         *,
         access_repository: AccessRepository,
         machine_repository: MachineRepository,
+        auth_repository: AuthRepository | None = None,
         command_repository: CommandRepository | None = None,
     ) -> None:
         self.access_repository = access_repository
         self.machine_repository = machine_repository
+        self.auth_repository = auth_repository
         self.command_repository = command_repository or CommandRepository(machine_repository.db)
 
     def _require_machine(self, machine_id: str):
@@ -62,6 +68,19 @@ class CommandService:
             raise AppError("machine_access_denied", "Доступ к машине запрещён.", 403)
         ownership = self.access_repository.get_ownership(machine_id)
         return access, ownership
+
+    def _require_valid_reauth(self, *, user_id: str, reauth_token: str) -> None:
+        if self.auth_repository is None:
+            raise RuntimeError("Auth repository is required for re-auth guarded command actions")
+        challenge = self.auth_repository.get_valid_auth_challenge_by_payload_hash(
+            user_id=user_id,
+            challenge_kind=AuthChallengeKind.REAUTH,
+            payload_hash=hash_token(reauth_token, purpose="reauth"),
+        )
+        if challenge is None:
+            raise AppError("reauth_required", "Требуется повторное подтверждение личности.", 401)
+        challenge.consumed_at = utc_now()
+        self.auth_repository.save(challenge)
 
     def _build_parameter_reads(self, parameters_schema: list[dict] | None) -> list[MachineCommandTemplateParameterRead]:
         return [
@@ -234,13 +253,21 @@ class CommandService:
         )
         self.command_repository.commit()
 
-    def reset_custom_templates(self, *, machine_id: str, actor_user, client) -> int:
+    def reset_custom_templates(
+        self,
+        *,
+        machine_id: str,
+        actor_user,
+        payload: CommandTemplatesResetRequest,
+        client,
+    ) -> int:
         self._require_machine(machine_id)
         access, ownership = self._require_access(machine_id=machine_id, actor_user_id=actor_user.id)
         ensure_can_manage_commands(
             actor_role=access.role,
             actor_is_creator_owner=ownership is not None and ownership.creator_user_id == actor_user.id,
         )
+        self._require_valid_reauth(user_id=actor_user.id, reauth_token=payload.reauth_token)
         removed = 0
         for template in self.command_repository.list_machine_templates(machine_id):
             self.command_repository.delete_machine_template(template)

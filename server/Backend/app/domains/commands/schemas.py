@@ -31,6 +31,10 @@ class MachineCommandTemplateUpdateRequest(BaseModel):
     is_enabled: bool | None = None
 
 
+class CommandTemplatesResetRequest(BaseModel):
+    reauth_token: str = Field(min_length=16, max_length=512)
+
+
 class MachineCommandTemplateParameterRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

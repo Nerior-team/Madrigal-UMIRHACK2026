@@ -4,10 +4,12 @@ from datetime import timedelta
 from app.core.config import get_settings
 from app.core.exceptions import AppError
 from app.core.security import generate_session_token, hash_token, normalize_email
+from app.domains.auth.repository import AuthRepository
 from app.domains.access.invites import build_invite_message
 from app.domains.access.repository import AccessRepository
 from app.domains.access.roles import ensure_can_grant_role, ensure_can_manage_access, ensure_can_view_machine
 from app.domains.access.schemas import (
+    MachineAccessRevokeRequest,
     MachineAccessEntryRead,
     MachineInviteAcceptResponse,
     MachineInviteCreateRequest,
@@ -22,7 +24,7 @@ from app.infra.email.client import get_mail_transport
 from app.infra.observability.audit import record_audit_event
 from app.realtime.broker import operator_feed
 from app.realtime.events import operator_event
-from app.shared.enums import AuditStatus, MachineInviteStatus
+from app.shared.enums import AuditStatus, AuthChallengeKind, MachineInviteStatus
 from app.shared.time import utc_now
 
 
@@ -35,9 +37,15 @@ class AccessContext:
 
 
 class AccessService:
-    def __init__(self, access_repository: AccessRepository, machine_repository: MachineRepository) -> None:
+    def __init__(
+        self,
+        access_repository: AccessRepository,
+        machine_repository: MachineRepository,
+        auth_repository: AuthRepository,
+    ) -> None:
         self.access_repository = access_repository
         self.machine_repository = machine_repository
+        self.auth_repository = auth_repository
         self.mailer = get_mail_transport()
 
     def _publish_operator_event(self, *, event_type: str, machine_id: str, payload: dict) -> None:
@@ -87,6 +95,17 @@ class AccessService:
                 self.access_repository.commit()
             raise
 
+    def _require_valid_reauth(self, *, user_id: str, reauth_token: str) -> None:
+        challenge = self.auth_repository.get_valid_auth_challenge_by_payload_hash(
+            user_id=user_id,
+            challenge_kind=AuthChallengeKind.REAUTH,
+            payload_hash=hash_token(reauth_token, purpose="reauth"),
+        )
+        if challenge is None:
+            raise AppError("reauth_required", "Требуется повторное подтверждение личности.", 401)
+        challenge.consumed_at = utc_now()
+        self.auth_repository.save(challenge)
+
     def list_access(self, *, machine_id: str, actor_user_id: str) -> list[MachineAccessEntryRead]:
         context = self._get_context(machine_id=machine_id, actor_user_id=actor_user_id)
         ensure_can_view_machine(context.actor_access.role)
@@ -114,6 +133,7 @@ class AccessService:
             actor_is_creator_owner=context.actor_is_creator_owner,
             requested_role=payload.role,
         )
+        self._require_valid_reauth(user_id=actor_user.id, reauth_token=payload.reauth_token)
 
         raw_token = generate_session_token()
         invite = self.access_repository.create_invite(
@@ -291,6 +311,7 @@ class AccessService:
             actor_is_creator_owner=context.actor_is_creator_owner,
             requested_role=payload.role,
         )
+        self._require_valid_reauth(user_id=actor_user.id, reauth_token=payload.reauth_token)
 
         target.role = payload.role
         self.access_repository.save(target)
@@ -325,7 +346,15 @@ class AccessService:
             creator_user_id=context.ownership.creator_user_id if context.ownership is not None else None,
         )
 
-    def revoke_access(self, *, machine_id: str, access_id: str, actor_user, client) -> MessageResponse:
+    def revoke_access(
+        self,
+        *,
+        machine_id: str,
+        access_id: str,
+        actor_user,
+        payload: MachineAccessRevokeRequest,
+        client,
+    ) -> MessageResponse:
         context = self._get_context(machine_id=machine_id, actor_user_id=actor_user.id)
         target = self.access_repository.get_access_by_id(access_id)
         if target is None or target.machine_id != machine_id:
@@ -339,6 +368,7 @@ class AccessService:
             target_role=target.role,
             target_is_creator_owner=context.ownership is not None and context.ownership.creator_user_id == target.user_id,
         )
+        self._require_valid_reauth(user_id=actor_user.id, reauth_token=payload.reauth_token)
 
         target.revoked_at = utc_now()
         self.access_repository.save(target)

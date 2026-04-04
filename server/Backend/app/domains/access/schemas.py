@@ -19,6 +19,7 @@ class MachineAccessEntryRead(BaseModel):
 class MachineInviteCreateRequest(BaseModel):
     email: EmailStr
     role: MachineAccessRole
+    reauth_token: str = Field(min_length=16, max_length=512)
 
 
 class MachineInviteRead(BaseModel):
@@ -46,6 +47,11 @@ class MachineInviteAcceptResponse(BaseModel):
 
 class MachineRoleUpdateRequest(BaseModel):
     role: MachineAccessRole
+    reauth_token: str = Field(min_length=16, max_length=512)
+
+
+class MachineAccessRevokeRequest(BaseModel):
+    reauth_token: str = Field(min_length=16, max_length=512)
 
 
 class MessageResponse(BaseModel):

@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.errors import install_error_handlers
 from app.api.router import api_router
 from app.core.config import get_settings
+from app.core.middleware import install_security_middleware
 from app.db.session import init_database
 
 
@@ -20,6 +21,7 @@ def create_app() -> FastAPI:
     settings = get_settings()
     app = FastAPI(title=settings.app_name, version=settings.app_version, lifespan=lifespan)
     install_error_handlers(app)
+    install_security_middleware(app)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.allowed_origins,

@@ -167,10 +167,10 @@ class ExternalApiService:
         return self._build_key_read(api_key)
 
     def create_api_key(self, *, actor_user, payload: ApiKeyCreateRequest, client: ExternalApiClientContext) -> ApiKeyCreateResponse:
-        self._require_valid_reauth(user_id=actor_user.id, reauth_token=payload.reauth_token)
         machine_ids = self._normalize_machine_ids(payload.machine_ids)
         self._validate_machine_scope(actor_user_id=actor_user.id, machine_ids=machine_ids)
         template_keys = self._validate_template_scope(machine_ids=machine_ids, template_keys=payload.allowed_template_keys)
+        self._require_valid_reauth(user_id=actor_user.id, reauth_token=payload.reauth_token)
         usage_limit, expires_at = self._expiry_settings(payload.expiry_preset)
 
         secret = generate_api_key_secret()
@@ -211,10 +211,10 @@ class ExternalApiService:
         )
 
     def revoke_api_key(self, *, actor_user, key_id: str, reauth_token: str, client: ExternalApiClientContext) -> None:
-        self._require_valid_reauth(user_id=actor_user.id, reauth_token=reauth_token)
         api_key = self.external_api_repository.get_api_key_for_user(key_id=key_id, owner_user_id=actor_user.id)
         if api_key is None:
             raise AppError("api_key_not_found", "API-ключ не найден.", 404)
+        self._require_valid_reauth(user_id=actor_user.id, reauth_token=reauth_token)
         api_key.revoked_at = utc_now()
         self.external_api_repository.save(api_key)
         record_audit_event(

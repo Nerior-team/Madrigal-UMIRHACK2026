@@ -3,6 +3,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends
 
 from app.api.deps import build_client_context, get_access_repository, get_current_user, get_machine_repository
+from app.api.deps import get_repository
 from app.domains.access.repository import AccessRepository
 from app.domains.access.schemas import (
     MachineInviteAcceptResponse,
@@ -11,6 +12,7 @@ from app.domains.access.schemas import (
     MachineInviteRead,
 )
 from app.domains.access.service import AccessService
+from app.domains.auth.repository import AuthRepository
 from app.domains.machines.repository import MachineRepository
 
 router = APIRouter(tags=["invites"])
@@ -24,8 +26,9 @@ def create_machine_invite(
     client=Depends(build_client_context),
     access_repository: Annotated[AccessRepository, Depends(get_access_repository)] = None,
     machine_repository: Annotated[MachineRepository, Depends(get_machine_repository)] = None,
+    auth_repository: Annotated[AuthRepository, Depends(get_repository)] = None,
 ):
-    return AccessService(access_repository, machine_repository).create_invite(
+    return AccessService(access_repository, machine_repository, auth_repository).create_invite(
         machine_id=machine_id,
         actor_user=current_user,
         payload=payload,
@@ -38,8 +41,9 @@ def get_invite_preview(
     invite_token: str,
     access_repository: Annotated[AccessRepository, Depends(get_access_repository)] = None,
     machine_repository: Annotated[MachineRepository, Depends(get_machine_repository)] = None,
+    auth_repository: Annotated[AuthRepository, Depends(get_repository)] = None,
 ):
-    return AccessService(access_repository, machine_repository).get_invite_preview(raw_token=invite_token)
+    return AccessService(access_repository, machine_repository, auth_repository).get_invite_preview(raw_token=invite_token)
 
 
 @router.post("/invites/{invite_token}/accept", response_model=MachineInviteAcceptResponse)
@@ -49,8 +53,9 @@ def accept_invite(
     client=Depends(build_client_context),
     access_repository: Annotated[AccessRepository, Depends(get_access_repository)] = None,
     machine_repository: Annotated[MachineRepository, Depends(get_machine_repository)] = None,
+    auth_repository: Annotated[AuthRepository, Depends(get_repository)] = None,
 ):
-    return AccessService(access_repository, machine_repository).accept_invite(
+    return AccessService(access_repository, machine_repository, auth_repository).accept_invite(
         raw_token=invite_token,
         actor_user=current_user,
         client=client,
