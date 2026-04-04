@@ -20,7 +20,7 @@ async def run() -> None:
     dispatcher = Dispatcher()
     backend_client = BackendClient(
         base_url=settings.backend_base_url,
-        telegram_secret=settings.telegram_webhook_secret,
+        signing_secret=settings.effective_telegram_internal_signing_secret,
     )
     state_store = BotStateStore.build(
         host=settings.redis_host,

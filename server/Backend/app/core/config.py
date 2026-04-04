@@ -12,6 +12,8 @@ class Settings(BaseSettings):
     backend_allowed_origins: str = "http://localhost:3000"
     backend_cookie_name: str = "predict_mv_session"
     backend_cookie_secure: bool = False
+    backend_csrf_cookie_name: str = "predict_mv_csrf"
+    backend_csrf_header_name: str = "X-CSRF-Token"
 
     postgres_host: str = "postgres"
     postgres_port: int = 5432
@@ -54,6 +56,8 @@ class Settings(BaseSettings):
     telegram_webhook_secret: str = "change_me"
     telegram_bot_username: str = "change_me"
     telegram_link_ttl_minutes: int = 15
+    telegram_internal_signing_secret: str | None = None
+    internal_request_ttl_seconds: int = 300
 
     data_encryption_key: str = "replace_with_fernet_key"
     api_key_pepper: str = "change_me"
@@ -67,6 +71,10 @@ class Settings(BaseSettings):
     @property
     def allowed_origins(self) -> list[str]:
         return [origin.strip() for origin in self.backend_allowed_origins.split(",") if origin.strip()]
+
+    @property
+    def effective_telegram_internal_signing_secret(self) -> str:
+        return (self.telegram_internal_signing_secret or self.telegram_webhook_secret).strip()
 
 
 @lru_cache(maxsize=1)

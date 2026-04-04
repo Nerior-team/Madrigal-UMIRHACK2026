@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Response, status
+from fastapi import APIRouter, Depends, Request, Response, status
 
 from app.api.deps import (
     build_client_context,
@@ -10,7 +10,7 @@ from app.api.deps import (
     get_repository,
 )
 from app.core.config import get_settings
-from app.core.security import access_token_ttl
+from app.core.security import access_token_ttl, generate_signed_csrf_token
 from app.domains.auth.repository import AuthRepository
 from app.domains.auth.schemas import (
     AuthSessionResponse,
@@ -47,7 +47,20 @@ def _set_web_cookie(response: Response, access_token: str) -> None:
         value=access_token,
         httponly=True,
         secure=settings.backend_cookie_secure,
-        samesite="lax",
+        samesite="strict",
+        path="/",
+        max_age=int(access_token_ttl().total_seconds()),
+    )
+
+
+def _set_csrf_cookie(response: Response) -> None:
+    settings = get_settings()
+    response.set_cookie(
+        key=settings.backend_csrf_cookie_name,
+        value=generate_signed_csrf_token(),
+        httponly=False,
+        secure=settings.backend_cookie_secure,
+        samesite="strict",
         path="/",
         max_age=int(access_token_ttl().total_seconds()),
     )
@@ -55,6 +68,7 @@ def _set_web_cookie(response: Response, access_token: str) -> None:
 
 def _clear_web_cookie(response: Response) -> None:
     response.delete_cookie(key=get_settings().backend_cookie_name, path="/")
+    response.delete_cookie(key=get_settings().backend_csrf_cookie_name, path="/")
 
 
 @router.post("/register", response_model=MessageResponse, status_code=status.HTTP_201_CREATED)
@@ -76,6 +90,7 @@ def verify_email(
     auth_response, access_token = AuthService(repository).verify_email(payload, client)
     if payload.client_kind == SessionKind.WEB and access_token:
         _set_web_cookie(response, access_token)
+        _set_csrf_cookie(response)
     return auth_response
 
 
@@ -89,6 +104,7 @@ def login(
     auth_response, access_token = AuthService(repository).login(payload, client)
     if payload.client_kind == SessionKind.WEB and access_token:
         _set_web_cookie(response, access_token)
+        _set_csrf_cookie(response)
     return auth_response
 
 
@@ -102,6 +118,7 @@ def login_totp(
     auth_response, access_token = AuthService(repository).login_totp(payload, client)
     if payload.client_kind == SessionKind.WEB and access_token:
         _set_web_cookie(response, access_token)
+        _set_csrf_cookie(response)
     return auth_response
 
 
@@ -115,6 +132,7 @@ def login_telegram(
     auth_response, access_token = AuthService(repository).login_telegram(payload, client)
     if payload.client_kind == SessionKind.WEB and access_token:
         _set_web_cookie(response, access_token)
+        _set_csrf_cookie(response)
     return auth_response
 
 
@@ -132,10 +150,17 @@ def logout(
 
 @router.get("/me", response_model=MeResponse)
 def me(
+    request: Request,
+    response: Response,
     repository: Annotated[AuthRepository, Depends(get_repository)],
     current_user=Depends(get_current_user),
     current_session=Depends(get_current_session),
 ):
+    if (
+        current_session.session_kind == SessionKind.WEB
+        and request.cookies.get(get_settings().backend_csrf_cookie_name) is None
+    ):
+        _set_csrf_cookie(response)
     return AuthService(repository).me(user=current_user, session=current_session)
 
 
@@ -158,6 +183,7 @@ def refresh(
     auth_response, access_token = AuthService(repository).refresh(payload, client)
     if auth_response.session_kind == SessionKind.WEB and access_token:
         _set_web_cookie(response, access_token)
+        _set_csrf_cookie(response)
     return auth_response
 
 

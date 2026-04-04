@@ -11,7 +11,7 @@ from app.api.deps import (
     get_result_repository,
     get_task_repository,
     get_telegram_repository,
-    require_telegram_internal_secret,
+    require_telegram_internal_signature,
 )
 from app.domains.access.repository import AccessRepository
 from app.domains.auth.repository import AuthRepository
@@ -68,7 +68,7 @@ def _build_service(
     )
 
 
-@router.post("/bot/start", response_model=TelegramBotStartResponse, dependencies=[Depends(require_telegram_internal_secret)])
+@router.post("/bot/start", response_model=TelegramBotStartResponse, dependencies=[Depends(require_telegram_internal_signature)])
 def bot_start(
     payload: TelegramBotStartRequest,
     auth_repository: Annotated[AuthRepository, Depends(get_repository)] = None,
@@ -95,7 +95,7 @@ def bot_start(
     )
 
 
-@router.get("/bot/users/{telegram_user_id}/profile", response_model=TelegramBotProfileRead, dependencies=[Depends(require_telegram_internal_secret)])
+@router.get("/bot/users/{telegram_user_id}/profile", response_model=TelegramBotProfileRead, dependencies=[Depends(require_telegram_internal_signature)])
 def get_bot_profile(
     telegram_user_id: str,
     auth_repository: Annotated[AuthRepository, Depends(get_repository)] = None,
@@ -119,7 +119,7 @@ def get_bot_profile(
     ).get_bot_profile(telegram_user_id=telegram_user_id)
 
 
-@router.get("/bot/users/{telegram_user_id}/machines", response_model=TelegramBotMachinesResponse, dependencies=[Depends(require_telegram_internal_secret)])
+@router.get("/bot/users/{telegram_user_id}/machines", response_model=TelegramBotMachinesResponse, dependencies=[Depends(require_telegram_internal_signature)])
 def list_bot_machines(
     telegram_user_id: str,
     auth_repository: Annotated[AuthRepository, Depends(get_repository)] = None,
@@ -143,7 +143,7 @@ def list_bot_machines(
     ).list_bot_machines(telegram_user_id=telegram_user_id)
 
 
-@router.get("/bot/users/{telegram_user_id}/machines/{machine_id}", response_model=TelegramBotMachineDetailResponse, dependencies=[Depends(require_telegram_internal_secret)])
+@router.get("/bot/users/{telegram_user_id}/machines/{machine_id}", response_model=TelegramBotMachineDetailResponse, dependencies=[Depends(require_telegram_internal_signature)])
 def get_bot_machine(
     telegram_user_id: str,
     machine_id: str,
@@ -168,7 +168,7 @@ def get_bot_machine(
     ).get_bot_machine(telegram_user_id=telegram_user_id, machine_id=machine_id)
 
 
-@router.get("/bot/users/{telegram_user_id}/machines/{machine_id}/commands", response_model=TelegramBotCommandsResponse, dependencies=[Depends(require_telegram_internal_secret)])
+@router.get("/bot/users/{telegram_user_id}/machines/{machine_id}/commands", response_model=TelegramBotCommandsResponse, dependencies=[Depends(require_telegram_internal_signature)])
 def list_bot_commands(
     telegram_user_id: str,
     machine_id: str,
@@ -193,7 +193,7 @@ def list_bot_commands(
     ).list_bot_commands(telegram_user_id=telegram_user_id, machine_id=machine_id)
 
 
-@router.get("/bot/users/{telegram_user_id}/machines/{machine_id}/tasks", response_model=TelegramBotTasksResponse, dependencies=[Depends(require_telegram_internal_secret)])
+@router.get("/bot/users/{telegram_user_id}/machines/{machine_id}/tasks", response_model=TelegramBotTasksResponse, dependencies=[Depends(require_telegram_internal_signature)])
 def list_bot_tasks(
     telegram_user_id: str,
     machine_id: str,
@@ -218,7 +218,7 @@ def list_bot_tasks(
     ).list_bot_tasks(telegram_user_id=telegram_user_id, machine_id=machine_id)
 
 
-@router.post("/bot/users/{telegram_user_id}/tasks", response_model=TelegramBotTaskDetailResponse, dependencies=[Depends(require_telegram_internal_secret)])
+@router.post("/bot/users/{telegram_user_id}/tasks", response_model=TelegramBotTaskDetailResponse, dependencies=[Depends(require_telegram_internal_signature)])
 async def create_bot_task(
     telegram_user_id: str,
     payload: TelegramBotTaskCreateRequest,
@@ -251,7 +251,7 @@ async def create_bot_task(
     return task
 
 
-@router.get("/bot/users/{telegram_user_id}/tasks/{task_id}", response_model=TelegramBotTaskDetailResponse, dependencies=[Depends(require_telegram_internal_secret)])
+@router.get("/bot/users/{telegram_user_id}/tasks/{task_id}", response_model=TelegramBotTaskDetailResponse, dependencies=[Depends(require_telegram_internal_signature)])
 def get_bot_task(
     telegram_user_id: str,
     task_id: str,
@@ -276,7 +276,7 @@ def get_bot_task(
     ).get_bot_task(telegram_user_id=telegram_user_id, task_id=task_id)
 
 
-@router.get("/bot/users/{telegram_user_id}/tasks/{task_id}/logs", response_model=TelegramBotTaskLogsResponse, dependencies=[Depends(require_telegram_internal_secret)])
+@router.get("/bot/users/{telegram_user_id}/tasks/{task_id}/logs", response_model=TelegramBotTaskLogsResponse, dependencies=[Depends(require_telegram_internal_signature)])
 def get_bot_task_logs(
     telegram_user_id: str,
     task_id: str,
@@ -301,7 +301,7 @@ def get_bot_task_logs(
     ).get_bot_task_logs(telegram_user_id=telegram_user_id, task_id=task_id)
 
 
-@router.post("/bot/users/{telegram_user_id}/tasks/{task_id}/retry", response_model=TelegramBotTaskDetailResponse, dependencies=[Depends(require_telegram_internal_secret)])
+@router.post("/bot/users/{telegram_user_id}/tasks/{task_id}/retry", response_model=TelegramBotTaskDetailResponse, dependencies=[Depends(require_telegram_internal_signature)])
 async def retry_bot_task(
     telegram_user_id: str,
     task_id: str,
@@ -334,7 +334,7 @@ async def retry_bot_task(
     return task
 
 
-@router.post("/bot/users/{telegram_user_id}/tasks/{task_id}/cancel", response_model=TelegramBotDecisionResponse, dependencies=[Depends(require_telegram_internal_secret)])
+@router.post("/bot/users/{telegram_user_id}/tasks/{task_id}/cancel", response_model=TelegramBotDecisionResponse, dependencies=[Depends(require_telegram_internal_signature)])
 async def cancel_bot_task(
     telegram_user_id: str,
     task_id: str,
@@ -371,7 +371,7 @@ async def cancel_bot_task(
     return response
 
 
-@router.get("/bot/users/{telegram_user_id}/machines/{machine_id}/results", response_model=TelegramBotResultsResponse, dependencies=[Depends(require_telegram_internal_secret)])
+@router.get("/bot/users/{telegram_user_id}/machines/{machine_id}/results", response_model=TelegramBotResultsResponse, dependencies=[Depends(require_telegram_internal_signature)])
 def list_bot_results(
     telegram_user_id: str,
     machine_id: str,
@@ -396,7 +396,7 @@ def list_bot_results(
     ).list_bot_results(telegram_user_id=telegram_user_id, machine_id=machine_id)
 
 
-@router.get("/bot/users/{telegram_user_id}/results/{result_id}", response_model=TelegramBotResultDetailResponse, dependencies=[Depends(require_telegram_internal_secret)])
+@router.get("/bot/users/{telegram_user_id}/results/{result_id}", response_model=TelegramBotResultDetailResponse, dependencies=[Depends(require_telegram_internal_signature)])
 def get_bot_result(
     telegram_user_id: str,
     result_id: str,
@@ -421,7 +421,7 @@ def get_bot_result(
     ).get_bot_result(telegram_user_id=telegram_user_id, result_id=result_id)
 
 
-@router.get("/bot/challenges/pending", response_model=list[TelegramBotAuthPromptRead], dependencies=[Depends(require_telegram_internal_secret)])
+@router.get("/bot/challenges/pending", response_model=list[TelegramBotAuthPromptRead], dependencies=[Depends(require_telegram_internal_signature)])
 def list_pending_challenges(
     auth_repository: Annotated[AuthRepository, Depends(get_repository)] = None,
     telegram_repository: Annotated[TelegramRepository, Depends(get_telegram_repository)] = None,
@@ -444,7 +444,7 @@ def list_pending_challenges(
     ).list_pending_auth_prompts()
 
 
-@router.post("/bot/challenges/{challenge_id}/notified", response_model=TelegramBotDecisionResponse, dependencies=[Depends(require_telegram_internal_secret)])
+@router.post("/bot/challenges/{challenge_id}/notified", response_model=TelegramBotDecisionResponse, dependencies=[Depends(require_telegram_internal_signature)])
 def mark_challenge_notified(
     challenge_id: str,
     payload: TelegramBotPromptNotificationRequest,
@@ -475,7 +475,7 @@ def mark_challenge_notified(
     return TelegramBotDecisionResponse(message="ok")
 
 
-@router.post("/bot/challenges/{challenge_id}/approve", response_model=TelegramBotDecisionResponse, dependencies=[Depends(require_telegram_internal_secret)])
+@router.post("/bot/challenges/{challenge_id}/approve", response_model=TelegramBotDecisionResponse, dependencies=[Depends(require_telegram_internal_signature)])
 def approve_challenge(
     challenge_id: str,
     payload: TelegramBotDecisionRequest,
@@ -504,7 +504,7 @@ def approve_challenge(
     )
 
 
-@router.post("/bot/challenges/{challenge_id}/reject", response_model=TelegramBotDecisionResponse, dependencies=[Depends(require_telegram_internal_secret)])
+@router.post("/bot/challenges/{challenge_id}/reject", response_model=TelegramBotDecisionResponse, dependencies=[Depends(require_telegram_internal_signature)])
 def reject_challenge(
     challenge_id: str,
     payload: TelegramBotDecisionRequest,

@@ -1,3 +1,5 @@
+import hmac
+import time
 from dataclasses import dataclass
 from typing import Annotated
 
@@ -12,12 +14,14 @@ from app.domains.access.repository import AccessRepository
 from app.domains.auth.repository import AuthRepository
 from app.domains.commands.repository import CommandRepository
 from app.domains.integrations.external_api.repository import ExternalApiRepository
-from app.domains.integrations.telegram.repository import TelegramRepository
 from app.domains.integrations.external_api.service import ExternalApiClientContext, ExternalApiService
+from app.domains.integrations.telegram.repository import TelegramRepository
 from app.domains.machines.repository import MachineRepository
 from app.domains.reports.repository import ReportsRepository
 from app.domains.results.repository import ResultRepository
 from app.domains.tasks.repository import TaskRepository
+from app.infra.crypto.request_signing import build_request_target, sign_request
+from app.infra.redis import limits as redis_limits
 from app.shared.time import utc_now
 
 
@@ -163,9 +167,37 @@ def get_external_api_principal(
     ).authenticate_api_key(raw_key=raw_key, client=client)
 
 
-def require_telegram_internal_secret(
-    telegram_secret: Annotated[str | None, Header(alias="X-Telegram-Secret")] = None,
+async def require_telegram_internal_signature(
+    request: Request,
+    timestamp: Annotated[str | None, Header(alias="X-Internal-Timestamp")] = None,
+    nonce: Annotated[str | None, Header(alias="X-Internal-Nonce")] = None,
+    signature: Annotated[str | None, Header(alias="X-Internal-Signature")] = None,
 ) -> None:
-    expected = get_settings().telegram_webhook_secret
-    if not telegram_secret or telegram_secret != expected:
-        raise AppError("telegram_bot_unauthorized", "РўСЂРµР±СѓРµС‚СЃСЏ РІРЅСѓС‚СЂРµРЅРЅРёР№ Telegram secret.", 401)
+    settings = get_settings()
+    if not timestamp or not nonce or not signature:
+        raise AppError("telegram_bot_unauthorized", "Требуется корректная подпись внутреннего запроса.", 401)
+
+    try:
+        timestamp_value = int(timestamp)
+    except ValueError as exc:
+        raise AppError("telegram_bot_unauthorized", "Некорректный timestamp внутреннего запроса.", 401) from exc
+
+    if abs(int(time.time()) - timestamp_value) > settings.internal_request_ttl_seconds:
+        raise AppError("telegram_bot_unauthorized", "Срок действия подписи внутреннего запроса истёк.", 401)
+
+    body = await request.body()
+    request_target = build_request_target(path=request.url.path, query=request.url.query)
+    expected_signature = sign_request(
+        secret=settings.effective_telegram_internal_signing_secret,
+        method=request.method,
+        request_target=request_target,
+        timestamp=timestamp,
+        nonce=nonce,
+        body=body,
+    )
+    if not hmac.compare_digest(signature, expected_signature):
+        raise AppError("telegram_bot_unauthorized", "Подпись внутреннего запроса не прошла проверку.", 401)
+
+    nonce_key = f"internal-request:telegram:{nonce}"
+    if not redis_limits.claim_flag(key=nonce_key, ttl_seconds=settings.internal_request_ttl_seconds):
+        raise AppError("telegram_bot_unauthorized", "Повторный внутренний запрос отклонён.", 401)

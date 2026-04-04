@@ -20,6 +20,11 @@ def set_flag(*, key: str, ttl_seconds: int, value: str = "1") -> None:
     client.set(name=key, value=value, ex=ttl_seconds)
 
 
+def claim_flag(*, key: str, ttl_seconds: int, value: str = "1") -> bool:
+    client = get_redis_client()
+    return bool(client.set(name=key, value=value, ex=ttl_seconds, nx=True))
+
+
 def key_exists(*, key: str) -> bool:
     client = get_redis_client()
     return bool(client.exists(key))

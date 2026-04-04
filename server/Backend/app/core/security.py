@@ -53,6 +53,21 @@ def generate_api_key_secret() -> str:
     return secrets.token_urlsafe(32)
 
 
+def generate_signed_csrf_token() -> str:
+    raw_value = generate_session_token()
+    signature = hash_token(raw_value, purpose="csrf")
+    return f"{raw_value}.{signature}"
+
+
+def verify_signed_csrf_token(token: str) -> bool:
+    try:
+        raw_value, signature = token.rsplit(".", 1)
+    except ValueError:
+        return False
+    expected_signature = hash_token(raw_value, purpose="csrf")
+    return hmac.compare_digest(signature, expected_signature)
+
+
 def generate_numeric_code(length: int = 6) -> str:
     alphabet = "0123456789"
     return "".join(secrets.choice(alphabet) for _ in range(length))

@@ -4,20 +4,34 @@ from typing import Any
 
 import httpx
 
+from app.signing import build_signed_headers, serialize_json_body
+
 
 class BackendClient:
-    def __init__(self, *, base_url: str, telegram_secret: str) -> None:
-        self._client = httpx.AsyncClient(
-            base_url=base_url.rstrip("/"),
-            headers={"X-Telegram-Secret": telegram_secret},
-            timeout=15.0,
-        )
+    def __init__(self, *, base_url: str, signing_secret: str) -> None:
+        self._signing_secret = signing_secret
+        self._client = httpx.AsyncClient(base_url=base_url.rstrip("/"), timeout=15.0)
 
     async def close(self) -> None:
         await self._client.aclose()
 
     async def _request(self, method: str, path: str, **kwargs) -> Any:
-        response = await self._client.request(method, path, **kwargs)
+        headers = dict(kwargs.pop("headers", {}))
+        body = b""
+        json_payload = kwargs.pop("json", None)
+        if json_payload is not None:
+            body = serialize_json_body(json_payload)
+            kwargs["content"] = body
+            headers.setdefault("Content-Type", "application/json")
+        headers.update(
+            build_signed_headers(
+                secret=self._signing_secret,
+                method=method,
+                request_target=path,
+                body=body,
+            )
+        )
+        response = await self._client.request(method, path, headers=headers, **kwargs)
         if response.is_success:
             if response.status_code == 204 or not response.content:
                 return None
@@ -31,7 +45,15 @@ class BackendClient:
             message = response.text or message
         raise RuntimeError(message)
 
-    async def start(self, *, telegram_user_id: str, telegram_chat_id: str, telegram_username: str | None, telegram_first_name: str | None, deep_link_payload: str | None) -> dict:
+    async def start(
+        self,
+        *,
+        telegram_user_id: str,
+        telegram_chat_id: str,
+        telegram_username: str | None,
+        telegram_first_name: str | None,
+        deep_link_payload: str | None,
+    ) -> dict:
         return await self._request(
             "POST",
             "/api/v1/integrations/telegram/bot/start",
