@@ -3,11 +3,13 @@ import signal
 import time
 from datetime import datetime, timezone
 
+from predict_mv_daemon import __version__
 from predict_mv_daemon.api import ApiClient, ApiError
 from predict_mv_daemon.control import ControlChannelClient
 from predict_mv_daemon.executor import RunningAttempt, build_process_args, decode_chunk, terminate_process
 from predict_mv_daemon.models import ClaimedTask, DaemonState
 from predict_mv_daemon.state import StateStore
+from predict_mv_daemon.updates import can_auto_apply_updates, check_for_update, spawn_background_update
 
 
 def _utc_now_iso() -> str:
@@ -27,6 +29,8 @@ class DaemonRuntime:
     async def run(self) -> None:
         if not self.state.is_paired or not self.state.machine_token:
             raise RuntimeError("Daemon is not paired")
+        if await self._maybe_apply_startup_update():
+            return
         await self._sync_identity()
         self._install_signal_handlers()
         self.claim_event.set()
@@ -35,6 +39,24 @@ class DaemonRuntime:
             self._claim_loop(),
             self._control_loop(),
         )
+
+    async def _maybe_apply_startup_update(self) -> bool:
+        try:
+            manifest = await asyncio.to_thread(
+                check_for_update,
+                self.state.backend_base_url,
+                current_version=__version__,
+            )
+        except Exception:
+            return False
+        if manifest is None or not can_auto_apply_updates():
+            return False
+        started = await asyncio.to_thread(spawn_background_update, self.state.backend_base_url)
+        if not started:
+            return False
+        self.state.set_connection_status("updating")
+        self._persist_state()
+        return True
 
     def _install_signal_handlers(self) -> None:
         loop = asyncio.get_running_loop()

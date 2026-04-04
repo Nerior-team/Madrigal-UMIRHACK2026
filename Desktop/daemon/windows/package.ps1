@@ -14,12 +14,13 @@ $DaemonRoot = Split-Path -Parent $WindowsRoot
 $DistRoot = Join-Path $DaemonRoot "dist"
 $ArtifactDir = Join-Path $DistRoot $PlatformId
 $StageDir = Join-Path $ArtifactDir "windows-installer"
-$DaemonBinary = Join-Path $ArtifactDir "predict-mv-daemon.exe"
-$CliBinary = Join-Path $ArtifactDir "predict-mv-daemon-cli.exe"
+$DaemonBinary = Join-Path $ArtifactDir "PredictMV.exe"
+$CliBinary = Join-Path $ArtifactDir "predict.exe"
 $InstallerPath = Join-Path $ArtifactDir "PredictMVDaemonSetup.exe"
 $ServiceXmlSource = Join-Path $WindowsRoot "service.xml"
 $ServiceXmlTarget = Join-Path $StageDir "PredictMVService.xml"
 $WinSWTargetPath = Join-Path $StageDir "PredictMVService.exe"
+$IconSource = Join-Path $DaemonRoot "assets\logo.ico"
 $WinSWUrl = "https://github.com/winsw/winsw/releases/download/$WinSWVersion/WinSW-x64.exe"
 $InstallerScript = Join-Path $WindowsRoot "installer.iss"
 $ManifestPath = Join-Path $ArtifactDir "manifest.json"
@@ -37,6 +38,7 @@ if ($DryRun) {
         platform_id = $PlatformId
         daemon_binary = $DaemonBinary
         cli_binary = $CliBinary
+        icon_source = $IconSource
         winsw_url = $WinSWUrl
         winsw_source_override = $WinSWSourcePath
         stage_dir = $StageDir
@@ -54,10 +56,14 @@ if (-not (Test-Path $CliBinary)) {
     throw "Missing CLI binary: $CliBinary"
 }
 
+if (Test-Path $StageDir) {
+    Remove-Item -LiteralPath $StageDir -Recurse -Force
+}
 New-Item -ItemType Directory -Path $StageDir -Force | Out-Null
-Copy-Item $DaemonBinary (Join-Path $StageDir "predict-mv-daemon.exe") -Force
-Copy-Item $CliBinary (Join-Path $StageDir "predict-mv-daemon-cli.exe") -Force
+Copy-Item $DaemonBinary (Join-Path $StageDir "PredictMV.exe") -Force
+Copy-Item $CliBinary (Join-Path $StageDir "predict.exe") -Force
 Copy-Item $ServiceXmlSource $ServiceXmlTarget -Force
+Copy-Item $IconSource (Join-Path $StageDir "logo.ico") -Force
 
 if ($WinSWSourcePath) {
     if (-not (Test-Path $WinSWSourcePath)) {

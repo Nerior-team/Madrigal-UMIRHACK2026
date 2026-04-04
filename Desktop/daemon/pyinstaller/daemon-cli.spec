@@ -6,6 +6,7 @@ from pathlib import Path
 daemon_root = Path(SPECPATH).resolve().parent
 candidate_cli_roots = [daemon_root / "daemon-cli", daemon_root.parent / "daemon-cli"]
 cli_root = next((path for path in candidate_cli_roots if path.exists()), candidate_cli_roots[0])
+icon_path = daemon_root / "assets" / "logo.ico"
 
 a = Analysis(
     [str(cli_root / "main.py")],
@@ -27,11 +28,12 @@ exe = EXE(
     a.binaries,
     a.datas,
     [],
-    name="predict-mv-daemon-cli",
+    name="predict",
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
     upx=False,
     console=True,
     disable_windowed_traceback=False,
+    icon=str(icon_path) if icon_path.exists() else None,
 )

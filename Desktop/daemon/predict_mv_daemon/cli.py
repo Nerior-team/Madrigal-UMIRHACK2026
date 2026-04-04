@@ -11,10 +11,11 @@ from predict_mv_daemon.daemon_main import main as daemon_main
 from predict_mv_daemon.models import DaemonState
 from predict_mv_daemon.state import StateStore
 from predict_mv_daemon.system import default_hostname, default_os_version, detect_os_family
+from predict_mv_daemon.updates import apply_update, check_for_update, pretty_manifest_url
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="predict-mv-daemon-cli")
+    parser = argparse.ArgumentParser(prog="predict")
     parser.add_argument("--state-path", type=Path, default=None)
     subparsers = parser.add_subparsers(dest="command", required=True)
 
@@ -30,6 +31,19 @@ def build_parser() -> argparse.ArgumentParser:
     unpair.add_argument("--local-only", action="store_true")
 
     subparsers.add_parser("run")
+    subparsers.add_parser("version")
+
+    update = subparsers.add_parser("update")
+    update_subparsers = update.add_subparsers(dest="update_command", required=True)
+
+    update_check = update_subparsers.add_parser("check")
+    update_check.add_argument("--backend-url", default=None)
+
+    update_apply = update_subparsers.add_parser("apply")
+    update_apply.add_argument("--backend-url", default=None)
+
+    update_internal = update_subparsers.add_parser("apply-internal", help=argparse.SUPPRESS)
+    update_internal.add_argument("--backend-url", default=None)
     return parser
 
 
@@ -150,6 +164,43 @@ def run_command(args: argparse.Namespace) -> int:
     return daemon_main()
 
 
+def version_command() -> int:
+    print(__version__)
+    return 0
+
+
+def _resolve_backend_url(args: argparse.Namespace) -> str:
+    if getattr(args, "backend_url", None):
+        return str(args.backend_url).rstrip("/")
+    store = StateStore(args.state_path)
+    if not store.exists():
+        raise RuntimeError("Backend URL is required when daemon state is missing.")
+    state = store.load()
+    if not state.backend_base_url:
+        raise RuntimeError("Backend URL is required when daemon state has no backend URL.")
+    return state.backend_base_url.rstrip("/")
+
+
+def update_check_command(args: argparse.Namespace) -> int:
+    backend_url = _resolve_backend_url(args)
+    manifest = check_for_update(backend_url, current_version=__version__)
+    if manifest is None:
+        print(f"Already up to date. Current version: {__version__}")
+        print(f"Manifest: {pretty_manifest_url(backend_url)}")
+        return 0
+    print(f"Update available: {manifest.version}")
+    print(f"Current version: {__version__}")
+    print(f"Manifest: {pretty_manifest_url(backend_url)}")
+    return 0
+
+
+def update_apply_command(args: argparse.Namespace) -> int:
+    backend_url = _resolve_backend_url(args)
+    changed, message = apply_update(backend_url, current_version=__version__)
+    print(message)
+    return 0 if changed else 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
@@ -162,8 +213,17 @@ def main(argv: list[str] | None = None) -> int:
             return unpair_command(args)
         if args.command == "run":
             return run_command(args)
+        if args.command == "version":
+            return version_command()
+        if args.command == "update":
+            if args.update_command == "check":
+                return update_check_command(args)
+            if args.update_command == "apply":
+                return update_apply_command(args)
+            if args.update_command == "apply-internal":
+                return update_apply_command(args)
         parser.error("Unknown command")
         return 2
-    except ApiError as exc:
+    except (ApiError, RuntimeError, PermissionError, OSError) as exc:
         print(str(exc), file=sys.stderr)
         return 1

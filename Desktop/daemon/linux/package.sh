@@ -5,7 +5,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 DIST_ROOT="${ROOT_DIR}/dist"
 PLATFORM_ID="${PLATFORM_ID:-linux-x64}"
-ARCHIVE_NAME="predict-mv-daemon-${PLATFORM_ID}.tar.gz"
+ARCHIVE_NAME="predictmv-${PLATFORM_ID}.tar.gz"
 ARTIFACT_DIR="${DIST_ROOT}/${PLATFORM_ID}"
 PACKAGE_ROOT="${ARTIFACT_DIR}/package-root"
 DRY_RUN="false"
@@ -23,8 +23,8 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-DAEMON_BIN="${ARTIFACT_DIR}/predict-mv-daemon"
-CLI_BIN="${ARTIFACT_DIR}/predict-mv-daemon-cli"
+DAEMON_BIN="${ARTIFACT_DIR}/PredictMV"
+CLI_BIN="${ARTIFACT_DIR}/predict"
 ARCHIVE_PATH="${ARTIFACT_DIR}/${ARCHIVE_NAME}"
 
 if [[ "${DRY_RUN}" == "true" ]]; then
@@ -50,9 +50,9 @@ fi
 
 rm -rf "${PACKAGE_ROOT}"
 mkdir -p "${PACKAGE_ROOT}/bin"
-cp "${DAEMON_BIN}" "${PACKAGE_ROOT}/bin/predict-mv-daemon"
-cp "${CLI_BIN}" "${PACKAGE_ROOT}/bin/predict-mv-daemon-cli"
-chmod 0755 "${PACKAGE_ROOT}/bin/predict-mv-daemon" "${PACKAGE_ROOT}/bin/predict-mv-daemon-cli"
+cp "${DAEMON_BIN}" "${PACKAGE_ROOT}/bin/PredictMV"
+cp "${CLI_BIN}" "${PACKAGE_ROOT}/bin/predict"
+chmod 0755 "${PACKAGE_ROOT}/bin/PredictMV" "${PACKAGE_ROOT}/bin/predict"
 
 tar -C "${PACKAGE_ROOT}" -czf "${ARCHIVE_PATH}" .
 echo "Created ${ARCHIVE_PATH}"
