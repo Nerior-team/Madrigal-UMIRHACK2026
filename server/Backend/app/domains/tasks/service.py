@@ -55,7 +55,12 @@ class TaskService:
             machine_repository=machine_repository,
             command_repository=self.command_repository,
         )
-        self.result_service = ResultService(self.result_repository)
+        self.result_service = ResultService(
+            self.result_repository,
+            self.task_repository,
+            machine_repository,
+            access_repository,
+        )
 
     def _require_machine_access(self, *, machine_id: str, actor_user_id: str):
         machine = self.machine_repository.get_machine(machine_id)

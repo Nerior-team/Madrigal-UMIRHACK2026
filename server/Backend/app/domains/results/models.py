@@ -6,6 +6,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
 from app.shared.enums import ResultParserKind
+from app.shared.time import utc_now
 
 
 class CommandExecutionResult(Base):
@@ -26,4 +27,9 @@ class CommandExecutionResult(Base):
     stderr: Mapped[str] = mapped_column(Text, nullable=False)
     exit_code: Mapped[int] = mapped_column(Integer, nullable=False)
     duration_ms: Mapped[int] = mapped_column(Integer, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=utc_now,
+        server_default=func.now(),
+        nullable=False,
+    )
