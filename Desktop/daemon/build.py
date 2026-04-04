@@ -1,4 +1,5 @@
 import argparse
+from importlib.util import find_spec
 import json
 import platform
 import shutil
@@ -35,6 +36,17 @@ TARGETS: dict[str, BuildTarget] = {
         artifact_name="predict",
     ),
 }
+
+
+def ensure_build_dependencies(selected_targets: list[BuildTarget]) -> None:
+    required_modules = {"PyInstaller"}
+    if any(target.key == "daemon" for target in selected_targets):
+        required_modules.add("websockets")
+
+    missing = [name for name in sorted(required_modules) if find_spec(name) is None]
+    if missing:
+        joined = ", ".join(missing)
+        raise SystemExit(f"Missing build dependency: {joined}. Run `python -m pip install -r requirements.txt`.")
 
 
 def detect_platform_id() -> str:
@@ -179,6 +191,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
     selected_targets = list(TARGETS.values()) if args.target == "all" else [TARGETS[args.target]]
+    ensure_build_dependencies(selected_targets)
     return run_build(selected_targets=selected_targets, platform_id=args.platform_id, dry_run=args.dry_run)
 
 

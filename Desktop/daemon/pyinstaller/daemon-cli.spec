@@ -1,5 +1,6 @@
 # -*- mode: python ; coding: utf-8 -*-
 
+import os
 from pathlib import Path
 
 
@@ -7,6 +8,7 @@ daemon_root = Path(SPECPATH).resolve().parent
 candidate_cli_roots = [daemon_root / "daemon-cli", daemon_root.parent / "daemon-cli"]
 cli_root = next((path for path in candidate_cli_roots if path.exists()), candidate_cli_roots[0])
 icon_path = daemon_root / "assets" / "logo.ico"
+runtime_tmpdir = str(Path(os.environ.get("PROGRAMDATA", r"C:\ProgramData")) / "PredictMV" / "tmp")
 
 a = Analysis(
     [str(cli_root / "main.py")],
@@ -36,4 +38,5 @@ exe = EXE(
     console=True,
     disable_windowed_traceback=False,
     icon=str(icon_path) if icon_path.exists() else None,
+    runtime_tmpdir=runtime_tmpdir,
 )

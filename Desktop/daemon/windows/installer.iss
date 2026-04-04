@@ -35,6 +35,7 @@ SetupIconFile={#SourceDir}\logo.ico
 [Dirs]
 Name: "{commonappdata}\PredictMV"
 Name: "{commonappdata}\PredictMV\logs"
+Name: "{commonappdata}\PredictMV\tmp"
 
 [Files]
 Source: "{#SourceDir}\PredictMV.exe"; DestDir: "{app}"; Flags: ignoreversion
