@@ -23,8 +23,8 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-DAEMON_BIN="${ARTIFACT_DIR}/PredictMV"
-CLI_BIN="${ARTIFACT_DIR}/predict"
+DAEMON_DIR="${ARTIFACT_DIR}/PredictMV"
+CLI_DIR="${ARTIFACT_DIR}/predict"
 ARCHIVE_PATH="${ARTIFACT_DIR}/${ARCHIVE_NAME}"
 
 if [[ "${DRY_RUN}" == "true" ]]; then
@@ -32,27 +32,27 @@ if [[ "${DRY_RUN}" == "true" ]]; then
 platform=${PLATFORM_ID}
 artifact_dir=${ARTIFACT_DIR}
 archive=${ARCHIVE_PATH}
-daemon_bin=${DAEMON_BIN}
-cli_bin=${CLI_BIN}
+daemon_dir=${DAEMON_DIR}
+cli_dir=${CLI_DIR}
 EOF
   exit 0
 fi
 
-if [[ ! -f "${DAEMON_BIN}" ]]; then
-  echo "Missing daemon binary: ${DAEMON_BIN}" >&2
+if [[ ! -d "${DAEMON_DIR}" ]]; then
+  echo "Missing daemon bundle: ${DAEMON_DIR}" >&2
   exit 1
 fi
 
-if [[ ! -f "${CLI_BIN}" ]]; then
-  echo "Missing CLI binary: ${CLI_BIN}" >&2
+if [[ ! -d "${CLI_DIR}" ]]; then
+  echo "Missing CLI bundle: ${CLI_DIR}" >&2
   exit 1
 fi
 
 rm -rf "${PACKAGE_ROOT}"
-mkdir -p "${PACKAGE_ROOT}/bin"
-cp "${DAEMON_BIN}" "${PACKAGE_ROOT}/bin/PredictMV"
-cp "${CLI_BIN}" "${PACKAGE_ROOT}/bin/predict"
-chmod 0755 "${PACKAGE_ROOT}/bin/PredictMV" "${PACKAGE_ROOT}/bin/predict"
+mkdir -p "${PACKAGE_ROOT}"
+cp -R "${DAEMON_DIR}" "${PACKAGE_ROOT}/daemon"
+cp -R "${CLI_DIR}" "${PACKAGE_ROOT}/cli"
+chmod 0755 "${PACKAGE_ROOT}/daemon/PredictMV" "${PACKAGE_ROOT}/cli/predict"
 
 tar -C "${PACKAGE_ROOT}" -czf "${ARCHIVE_PATH}" .
 echo "Created ${ARCHIVE_PATH}"

@@ -63,12 +63,14 @@ if [[ "${EUID}" -ne 0 ]]; then
 fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-INSTALL_TMP_DIR="$(mktemp -d)"
-ARCHIVE_TMP="${INSTALL_TMP_DIR}/${ARCHIVE_NAME}"
 SERVICE_PATH="${SYSTEMD_DIR}/${SERVICE_NAME}.service"
+INSTALL_TMP_DIR=""
+ARCHIVE_TMP=""
 
 cleanup() {
-  rm -rf "${INSTALL_TMP_DIR}"
+  if [[ -n "${INSTALL_TMP_DIR}" ]]; then
+    rm -rf "${INSTALL_TMP_DIR}"
+  fi
 }
 trap cleanup EXIT
 
@@ -157,19 +159,28 @@ ensure_service_user() {
     "${SERVICE_USER}"
 }
 
-download_archive
 ensure_runtime_compatibility
 ensure_service_user
 
 mkdir -p "${INSTALL_DIR}" "${STATE_DIR}" "${RUNTIME_TMP_DIR}" "${LOG_DIR}" "${SYSTEMD_DIR}"
+INSTALL_TMP_DIR="$(mktemp -d "${STATE_DIR}/install.XXXXXX")"
+ARCHIVE_TMP="${INSTALL_TMP_DIR}/${ARCHIVE_NAME}"
+download_archive
 tar -xzf "${ARCHIVE_TMP}" -C "${INSTALL_TMP_DIR}"
-install -m 0755 "${INSTALL_TMP_DIR}/bin/PredictMV" "${INSTALL_DIR}/PredictMV"
-install -m 0755 "${INSTALL_TMP_DIR}/bin/predict" "${INSTALL_DIR}/predict"
+
+if systemctl list-unit-files | grep -q "^${SERVICE_NAME}\.service"; then
+  systemctl stop "${SERVICE_NAME}" || true
+fi
+
+rm -rf "${INSTALL_DIR}/daemon" "${INSTALL_DIR}/cli"
+cp -R "${INSTALL_TMP_DIR}/daemon" "${INSTALL_DIR}/daemon"
+cp -R "${INSTALL_TMP_DIR}/cli" "${INSTALL_DIR}/cli"
+chmod 0755 "${INSTALL_DIR}/daemon/PredictMV" "${INSTALL_DIR}/cli/predict"
 cat > "${CLI_LINK}" <<EOF
 #!/usr/bin/env bash
 export PREDICTMV_STATE_PATH="${STATE_FILE}"
 export TMPDIR="${RUNTIME_TMP_DIR}"
-exec "${INSTALL_DIR}/predict" "\$@"
+exec "${INSTALL_DIR}/cli/predict" "\$@"
 EOF
 chmod 0755 "${CLI_LINK}"
 chown -R "${SERVICE_USER}:${SERVICE_USER}" "${INSTALL_DIR}" "${STATE_DIR}" "${LOG_DIR}"
@@ -187,7 +198,7 @@ Group=${SERVICE_USER}
 WorkingDirectory=${INSTALL_DIR}
 Environment=PREDICTMV_STATE_PATH=${STATE_FILE}
 Environment=TMPDIR=${RUNTIME_TMP_DIR}
-ExecStart=${INSTALL_DIR}/PredictMV
+ExecStart=${INSTALL_DIR}/daemon/PredictMV
 Restart=always
 RestartSec=5
 KillMode=process

@@ -26,12 +26,13 @@ a = Analysis(
     noarchive=False,
 )
 pyz = PYZ(a.pure)
+is_windows = os.name == "nt"
 
 exe = EXE(
     pyz,
     a.scripts,
-    a.binaries,
-    a.datas,
+    a.binaries if is_windows else [],
+    a.datas if is_windows else [],
     [],
     name="predict",
     debug=False,
@@ -41,5 +42,16 @@ exe = EXE(
     console=True,
     disable_windowed_traceback=False,
     icon=str(icon_path) if icon_path.exists() else None,
+    exclude_binaries=not is_windows,
     runtime_tmpdir=runtime_tmpdir,
 )
+
+if not is_windows:
+    coll = COLLECT(
+        exe,
+        a.binaries,
+        a.datas,
+        strip=False,
+        upx=False,
+        name="predict",
+    )
