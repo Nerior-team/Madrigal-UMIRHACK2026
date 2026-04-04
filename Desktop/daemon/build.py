@@ -65,6 +65,16 @@ def executable_name(base_name: str) -> str:
     return f"{base_name}.exe" if platform.system().lower() == "windows" else base_name
 
 
+def is_linux_platform(platform_id: str) -> bool:
+    return platform_id.startswith("linux-")
+
+
+def built_artifact_path(*, dist_dir: Path, platform_id: str, target: BuildTarget) -> Path:
+    if is_linux_platform(platform_id):
+        return dist_dir / target.artifact_name
+    return dist_dir / executable_name(target.artifact_name)
+
+
 def download_segment(platform_id: str) -> str:
     if platform_id.startswith("windows-"):
         return "windows"
@@ -104,8 +114,8 @@ def write_manifest(*, platform_id: str, dist_dir: Path, selected_targets: list[B
         "artifacts": [
             {
                 "target": target.key,
-                "file": executable_name(target.artifact_name),
-                "path": str((dist_dir / executable_name(target.artifact_name)).relative_to(ROOT)),
+                "file": built_artifact_path(dist_dir=dist_dir, platform_id=platform_id, target=target).name,
+                "path": str(built_artifact_path(dist_dir=dist_dir, platform_id=platform_id, target=target).relative_to(ROOT)),
             }
             for target in selected_targets
         ],
@@ -132,7 +142,7 @@ def run_build(*, selected_targets: list[BuildTarget], platform_id: str, dry_run:
     plan: list[dict[str, str]] = []
 
     for target in selected_targets:
-        artifact_path = dist_dir / executable_name(target.artifact_name)
+        artifact_path = built_artifact_path(dist_dir=dist_dir, platform_id=platform_id, target=target)
         work_dir = work_root / target.key
         plan.append(
             {
@@ -151,10 +161,13 @@ def run_build(*, selected_targets: list[BuildTarget], platform_id: str, dry_run:
     DIST_ROOT.mkdir(parents=True, exist_ok=True)
     dist_dir.mkdir(parents=True, exist_ok=True)
     for target in selected_targets:
-        artifact_path = dist_dir / executable_name(target.artifact_name)
+        artifact_path = built_artifact_path(dist_dir=dist_dir, platform_id=platform_id, target=target)
         work_dir = work_root / target.key
         if artifact_path.exists():
-            artifact_path.unlink()
+            if artifact_path.is_dir():
+                shutil.rmtree(artifact_path, ignore_errors=True)
+            else:
+                artifact_path.unlink()
         shutil.rmtree(work_dir, ignore_errors=True)
         subprocess.run(
             build_command(target=target, dist_dir=dist_dir, work_dir=work_dir),
