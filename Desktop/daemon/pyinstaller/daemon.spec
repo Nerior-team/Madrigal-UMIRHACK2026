@@ -10,7 +10,7 @@ icon_path = daemon_root / "assets" / "logo.ico"
 if os.name == "nt":
     runtime_tmpdir = str(Path(os.environ.get("PROGRAMDATA", r"C:\ProgramData")) / "PredictMV" / "tmp")
 else:
-    runtime_tmpdir = str(Path("/var/tmp") / "PredictMV" / "tmp")
+    runtime_tmpdir = None
 
 a = Analysis(
     [str(daemon_root / "main.py")],
