@@ -3,16 +3,17 @@ from dataclasses import dataclass
 from app.core.config import get_settings
 from app.core.exceptions import AppError
 from app.core.security import generate_session_token, hash_password, hash_token, normalize_email, reauth_ttl, verify_password
+from app.domains.access.repository import AccessRepository
 from app.domains.auth import login as login_flow
 from app.domains.auth import password_reset as password_reset_flow
 from app.domains.auth import registration as registration_flow
-from app.domains.auth import telegram_2fa as telegram_flow
 from app.domains.auth import totp as totp_flow
 from app.domains.auth.repository import AuthRepository
 from app.domains.auth.throttle import AuthThrottleService
 from app.domains.auth.schemas import (
     AuthSessionResponse,
     ForgotPasswordRequest,
+    LoginTelegramRequest,
     LoginRequest,
     LoginTwoFactorRequest,
     MeResponse,
@@ -26,10 +27,19 @@ from app.domains.auth.schemas import (
     TOTPSetupConfirmRequest,
     TOTPSetupStartRequest,
     TelegramSetupStartResponse,
+    TelegramTwoFactorConfirmRequest,
+    TelegramTwoFactorDisableRequest,
     UserRead,
     VerifyEmailRequest,
 )
 from app.domains.auth.sessions import enabled_two_factor_methods
+from app.domains.commands.repository import CommandRepository
+from app.domains.integrations.telegram.repository import TelegramRepository
+from app.domains.integrations.telegram.service import TelegramClientContext, TelegramIntegrationService
+from app.domains.machines.repository import MachineRepository
+from app.domains.reports.repository import ReportsRepository
+from app.domains.results.repository import ResultRepository
+from app.domains.tasks.repository import TaskRepository
 from app.infra.email.client import get_mail_transport
 from app.infra.observability.audit import record_audit_event
 from app.shared.enums import AuditStatus, AuthChallengeKind, SessionKind, TwoFactorMethod
@@ -47,6 +57,17 @@ class AuthService:
         self.repository = repository
         self.mailer = get_mail_transport()
         self.throttle = AuthThrottleService()
+        db = repository.db
+        self.telegram = TelegramIntegrationService(
+            auth_repository=repository,
+            telegram_repository=TelegramRepository(db),
+            access_repository=AccessRepository(db),
+            machine_repository=MachineRepository(db),
+            command_repository=CommandRepository(db),
+            task_repository=TaskRepository(db),
+            result_repository=ResultRepository(db),
+            reports_repository=ReportsRepository(db),
+        )
 
     def register(self, payload: RegisterRequest, client: ClientContext) -> MessageResponse:
         user = registration_flow.register_user(
@@ -140,8 +161,24 @@ class AuthService:
         self.repository.commit()
         return response, None if issued is None else issued.access_token
 
-    def login_telegram(self, payload: LoginTwoFactorRequest, client: ClientContext):
-        return login_flow.complete_telegram_login(repository=self.repository, payload=payload)
+    def login_telegram(self, payload: LoginTelegramRequest, client: ClientContext) -> tuple[AuthSessionResponse, str | None]:
+        response, issued = login_flow.complete_telegram_login(
+            repository=self.repository,
+            telegram_repository=self.telegram.telegram_repository,
+            payload=payload,
+            ip_address=client.ip_address,
+            user_agent=client.user_agent,
+        )
+        record_audit_event(
+            self.repository,
+            user_id=response.user.id,
+            action="auth.login_telegram",
+            status=AuditStatus.SUCCESS,
+            ip_address=client.ip_address,
+            user_agent=client.user_agent,
+        )
+        self.repository.commit()
+        return response, None if issued is None else issued.access_token
 
     def logout(self, access_token: str | None, client: ClientContext) -> MessageResponse:
         if not access_token:
@@ -281,23 +318,53 @@ class AuthService:
         return MessageResponse(message="TOTP выключен.")
 
     def start_telegram_setup(self, *, user, client: ClientContext) -> TelegramSetupStartResponse:
-        response = telegram_flow.start_telegram_setup()
+        profile, link_response = self.telegram.start_telegram_2fa_setup(actor_user_id=user.id)
         record_audit_event(
             self.repository,
             user_id=user.id,
             action="auth.telegram_2fa_start",
-            status=AuditStatus.FAILURE,
+            status=AuditStatus.SUCCESS,
             ip_address=client.ip_address,
             user_agent=client.user_agent,
+            details={"linked": profile.linked},
         )
         self.repository.commit()
-        return response
+        return TelegramSetupStartResponse(
+            supported=True,
+            linked=profile.linked,
+            enabled=profile.two_factor_enabled,
+            reason=None if profile.linked else "Для включения Telegram 2FA сначала нужно завершить привязку.",
+            link_url=None if link_response is None else link_response.link_url,
+            expires_at=None if link_response is None else link_response.expires_at,
+        )
 
-    def confirm_telegram_setup(self, *, user, client: ClientContext) -> None:
-        telegram_flow.confirm_telegram_setup()
+    def confirm_telegram_setup(
+        self,
+        *,
+        user,
+        payload: TelegramTwoFactorConfirmRequest,
+        client: ClientContext,
+    ) -> MessageResponse:
+        self.telegram.enable_telegram_2fa(
+            actor_user=user,
+            reauth_token=payload.reauth_token,
+            client=TelegramClientContext(ip_address=client.ip_address, user_agent=client.user_agent),
+        )
+        return MessageResponse(message="Telegram 2FA включена.")
 
-    def disable_telegram(self, *, user, client: ClientContext) -> None:
-        telegram_flow.disable_telegram_setup()
+    def disable_telegram(
+        self,
+        *,
+        user,
+        payload: TelegramTwoFactorDisableRequest,
+        client: ClientContext,
+    ) -> MessageResponse:
+        self.telegram.disable_telegram_2fa(
+            actor_user=user,
+            reauth_token=payload.reauth_token,
+            client=TelegramClientContext(ip_address=client.ip_address, user_agent=client.user_agent),
+        )
+        return MessageResponse(message="Telegram 2FA выключена.")
 
     def reauth(self, *, user, payload: ReauthRequest, client: ClientContext) -> ReauthResponse:
         self.throttle.ensure_reauth_allowed(user_id=user.id, ip_address=client.ip_address)

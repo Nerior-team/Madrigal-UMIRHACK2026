@@ -3,6 +3,7 @@ from app.domains.access import models as access_models  # noqa: F401
 from app.domains.commands import models as command_models  # noqa: F401
 from app.domains.auth import models as auth_models  # noqa: F401
 from app.domains.integrations.external_api import models as external_api_models  # noqa: F401
+from app.domains.integrations.telegram import models as telegram_models  # noqa: F401
 from app.domains.results import models as result_models  # noqa: F401
 from app.domains.tasks import models as task_models  # noqa: F401
 from app.domains.machines import models as machine_models  # noqa: F401

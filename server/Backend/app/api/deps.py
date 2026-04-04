@@ -12,6 +12,7 @@ from app.domains.access.repository import AccessRepository
 from app.domains.auth.repository import AuthRepository
 from app.domains.commands.repository import CommandRepository
 from app.domains.integrations.external_api.repository import ExternalApiRepository
+from app.domains.integrations.telegram.repository import TelegramRepository
 from app.domains.integrations.external_api.service import ExternalApiClientContext, ExternalApiService
 from app.domains.machines.repository import MachineRepository
 from app.domains.reports.repository import ReportsRepository
@@ -50,6 +51,10 @@ def get_reports_repository(db: Annotated[Session, Depends(get_db_session)]) -> R
 
 def get_external_api_repository(db: Annotated[Session, Depends(get_db_session)]) -> ExternalApiRepository:
     return ExternalApiRepository(db)
+
+
+def get_telegram_repository(db: Annotated[Session, Depends(get_db_session)]) -> TelegramRepository:
+    return TelegramRepository(db)
 
 
 def build_client_context(request: Request):
@@ -156,3 +161,11 @@ def get_external_api_principal(
         result_repository=result_repository,
         reports_repository=reports_repository,
     ).authenticate_api_key(raw_key=raw_key, client=client)
+
+
+def require_telegram_internal_secret(
+    telegram_secret: Annotated[str | None, Header(alias="X-Telegram-Secret")] = None,
+) -> None:
+    expected = get_settings().telegram_webhook_secret
+    if not telegram_secret or telegram_secret != expected:
+        raise AppError("telegram_bot_unauthorized", "РўСЂРµР±СѓРµС‚СЃСЏ РІРЅСѓС‚СЂРµРЅРЅРёР№ Telegram secret.", 401)

@@ -15,6 +15,7 @@ from app.domains.auth.repository import AuthRepository
 from app.domains.auth.schemas import (
     AuthSessionResponse,
     ForgotPasswordRequest,
+    LoginTelegramRequest,
     LoginRequest,
     LoginTwoFactorRequest,
     MessageResponse,
@@ -29,6 +30,8 @@ from app.domains.auth.schemas import (
     TOTPSetupStartRequest,
     TOTPSetupStartResponse,
     TelegramSetupStartResponse,
+    TelegramTwoFactorConfirmRequest,
+    TelegramTwoFactorDisableRequest,
     VerifyEmailRequest,
 )
 from app.domains.auth.service import AuthService
@@ -104,11 +107,15 @@ def login_totp(
 
 @router.post("/login/2fa/telegram", response_model=AuthSessionResponse)
 def login_telegram(
-    payload: LoginTwoFactorRequest,
+    payload: LoginTelegramRequest,
+    response: Response,
     repository: Annotated[AuthRepository, Depends(get_repository)],
     client=Depends(build_client_context),
 ):
-    return AuthService(repository).login_telegram(payload, client)
+    auth_response, access_token = AuthService(repository).login_telegram(payload, client)
+    if payload.client_kind == SessionKind.WEB and access_token:
+        _set_web_cookie(response, access_token)
+    return auth_response
 
 
 @router.post("/logout", response_model=MessageResponse)
@@ -204,20 +211,22 @@ def start_telegram_setup(
 
 @router.post("/2fa/telegram/setup/confirm")
 def confirm_telegram_setup(
+    payload: TelegramTwoFactorConfirmRequest,
     repository: Annotated[AuthRepository, Depends(get_repository)],
     current_user=Depends(get_current_user),
     client=Depends(build_client_context),
 ):
-    return AuthService(repository).confirm_telegram_setup(user=current_user, client=client)
+    return AuthService(repository).confirm_telegram_setup(user=current_user, payload=payload, client=client)
 
 
-@router.post("/2fa/telegram/disable")
+@router.post("/2fa/telegram/disable", response_model=MessageResponse)
 def disable_telegram(
+    payload: TelegramTwoFactorDisableRequest,
     repository: Annotated[AuthRepository, Depends(get_repository)],
     current_user=Depends(get_current_user),
     client=Depends(build_client_context),
 ):
-    return AuthService(repository).disable_telegram(user=current_user, client=client)
+    return AuthService(repository).disable_telegram(user=current_user, payload=payload, client=client)
 
 
 @router.post("/re-auth", response_model=ReauthResponse)

@@ -5,6 +5,7 @@ from app.api.v1.agent import router as agent_router
 from app.api.v1.auth import router as auth_router
 from app.api.v1.commands import router as commands_router
 from app.api.v1.external import router as external_router
+from app.api.v1.integrations import router as integrations_router
 from app.api.v1.invites import router as invites_router
 from app.api.v1.machines import router as machines_router
 from app.api.v1.metrics import router as metrics_router
@@ -28,3 +29,4 @@ v1_router.include_router(metrics_router)
 v1_router.include_router(realtime_router)
 v1_router.include_router(reports_router)
 v1_router.include_router(external_router)
+v1_router.include_router(integrations_router)

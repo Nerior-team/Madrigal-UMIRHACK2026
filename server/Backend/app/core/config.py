@@ -53,6 +53,7 @@ class Settings(BaseSettings):
     telegram_bot_token: str = "change_me"
     telegram_webhook_secret: str = "change_me"
     telegram_bot_username: str = "change_me"
+    telegram_link_ttl_minutes: int = 15
 
     data_encryption_key: str = "replace_with_fernet_key"
     api_key_pepper: str = "change_me"

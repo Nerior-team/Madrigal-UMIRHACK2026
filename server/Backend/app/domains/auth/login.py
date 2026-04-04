@@ -1,6 +1,6 @@
 from app.core.exceptions import AppError
 from app.core.security import auth_challenge_ttl, normalize_email
-from app.domains.auth.schemas import AuthSessionResponse, LoginRequest, LoginTwoFactorRequest, UserRead
+from app.domains.auth.schemas import AuthSessionResponse, LoginRequest, LoginTelegramRequest, LoginTwoFactorRequest, UserRead
 from app.domains.auth.sessions import enabled_two_factor_methods, issue_session
 from app.shared.enums import AuthChallengeKind, TwoFactorMethod
 from app.shared.time import utc_now
@@ -80,10 +80,39 @@ def complete_totp_login(
     return issued.response, issued
 
 
-def complete_telegram_login(*, repository, payload: LoginTwoFactorRequest):
+def complete_telegram_login(
+    *,
+    repository,
+    telegram_repository,
+    payload: LoginTelegramRequest,
+    ip_address: str | None,
+    user_agent: str | None,
+):
     challenge = repository.get_auth_challenge(payload.challenge_id)
     if challenge is None or challenge.consumed_at is not None or challenge.expires_at < utc_now():
         raise AppError("challenge_invalid", "Срок действия подтверждения входа истёк.", 401)
     if challenge.method != TwoFactorMethod.TELEGRAM:
         raise AppError("challenge_method_invalid", "Этот challenge не относится к Telegram.", 400)
-    raise AppError("telegram_2fa_unavailable", "Telegram 2FA будет подключена вместе с bot-модулем.", 501)
+
+    user = repository.get_user_by_id(challenge.user_id)
+    if user is None:
+        raise AppError("user_not_found", "Пользователь не найден.", 404)
+
+    decision = telegram_repository.get_auth_decision(challenge_id=challenge.id)
+    if decision is None or (decision.approved_at is None and decision.rejected_at is None):
+        raise AppError("challenge_pending", "Подтверждение входа ожидает решения в Telegram.", 409)
+    if decision.rejected_at is not None:
+        raise AppError("challenge_rejected", "Вход был отклонён в Telegram.", 401)
+
+    issued = issue_session(
+        repository=repository,
+        user=user,
+        session_kind=payload.client_kind,
+        ip_address=ip_address,
+        user_agent=user_agent,
+    )
+    challenge.consumed_at = utc_now()
+    user.last_login_at = utc_now()
+    repository.save(challenge)
+    repository.save(user)
+    return issued.response, issued

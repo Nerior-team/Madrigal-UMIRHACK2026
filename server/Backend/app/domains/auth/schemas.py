@@ -29,6 +29,11 @@ class LoginTwoFactorRequest(BaseModel):
     client_kind: SessionKind = SessionKind.WEB
 
 
+class LoginTelegramRequest(BaseModel):
+    challenge_id: str
+    client_kind: SessionKind = SessionKind.WEB
+
+
 class ForgotPasswordRequest(BaseModel):
     email: EmailStr
 
@@ -99,7 +104,19 @@ class TOTPDisableRequest(BaseModel):
 
 class TelegramSetupStartResponse(BaseModel):
     supported: bool
-    reason: str
+    linked: bool
+    enabled: bool
+    reason: str | None = None
+    link_url: str | None = None
+    expires_at: datetime | None = None
+
+
+class TelegramTwoFactorConfirmRequest(BaseModel):
+    reauth_token: str = Field(min_length=16, max_length=512)
+
+
+class TelegramTwoFactorDisableRequest(BaseModel):
+    reauth_token: str = Field(min_length=16, max_length=512)
 
 
 class ReauthRequest(BaseModel):
