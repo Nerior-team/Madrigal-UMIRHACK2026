@@ -2,7 +2,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Header
 
-from app.api.deps import build_client_context, get_access_repository, get_machine_repository
+from app.api.deps import build_client_context, get_access_repository, get_command_repository, get_machine_repository
 from app.domains.access.repository import AccessRepository
 from app.domains.agent_protocol.registration import parse_machine_bearer_token
 from app.domains.agent_protocol.schemas import (
@@ -13,6 +13,7 @@ from app.domains.agent_protocol.schemas import (
     AgentUnpairResponse,
 )
 from app.domains.agent_protocol.service import AgentProtocolService
+from app.domains.commands.repository import CommandRepository
 from app.domains.machines.repository import MachineRepository
 from app.domains.machines.schemas import (
     MachineHeartbeatRequest,
@@ -29,8 +30,9 @@ def start_registration(
     payload: MachineRegistrationStartRequest,
     machine_repository: Annotated[MachineRepository, Depends(get_machine_repository)] = None,
     access_repository: Annotated[AccessRepository, Depends(get_access_repository)] = None,
+    command_repository: Annotated[CommandRepository, Depends(get_command_repository)] = None,
 ):
-    service = AgentProtocolService(MachineService(machine_repository, access_repository))
+    service = AgentProtocolService(MachineService(machine_repository, access_repository), command_repository)
     return service.start_registration(payload)
 
 @router.post("/registrations/{registration_id}/complete", response_model=AgentRegistrationCompleteResponse)
@@ -40,8 +42,9 @@ def complete_registration(
     client=Depends(build_client_context),
     machine_repository: Annotated[MachineRepository, Depends(get_machine_repository)] = None,
     access_repository: Annotated[AccessRepository, Depends(get_access_repository)] = None,
+    command_repository: Annotated[CommandRepository, Depends(get_command_repository)] = None,
 ):
-    service = AgentProtocolService(MachineService(machine_repository, access_repository))
+    service = AgentProtocolService(MachineService(machine_repository, access_repository), command_repository)
     return service.complete_registration(registration_id=registration_id, payload=payload, client=client)
 
 
@@ -52,9 +55,10 @@ def heartbeat(
     authorization: Annotated[str | None, Header(alias="Authorization")] = None,
     machine_repository: Annotated[MachineRepository, Depends(get_machine_repository)] = None,
     access_repository: Annotated[AccessRepository, Depends(get_access_repository)] = None,
+    command_repository: Annotated[CommandRepository, Depends(get_command_repository)] = None,
 ):
     machine_token = parse_machine_bearer_token(authorization)
-    service = AgentProtocolService(MachineService(machine_repository, access_repository))
+    service = AgentProtocolService(MachineService(machine_repository, access_repository), command_repository)
     return service.heartbeat(machine_token=machine_token, payload=payload, client=client)
 
 
@@ -63,9 +67,10 @@ def agent_me(
     authorization: Annotated[str | None, Header(alias="Authorization")] = None,
     machine_repository: Annotated[MachineRepository, Depends(get_machine_repository)] = None,
     access_repository: Annotated[AccessRepository, Depends(get_access_repository)] = None,
+    command_repository: Annotated[CommandRepository, Depends(get_command_repository)] = None,
 ):
     machine_token = parse_machine_bearer_token(authorization)
-    service = AgentProtocolService(MachineService(machine_repository, access_repository))
+    service = AgentProtocolService(MachineService(machine_repository, access_repository), command_repository)
     return service.me(machine_token=machine_token)
 
 
@@ -75,7 +80,8 @@ def unpair(
     client=Depends(build_client_context),
     machine_repository: Annotated[MachineRepository, Depends(get_machine_repository)] = None,
     access_repository: Annotated[AccessRepository, Depends(get_access_repository)] = None,
+    command_repository: Annotated[CommandRepository, Depends(get_command_repository)] = None,
 ):
     machine_token = parse_machine_bearer_token(authorization)
-    service = AgentProtocolService(MachineService(machine_repository, access_repository))
+    service = AgentProtocolService(MachineService(machine_repository, access_repository), command_repository)
     return service.unpair(machine_token=machine_token, client=client)

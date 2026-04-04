@@ -36,8 +36,10 @@ def build_parser() -> argparse.ArgumentParser:
 def pair_command(args: argparse.Namespace) -> int:
     store = StateStore(args.state_path)
     if store.exists():
-        print("Daemon is already paired. Unpair it first.")
-        return 1
+        existing = store.load()
+        if existing.is_paired:
+            print("Daemon is already paired. Unpair it first.")
+            return 1
 
     api = ApiClient(args.backend_url)
     registration = api.start_registration(
@@ -63,6 +65,8 @@ def pair_command(args: argparse.Namespace) -> int:
                 machine_token=completed["machine_token"],
                 agent_version=__version__,
                 paired_at=datetime.now(timezone.utc).isoformat(),
+                os_family=detect_os_family(),
+                connection_status="connecting",
             )
             store.save(state)
             print(f"Paired machine: {state.machine_id}")
@@ -83,14 +87,28 @@ def status_command(args: argparse.Namespace) -> int:
         print("Daemon is not paired.")
         return 1
     state = store.load()
+    print(f"Connection: {state.connection_status}")
+    print(f"Machine ID: {state.machine_id or '-'}")
+    if state.last_heartbeat_at:
+        print(f"Last heartbeat: {state.last_heartbeat_at}")
+    if state.last_config_sync_at:
+        print(f"Last config sync: {state.last_config_sync_at}")
+    if state.last_control_connect_at:
+        print(f"Last control connect: {state.last_control_connect_at}")
+    if state.revoked_reason:
+        print(f"Revoked reason: {state.revoked_reason}")
+    if not state.is_paired:
+        print("Daemon is not paired.")
+        return 0
+
     api = ApiClient(state.backend_base_url)
     identity = api.get_agent_identity(machine_token=state.machine_token)
-    print(f"Machine ID: {identity.machine_id}")
     print(f"Display name: {identity.display_name}")
     print(f"Hostname: {identity.hostname}")
     print(f"OS: {identity.os_family} {identity.os_version or ''}".strip())
     print(f"Status: {identity.status}")
     print(f"Concurrency limit: {identity.concurrency_limit}")
+    print(f"Allowed runners: {', '.join(identity.allowed_runners)}")
     return 0
 
 
@@ -100,10 +118,11 @@ def unpair_command(args: argparse.Namespace) -> int:
         print("Daemon is not paired.")
         return 1
     state = store.load()
-    if not args.local_only:
+    if not args.local_only and state.is_paired and state.machine_token:
         api = ApiClient(state.backend_base_url)
         api.unpair(machine_token=state.machine_token)
-    store.clear()
+    state.clear_pairing(reason="local_unpair", cleared_at=datetime.now(timezone.utc).isoformat(), status="stopped")
+    store.save(state)
     print("Daemon unpaired.")
     return 0
 
@@ -115,8 +134,16 @@ def run_command(args: argparse.Namespace) -> int:
             print("Daemon is not paired.")
             return 1
         state = store.load()
+        if not state.is_paired:
+            print("Daemon is not paired.")
+            return 1
         try:
-            asyncio.run(__import__("predict_mv_daemon.runtime", fromlist=["DaemonRuntime"]).DaemonRuntime(state).run())
+            asyncio.run(
+                __import__("predict_mv_daemon.runtime", fromlist=["DaemonRuntime"]).DaemonRuntime(
+                    state,
+                    state_store=store,
+                ).run()
+            )
         except KeyboardInterrupt:
             return 0
         return 0
@@ -140,4 +167,3 @@ def main(argv: list[str] | None = None) -> int:
     except ApiError as exc:
         print(str(exc), file=sys.stderr)
         return 1
-

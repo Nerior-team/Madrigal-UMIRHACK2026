@@ -1,6 +1,7 @@
 from datetime import datetime
 
 from pydantic import BaseModel
+from app.shared.enums import CommandRunner
 from app.shared.enums import MachineStatus, OperatingSystemFamily
 
 
@@ -31,6 +32,8 @@ class AgentIdentityResponse(BaseModel):
     status: MachineStatus
     concurrency_limit: int
     last_heartbeat_at: datetime | None
+    allowed_runners: list[CommandRunner]
+    config_fingerprint: str
 
 
 class AgentUnpairResponse(BaseModel):

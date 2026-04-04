@@ -1,16 +1,23 @@
 import asyncio
 import signal
 import time
+from datetime import datetime, timezone
 
 from predict_mv_daemon.api import ApiClient, ApiError
 from predict_mv_daemon.control import ControlChannelClient
 from predict_mv_daemon.executor import RunningAttempt, build_process_args, decode_chunk, terminate_process
 from predict_mv_daemon.models import ClaimedTask, DaemonState
+from predict_mv_daemon.state import StateStore
+
+
+def _utc_now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat()
 
 
 class DaemonRuntime:
-    def __init__(self, state: DaemonState) -> None:
+    def __init__(self, state: DaemonState, *, state_store: StateStore | None = None) -> None:
         self.state = state
+        self.state_store = state_store or StateStore()
         self.api_client = ApiClient(state.backend_base_url)
         self.active_attempts: dict[str, RunningAttempt] = {}
         self.pending_cancellations: set[str] = set()
@@ -18,7 +25,9 @@ class DaemonRuntime:
         self.stop_event = asyncio.Event()
 
     async def run(self) -> None:
-        await asyncio.to_thread(self.api_client.get_agent_identity, machine_token=self.state.machine_token)
+        if not self.state.is_paired or not self.state.machine_token:
+            raise RuntimeError("Daemon is not paired")
+        await self._sync_identity()
         self._install_signal_handlers()
         self.claim_event.set()
         await asyncio.gather(
@@ -40,12 +49,20 @@ class DaemonRuntime:
 
     async def _heartbeat_loop(self) -> None:
         while not self.stop_event.is_set():
-            await asyncio.to_thread(
-                self.api_client.send_heartbeat,
-                machine_token=self.state.machine_token,
-                agent_version=self.state.agent_version,
-                status_payload={"active_tasks": len(self.active_attempts)},
-            )
+            try:
+                await asyncio.to_thread(
+                    self.api_client.send_heartbeat,
+                    machine_token=self.state.machine_token,
+                    agent_version=self.state.agent_version,
+                    status_payload={"active_tasks": len(self.active_attempts)},
+                )
+                self.state.last_heartbeat_at = _utc_now_iso()
+                self._persist_state()
+            except ApiError as exc:
+                if await self._handle_api_error(exc, reason="heartbeat_failed"):
+                    break
+            except Exception:
+                self._set_connection_status("degraded")
             try:
                 await asyncio.wait_for(self.stop_event.wait(), timeout=self.state.heartbeat_interval_seconds)
             except asyncio.TimeoutError:
@@ -57,19 +74,28 @@ class DaemonRuntime:
             try:
                 client = ControlChannelClient(
                     api_client=self.api_client,
-                    machine_token=self.state.machine_token,
+                    machine_token=self.state.machine_token or "",
                     on_connected=self._on_connected,
                     on_event=self._on_control_event,
                 )
                 await client.run()
                 backoff_seconds = 2
+            except ApiError as exc:
+                if await self._handle_api_error(exc, reason="control_channel_denied"):
+                    break
             except Exception:
                 if self.stop_event.is_set():
                     break
+                self._set_connection_status("degraded")
                 await asyncio.sleep(backoff_seconds)
                 backoff_seconds = min(backoff_seconds * 2, 15)
 
     async def _on_connected(self) -> None:
+        self.state.last_control_connect_at = _utc_now_iso()
+        self._persist_state()
+        await self._sync_identity()
+        if self.stop_event.is_set():
+            raise RuntimeError("Agent access revoked")
         self.claim_event.set()
 
     async def _on_control_event(self, event: dict) -> None:
@@ -82,12 +108,19 @@ class DaemonRuntime:
             await self._cancel_attempt(payload.get("attempt_id"))
             return
         if event_type == "config_updated":
-            await asyncio.to_thread(self.api_client.get_agent_identity, machine_token=self.state.machine_token)
+            await self._sync_identity()
             self.claim_event.set()
             return
         if event_type == "access_revoked":
             await self._shutdown_running_attempts()
+            self.state.clear_pairing(
+                reason=payload.get("reason"),
+                cleared_at=_utc_now_iso(),
+                status="revoked",
+            )
+            self._persist_state()
             self.stop_event.set()
+            raise RuntimeError("Agent access revoked")
 
     async def _shutdown_running_attempts(self) -> None:
         for handle in list(self.active_attempts.values()):
@@ -99,7 +132,17 @@ class DaemonRuntime:
             await self.claim_event.wait()
             self.claim_event.clear()
             while not self.stop_event.is_set():
-                claimed = await asyncio.to_thread(self.api_client.claim_task, machine_token=self.state.machine_token)
+                if not self.state.is_paired or not self.state.machine_token:
+                    break
+                try:
+                    claimed = await asyncio.to_thread(self.api_client.claim_task, machine_token=self.state.machine_token)
+                except ApiError as exc:
+                    if await self._handle_api_error(exc, reason="claim_denied"):
+                        return
+                    break
+                except Exception:
+                    self._set_connection_status("degraded")
+                    break
                 if claimed is None:
                     break
                 if claimed.attempt_id in self.active_attempts:
@@ -132,12 +175,17 @@ class DaemonRuntime:
             )
             await asyncio.to_thread(
                 self.api_client.update_progress,
-                machine_token=self.state.machine_token,
+                machine_token=self.state.machine_token or "",
                 attempt_id=attempt_id,
                 message="Executing command",
                 percent=10,
             )
-            args = build_process_args(runner=handle.task.runner, command=handle.task.command)
+            args = build_process_args(
+                os_family=self.state.os_family,
+                allowed_runners=self.state.allowed_runners,
+                runner=handle.task.runner,
+                command=handle.task.command,
+            )
             handle.process = await asyncio.create_subprocess_exec(
                 *args,
                 stdout=asyncio.subprocess.PIPE,
@@ -157,7 +205,7 @@ class DaemonRuntime:
             if handle.cancel_requested:
                 await asyncio.to_thread(
                     self.api_client.submit_failure,
-                    machine_token=self.state.machine_token,
+                    machine_token=self.state.machine_token or "",
                     attempt_id=attempt_id,
                     error_kind="cancelled",
                     error_message="Task cancelled by operator",
@@ -168,7 +216,7 @@ class DaemonRuntime:
             elif exit_code == 0:
                 await asyncio.to_thread(
                     self.api_client.submit_result,
-                    machine_token=self.state.machine_token,
+                    machine_token=self.state.machine_token or "",
                     attempt_id=attempt_id,
                     stdout=stdout,
                     stderr=stderr,
@@ -178,7 +226,7 @@ class DaemonRuntime:
             else:
                 await asyncio.to_thread(
                     self.api_client.submit_failure,
-                    machine_token=self.state.machine_token,
+                    machine_token=self.state.machine_token or "",
                     attempt_id=attempt_id,
                     error_kind="permanent",
                     error_message=f"Command exited with code {exit_code}",
@@ -192,7 +240,7 @@ class DaemonRuntime:
             duration_ms = int((time.perf_counter() - started_at) * 1000)
             await asyncio.to_thread(
                 self.api_client.submit_failure,
-                machine_token=self.state.machine_token,
+                machine_token=self.state.machine_token or "",
                 attempt_id=attempt_id,
                 error_kind="transient",
                 error_message=str(exc),
@@ -220,9 +268,41 @@ class DaemonRuntime:
             handle.next_sequence += 1
             await asyncio.to_thread(
                 self.api_client.append_log,
-                machine_token=self.state.machine_token,
+                machine_token=self.state.machine_token or "",
                 attempt_id=handle.task.attempt_id,
                 stream=stream_name,
                 sequence=sequence,
                 chunk=chunk,
             )
+
+    async def _sync_identity(self) -> None:
+        if not self.state.machine_token:
+            raise RuntimeError("Daemon is not paired")
+        try:
+            identity = await asyncio.to_thread(
+                self.api_client.get_agent_identity,
+                machine_token=self.state.machine_token,
+            )
+        except ApiError as exc:
+            if await self._handle_api_error(exc, reason="identity_denied"):
+                return
+            raise
+        self.state.sync_identity(identity, synced_at=_utc_now_iso())
+        self._persist_state()
+
+    async def _handle_api_error(self, exc: ApiError, *, reason: str) -> bool:
+        if exc.status_code == 401:
+            await self._shutdown_running_attempts()
+            self.state.clear_pairing(reason=reason, cleared_at=_utc_now_iso(), status="revoked")
+            self._persist_state()
+            self.stop_event.set()
+            return True
+        self._set_connection_status("degraded")
+        return False
+
+    def _set_connection_status(self, status: str) -> None:
+        self.state.set_connection_status(status)
+        self._persist_state()
+
+    def _persist_state(self) -> None:
+        self.state_store.save(self.state)
