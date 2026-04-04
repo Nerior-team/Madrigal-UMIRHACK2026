@@ -71,11 +71,17 @@ def default_service_name() -> str:
 
 
 def default_state_path() -> Path:
+    override = os.environ.get("PREDICTMV_STATE_PATH")
+    if override:
+        return Path(override)
     if os.name == "nt":
         root = Path(os.environ.get("PROGRAMDATA", r"C:\ProgramData"))
         return root / "PredictMV" / "daemon-state.json"
     if platform.system().lower() == "darwin":
         return Path.home() / "Library" / "Application Support" / "PredictMV" / "daemon-state.json"
+    linux_state_root = Path("/var/lib/predict-mv")
+    if linux_state_root.exists():
+        return linux_state_root / "daemon-state.json"
     xdg_root = os.environ.get("XDG_CONFIG_HOME")
     base = Path(xdg_root) if xdg_root else Path.home() / ".config"
     return base / "predict-mv" / "daemon-state.json"

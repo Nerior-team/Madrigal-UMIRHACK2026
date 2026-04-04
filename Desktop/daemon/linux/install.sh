@@ -13,6 +13,8 @@ ARCHIVE_NAME="predictmv-linux-x64.tar.gz"
 ARCHIVE_URL="${DOWNLOAD_BASE_URL}/${ARCHIVE_NAME}"
 ARCHIVE_PATH=""
 SKIP_START="false"
+STATE_FILE="${STATE_DIR}/daemon-state.json"
+RUNTIME_TMP_DIR="${STATE_DIR}/tmp"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -61,12 +63,12 @@ if [[ "${EUID}" -ne 0 ]]; then
 fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-TMP_DIR="$(mktemp -d)"
-ARCHIVE_TMP="${TMP_DIR}/${ARCHIVE_NAME}"
+INSTALL_TMP_DIR="$(mktemp -d)"
+ARCHIVE_TMP="${INSTALL_TMP_DIR}/${ARCHIVE_NAME}"
 SERVICE_PATH="${SYSTEMD_DIR}/${SERVICE_NAME}.service"
 
 cleanup() {
-  rm -rf "${TMP_DIR}"
+  rm -rf "${INSTALL_TMP_DIR}"
 }
 trap cleanup EXIT
 
@@ -159,11 +161,17 @@ download_archive
 ensure_runtime_compatibility
 ensure_service_user
 
-mkdir -p "${INSTALL_DIR}" "${STATE_DIR}/config" "${LOG_DIR}" "${SYSTEMD_DIR}"
-tar -xzf "${ARCHIVE_TMP}" -C "${TMP_DIR}"
-install -m 0755 "${TMP_DIR}/bin/PredictMV" "${INSTALL_DIR}/PredictMV"
-install -m 0755 "${TMP_DIR}/bin/predict" "${INSTALL_DIR}/predict"
-ln -sf "${INSTALL_DIR}/predict" "${CLI_LINK}"
+mkdir -p "${INSTALL_DIR}" "${STATE_DIR}" "${RUNTIME_TMP_DIR}" "${LOG_DIR}" "${SYSTEMD_DIR}"
+tar -xzf "${ARCHIVE_TMP}" -C "${INSTALL_TMP_DIR}"
+install -m 0755 "${INSTALL_TMP_DIR}/bin/PredictMV" "${INSTALL_DIR}/PredictMV"
+install -m 0755 "${INSTALL_TMP_DIR}/bin/predict" "${INSTALL_DIR}/predict"
+cat > "${CLI_LINK}" <<EOF
+#!/usr/bin/env bash
+export PREDICTMV_STATE_PATH="${STATE_FILE}"
+export TMPDIR="${RUNTIME_TMP_DIR}"
+exec "${INSTALL_DIR}/predict" "\$@"
+EOF
+chmod 0755 "${CLI_LINK}"
 chown -R "${SERVICE_USER}:${SERVICE_USER}" "${INSTALL_DIR}" "${STATE_DIR}" "${LOG_DIR}"
 
 cat > "${SERVICE_PATH}" <<EOF
@@ -177,7 +185,8 @@ Type=simple
 User=${SERVICE_USER}
 Group=${SERVICE_USER}
 WorkingDirectory=${INSTALL_DIR}
-Environment=XDG_CONFIG_HOME=${STATE_DIR}/config
+Environment=PREDICTMV_STATE_PATH=${STATE_FILE}
+Environment=TMPDIR=${RUNTIME_TMP_DIR}
 ExecStart=${INSTALL_DIR}/PredictMV
 Restart=always
 RestartSec=5
@@ -201,5 +210,5 @@ Service: ${SERVICE_NAME}
 CLI: ${CLI_LINK}
 
 Next step:
-predict pair --backend-url https://nerior.store
+sudo predict pair --backend-url https://nerior.store
 EOF

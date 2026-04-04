@@ -24,6 +24,11 @@ class StateStore:
         os.replace(temp_path, self.path)
         if os.name != "nt":
             os.chmod(self.path, 0o600)
+            try:
+                stat_result = self.path.parent.stat()
+                os.chown(self.path, stat_result.st_uid, stat_result.st_gid)
+            except (AttributeError, PermissionError, FileNotFoundError, NotImplementedError):
+                pass
 
     def clear(self) -> None:
         if self.path.exists():
