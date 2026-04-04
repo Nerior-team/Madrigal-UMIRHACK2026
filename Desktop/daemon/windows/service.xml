@@ -1,0 +1,14 @@
+<service>
+  <id>PredictMVDaemon</id>
+  <name>Predict MV Daemon</name>
+  <description>Predict MV background agent service</description>
+  <executable>%BASE%\predict-mv-daemon.exe</executable>
+  <workingdirectory>%BASE%</workingdirectory>
+  <env name="APPDATA" value="C:\ProgramData" />
+  <log mode="roll-by-size">
+    <sizeThreshold>10485760</sizeThreshold>
+    <keepFiles>5</keepFiles>
+    <pattern>C:\ProgramData\PredictMV\logs\predict-mv-daemon</pattern>
+  </log>
+  <onfailure action="restart" delay="10 sec" />
+</service>

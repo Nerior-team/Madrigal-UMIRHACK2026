@@ -1,0 +1,19 @@
+[Unit]
+Description=Predict MV Daemon
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=predict-mv
+Group=predict-mv
+WorkingDirectory=/opt/predict-mv/daemon
+Environment=XDG_CONFIG_HOME=/var/lib/predict-mv/config
+ExecStart=/opt/predict-mv/daemon/predict-mv-daemon
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
