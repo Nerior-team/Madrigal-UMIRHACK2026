@@ -12,6 +12,7 @@ from app.domains.auth.models import (
     UserTwoFactorSettings,
 )
 from app.domains.users.models import User
+from app.shared.time import utc_now
 
 
 class AuthRepository:
@@ -147,6 +148,17 @@ class AuthRepository:
 
     def get_auth_challenge(self, challenge_id: str) -> UserAuthChallenge | None:
         return self.db.get(UserAuthChallenge, challenge_id)
+
+    def get_valid_auth_challenge_by_payload_hash(self, *, user_id: str, challenge_kind, payload_hash: str) -> UserAuthChallenge | None:
+        return self.db.scalar(
+            select(UserAuthChallenge).where(
+                UserAuthChallenge.user_id == user_id,
+                UserAuthChallenge.challenge_kind == challenge_kind,
+                UserAuthChallenge.payload_hash == payload_hash,
+                UserAuthChallenge.consumed_at.is_(None),
+                UserAuthChallenge.expires_at >= utc_now(),
+            )
+        )
 
     def add_audit_event(
         self,

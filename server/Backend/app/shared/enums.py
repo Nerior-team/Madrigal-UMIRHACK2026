@@ -94,3 +94,17 @@ class ResultParserKind(StrEnum):
     DISK_USAGE = "disk_usage"
     NETWORK_CONTEXT = "network_context"
     MEMORY_USAGE = "memory_usage"
+
+
+class ApiKeyPermission(StrEnum):
+    READ = "read"
+    RUN = "run"
+
+
+class ApiKeyExpiryPreset(StrEnum):
+    ONE_TIME = "one_time"
+    DAY = "day"
+    WEEK = "week"
+    MONTH = "month"
+    YEAR = "year"
+    UNLIMITED = "unlimited"

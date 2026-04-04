@@ -11,7 +11,10 @@ from app.db.session import get_db_session
 from app.domains.access.repository import AccessRepository
 from app.domains.auth.repository import AuthRepository
 from app.domains.commands.repository import CommandRepository
+from app.domains.integrations.external_api.repository import ExternalApiRepository
+from app.domains.integrations.external_api.service import ExternalApiClientContext, ExternalApiService
 from app.domains.machines.repository import MachineRepository
+from app.domains.reports.repository import ReportsRepository
 from app.domains.results.repository import ResultRepository
 from app.domains.tasks.repository import TaskRepository
 from app.shared.time import utc_now
@@ -41,10 +44,25 @@ def get_result_repository(db: Annotated[Session, Depends(get_db_session)]) -> Re
     return ResultRepository(db)
 
 
+def get_reports_repository(db: Annotated[Session, Depends(get_db_session)]) -> ReportsRepository:
+    return ReportsRepository(db)
+
+
+def get_external_api_repository(db: Annotated[Session, Depends(get_db_session)]) -> ExternalApiRepository:
+    return ExternalApiRepository(db)
+
+
 def build_client_context(request: Request):
     from app.domains.auth.service import ClientContext
 
     return ClientContext(
+        ip_address=request.client.host if request.client else None,
+        user_agent=request.headers.get("user-agent"),
+    )
+
+
+def build_external_api_client_context(request: Request) -> ExternalApiClientContext:
+    return ExternalApiClientContext(
         ip_address=request.client.host if request.client else None,
         user_agent=request.headers.get("user-agent"),
     )
@@ -111,3 +129,30 @@ def get_machine_access_context(
         ownership=ownership,
         is_creator_owner=ownership is not None and ownership.creator_user_id == current_user.id,
     )
+
+
+def get_external_api_principal(
+    authorization: Annotated[str | None, Header(alias="Authorization")] = None,
+    client: Annotated[ExternalApiClientContext, Depends(build_external_api_client_context)] = None,
+    auth_repository: Annotated[AuthRepository, Depends(get_repository)] = None,
+    external_api_repository: Annotated[ExternalApiRepository, Depends(get_external_api_repository)] = None,
+    access_repository: Annotated[AccessRepository, Depends(get_access_repository)] = None,
+    machine_repository: Annotated[MachineRepository, Depends(get_machine_repository)] = None,
+    command_repository: Annotated[CommandRepository, Depends(get_command_repository)] = None,
+    task_repository: Annotated[TaskRepository, Depends(get_task_repository)] = None,
+    result_repository: Annotated[ResultRepository, Depends(get_result_repository)] = None,
+    reports_repository: Annotated[ReportsRepository, Depends(get_reports_repository)] = None,
+):
+    if authorization is None or not authorization.startswith("Bearer "):
+        raise AppError("api_key_missing", "Требуется API-ключ.", 401)
+    raw_key = authorization.removeprefix("Bearer ").strip()
+    return ExternalApiService(
+        auth_repository=auth_repository,
+        external_api_repository=external_api_repository,
+        access_repository=access_repository,
+        machine_repository=machine_repository,
+        command_repository=command_repository,
+        task_repository=task_repository,
+        result_repository=result_repository,
+        reports_repository=reports_repository,
+    ).authenticate_api_key(raw_key=raw_key, client=client)

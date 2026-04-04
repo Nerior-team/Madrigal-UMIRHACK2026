@@ -47,6 +47,7 @@ class Settings(BaseSettings):
     telegram_bot_username: str = "change_me"
 
     data_encryption_key: str = "replace_with_fernet_key"
+    api_key_pepper: str = "change_me"
 
     tls_cert_path: str = "/run/secrets/server.crt"
     tls_key_path: str = "/run/secrets/server.key"

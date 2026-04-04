@@ -35,7 +35,21 @@ def hash_token(raw_value: str, *, purpose: str) -> str:
     return hmac.new(secret, payload, hashlib.sha256).hexdigest()
 
 
+def hash_api_key_secret(secret: str) -> str:
+    settings = get_settings()
+    return hmac.new(settings.api_key_pepper.encode("utf-8"), secret.encode("utf-8"), hashlib.sha256).hexdigest()
+
+
+def verify_api_key_secret(secret: str, secret_hash: str) -> bool:
+    calculated = hash_api_key_secret(secret)
+    return hmac.compare_digest(calculated, secret_hash)
+
+
 def generate_session_token() -> str:
+    return secrets.token_urlsafe(32)
+
+
+def generate_api_key_secret() -> str:
     return secrets.token_urlsafe(32)
 
 
