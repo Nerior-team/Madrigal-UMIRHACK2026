@@ -14,7 +14,6 @@ from app.ui import (
     back_and_menu,
     challenge_keyboard,
     commands_keyboard,
-    confirm_run_keyboard,
     format_command_confirm,
     format_commands,
     format_machine_detail,
@@ -206,27 +205,33 @@ def build_router(client: BackendClient, state_store: BotStateStore) -> Router:
     @router.callback_query(F.data.startswith("command:"))
     async def show_command(callback: CallbackQuery) -> None:
         telegram_user_id, _ = _telegram_ids(callback)
-        _, machine_id, template_key = callback.data.split(":", 2)
+        _, machine_id, template_index_raw = callback.data.split(":", 2)
+        template_index = int(template_index_raw)
         machine = await _load_machine(telegram_user_id, machine_id)
-        template = await _load_template(telegram_user_id, machine_id, template_key)
-        if not template["parameters"]:
-            await _render(
-                callback,
-                format_command_confirm(machine, template, {}),
-                confirm_run_keyboard(machine_id, template_key, back_callback=f"machine_commands:{machine_id}"),
-            )
+        payload = await client.list_commands(telegram_user_id, machine_id)
+        items = payload["items"]
+        if template_index < 0 or template_index >= len(items):
+            await _render(callback, "Команда больше недоступна. Открой список заново.", back_and_menu(f"machine_commands:{machine_id}"))
             return
+        template = items[template_index]
         state_id = await state_store.create_run_state(
             {
                 "telegram_user_id": telegram_user_id,
                 "machine_id": machine_id,
-                "template_key": template_key,
+                "template_key": template["template_key"],
                 "template_name": template["name"],
                 "runner": template["runner"],
                 "parameters": template["parameters"],
                 "selected": {},
             }
         )
+        if not template["parameters"]:
+            await _render(
+                callback,
+                format_command_confirm(machine, template, {}),
+                run_state_confirm_keyboard(state_id, back_callback=f"machine_commands:{machine_id}"),
+            )
+            return
         await _render_parameter_step(callback, state_id, 0)
 
     @router.callback_query(F.data.startswith("run:"))

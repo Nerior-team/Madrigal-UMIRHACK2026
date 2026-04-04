@@ -72,7 +72,7 @@ def default_service_name() -> str:
 
 def default_state_path() -> Path:
     if os.name == "nt":
-        root = Path(os.environ.get("APPDATA", Path.home() / "AppData" / "Roaming"))
+        root = Path(os.environ.get("PROGRAMDATA", r"C:\ProgramData"))
         return root / "PredictMV" / "daemon-state.json"
     if platform.system().lower() == "darwin":
         return Path.home() / "Library" / "Application Support" / "PredictMV" / "daemon-state.json"

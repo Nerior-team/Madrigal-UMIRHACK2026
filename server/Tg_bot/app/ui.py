@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from datetime import datetime
+from zoneinfo import ZoneInfo
+
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
 
@@ -25,6 +28,17 @@ def truncate(text: str | None, *, limit: int = 3500) -> str:
     if len(text) <= limit:
         return text
     return f"{text[: limit - 3]}..."
+
+
+def _format_heartbeat(value: str | None) -> str:
+    if not value:
+        return "-"
+    try:
+        normalized = value.replace("Z", "+00:00")
+        timestamp = datetime.fromisoformat(normalized)
+        return timestamp.astimezone(ZoneInfo("Europe/Moscow")).strftime("%d.%m.%Y %H:%M:%S MSK")
+    except ValueError:
+        return value
 
 
 def main_menu_keyboard(*, linked: bool) -> InlineKeyboardMarkup:
@@ -73,8 +87,8 @@ def machine_detail_keyboard(machine_id: str) -> InlineKeyboardMarkup:
 
 def commands_keyboard(machine_id: str, items: list[dict]) -> InlineKeyboardMarkup:
     rows = [
-        [InlineKeyboardButton(text=item["name"], callback_data=f"command:{machine_id}:{item['template_key']}")]
-        for item in items
+        [InlineKeyboardButton(text=item["name"], callback_data=f"command:{machine_id}:{index}")]
+        for index, item in enumerate(items)
     ]
     rows.append([InlineKeyboardButton(text="Назад", callback_data=f"machine:{machine_id}")])
     return with_main_menu(rows)
@@ -182,7 +196,7 @@ def format_machine_detail(machine: dict) -> str:
             f"Хост: {machine['hostname']}",
             f"ОС: {machine['os_family']} {machine['os_version'] or ''}".strip(),
             f"Статус: {machine['status']}",
-        f"Heartbeat: {machine['last_heartbeat_at'] or '-'}",
+        f"Heartbeat: {_format_heartbeat(machine['last_heartbeat_at'])}",
             f"Владелец: {machine['owner_email']}",
             f"Моя роль: {machine['my_role']}",
         ]
