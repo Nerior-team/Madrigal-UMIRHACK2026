@@ -16,6 +16,14 @@ class TaskListRow:
     result: CommandExecutionResult | None
 
 
+@dataclass(slots=True)
+class TaskReportRow:
+    task: Task
+    attempts: list[TaskAttempt]
+    result: CommandExecutionResult | None
+    logs: list[TaskLogChunk]
+
+
 class TaskRepository:
     def __init__(self, db: Session) -> None:
         self.db = db
@@ -170,3 +178,14 @@ class TaskRepository:
             .order_by(Task.created_at.desc(), TaskAttempt.attempt_no.asc())
         )
         return [TaskListRow(task=task, attempt=attempt, result=result) for task, attempt, result in self.db.execute(statement).all()]
+
+    def get_task_report_row(self, task_id: str) -> TaskReportRow | None:
+        task = self.get_task(task_id)
+        if task is None:
+            return None
+        attempts = self.get_attempts_for_task(task_id)
+        result = None
+        if attempts:
+            result = self.get_result_for_attempt(attempts[-1].id)
+        logs = self.get_log_chunks_for_task(task_id)
+        return TaskReportRow(task=task, attempts=attempts, result=result, logs=logs)
