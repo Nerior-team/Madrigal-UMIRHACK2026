@@ -179,6 +179,18 @@ class TaskRepository:
         )
         return [TaskListRow(task=task, attempt=attempt, result=result) for task, attempt, result in self.db.execute(statement).all()]
 
+    def list_tasks_for_machines(self, machine_ids: list[str]) -> list[TaskListRow]:
+        if not machine_ids:
+            return []
+        statement = (
+            select(Task, TaskAttempt, CommandExecutionResult)
+            .join(TaskAttempt, TaskAttempt.task_id == Task.id)
+            .outerjoin(CommandExecutionResult, CommandExecutionResult.attempt_id == TaskAttempt.id)
+            .where(Task.machine_id.in_(machine_ids))
+            .order_by(Task.created_at.desc(), TaskAttempt.attempt_no.asc())
+        )
+        return [TaskListRow(task=task, attempt=attempt, result=result) for task, attempt, result in self.db.execute(statement).all()]
+
     def get_task_report_row(self, task_id: str) -> TaskReportRow | None:
         task = self.get_task(task_id)
         if task is None:

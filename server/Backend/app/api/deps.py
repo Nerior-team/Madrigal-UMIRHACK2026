@@ -13,6 +13,7 @@ from app.db.session import get_db_session
 from app.domains.access.repository import AccessRepository
 from app.domains.auth.repository import AuthRepository
 from app.domains.commands.repository import CommandRepository
+from app.domains.groups.repository import GroupRepository
 from app.domains.integrations.external_api.repository import ExternalApiRepository
 from app.domains.integrations.external_api.service import ExternalApiClientContext, ExternalApiService
 from app.domains.integrations.telegram.repository import TelegramRepository
@@ -31,6 +32,10 @@ def get_repository(db: Annotated[Session, Depends(get_db_session)]) -> AuthRepos
 
 def get_machine_repository(db: Annotated[Session, Depends(get_db_session)]) -> MachineRepository:
     return MachineRepository(db)
+
+
+def get_group_repository(db: Annotated[Session, Depends(get_db_session)]) -> GroupRepository:
+    return GroupRepository(db)
 
 
 def get_access_repository(db: Annotated[Session, Depends(get_db_session)]) -> AccessRepository:

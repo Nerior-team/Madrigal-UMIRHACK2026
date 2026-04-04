@@ -86,3 +86,21 @@ class ResultRepository:
         if template_key:
             statement = statement.where(Task.template_key == template_key)
         return [ResultHistoryRow(result=result, task=task) for result, task in self.db.execute(statement).all()]
+
+    def list_machine_history_for_machines(
+        self,
+        *,
+        machine_ids: list[str],
+        template_key: str | None = None,
+    ) -> list[ResultHistoryRow]:
+        if not machine_ids:
+            return []
+        statement = (
+            select(CommandExecutionResult, Task)
+            .join(Task, Task.id == CommandExecutionResult.task_id)
+            .where(Task.machine_id.in_(machine_ids))
+            .order_by(CommandExecutionResult.created_at.desc())
+        )
+        if template_key:
+            statement = statement.where(Task.template_key == template_key)
+        return [ResultHistoryRow(result=result, task=task) for result, task in self.db.execute(statement).all()]

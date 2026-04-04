@@ -190,6 +190,20 @@ class TaskService:
             unique_tasks[row.task.id] = row.task
         return [self._build_task_read(task) for task in unique_tasks.values()]
 
+    def list_tasks_for_machine_ids(self, *, actor_user_id: str, machine_ids: list[str]) -> list[TaskRead]:
+        if not machine_ids:
+            return []
+        allowed_machine_ids: list[str] = []
+        for machine_id in machine_ids:
+            _, access, _ = self._require_machine_access(machine_id=machine_id, actor_user_id=actor_user_id)
+            ensure_can_view_machine(access.role)
+            allowed_machine_ids.append(machine_id)
+        rows = self.task_repository.list_tasks_for_machines(allowed_machine_ids)
+        unique_tasks: dict[str, Task] = {}
+        for row in rows:
+            unique_tasks[row.task.id] = row.task
+        return [self._build_task_read(task) for task in unique_tasks.values()]
+
     def get_task(self, *, actor_user_id: str, task_id: str) -> TaskRead:
         task = self.task_repository.get_task(task_id)
         if task is None:

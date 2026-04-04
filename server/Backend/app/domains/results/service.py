@@ -124,6 +124,37 @@ class ResultService:
             for row in self.result_repository.list_machine_history(machine_id=machine_id, template_key=template_key)
         ]
 
+    def list_machine_history_for_machine_ids(
+        self,
+        *,
+        actor_user_id: str,
+        machine_ids: list[str],
+        template_key: str | None = None,
+    ) -> list[ResultHistoryEntryRead]:
+        if not machine_ids:
+            return []
+        for machine_id in machine_ids:
+            self._require_access(machine_id=machine_id, actor_user_id=actor_user_id)
+        return [
+            ResultHistoryEntryRead(
+                id=row.result.id,
+                task_id=row.result.task_id,
+                attempt_id=row.result.attempt_id,
+                machine_id=row.task.machine_id,
+                template_key=row.task.template_key,
+                template_name=row.task.template_name,
+                parser_kind=row.result.parser_kind,
+                summary=row.result.summary,
+                exit_code=row.result.exit_code,
+                duration_ms=row.result.duration_ms,
+                created_at=row.result.created_at,
+            )
+            for row in self.result_repository.list_machine_history_for_machines(
+                machine_ids=machine_ids,
+                template_key=template_key,
+            )
+        ]
+
     def diff_results(self, *, actor_user_id: str, left_result_id: str, right_result_id: str) -> ResultDiffRead:
         left_row = self.result_repository.get_history_row(left_result_id)
         right_row = self.result_repository.get_history_row(right_result_id)
