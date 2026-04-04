@@ -1,4 +1,4 @@
-# Predict MV Daemon Installation
+# PredictMV Daemon Installation
 
 ## Supported Targets
 
@@ -16,14 +16,14 @@ Linux support assumes `systemd`.
 3. After installation, pair the machine:
 
 ```powershell
-predict-mv-daemon-cli pair --backend-url https://nerior.store
+predict pair --backend-url https://nerior.store
 ```
 
 4. Confirm the shown device code in the web UI.
 5. Check agent status:
 
 ```powershell
-predict-mv-daemon-cli status
+predict status
 ```
 
 ## Linux
@@ -37,17 +37,17 @@ curl -fsSL https://nerior.store/downloads/linux/install.sh | bash
 Pair the machine:
 
 ```bash
-predict-mv-daemon-cli pair --backend-url https://nerior.store
+predict pair --backend-url https://nerior.store
 ```
 
 Check status:
 
 ```bash
-predict-mv-daemon-cli status
+predict status
 ```
 
 Unpair:
 
 ```bash
-predict-mv-daemon-cli unpair
+predict unpair
 ```

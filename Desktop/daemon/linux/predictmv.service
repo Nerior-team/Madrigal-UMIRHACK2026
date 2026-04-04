@@ -1,5 +1,5 @@
 [Unit]
-Description=Predict MV Daemon
+Description=PredictMV Daemon
 After=network-online.target
 Wants=network-online.target
 
@@ -9,9 +9,10 @@ User=predict-mv
 Group=predict-mv
 WorkingDirectory=/opt/predict-mv/daemon
 Environment=XDG_CONFIG_HOME=/var/lib/predict-mv/config
-ExecStart=/opt/predict-mv/daemon/predict-mv-daemon
+ExecStart=/opt/predict-mv/daemon/PredictMV
 Restart=always
 RestartSec=5
+KillMode=process
 StandardOutput=journal
 StandardError=journal
 

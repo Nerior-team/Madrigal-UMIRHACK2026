@@ -4,6 +4,7 @@ from pathlib import Path
 
 
 daemon_root = Path(SPECPATH).resolve().parent
+icon_path = daemon_root / "assets" / "logo.ico"
 
 a = Analysis(
     [str(daemon_root / "main.py")],
@@ -25,11 +26,12 @@ exe = EXE(
     a.binaries,
     a.datas,
     [],
-    name="predict-mv-daemon",
+    name="PredictMV",
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
     upx=False,
     console=True,
     disable_windowed_traceback=False,
+    icon=str(icon_path) if icon_path.exists() else None,
 )

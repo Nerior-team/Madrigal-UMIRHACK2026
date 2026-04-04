@@ -27,12 +27,12 @@ TARGETS: dict[str, BuildTarget] = {
     "daemon": BuildTarget(
         key="daemon",
         spec_path=PYINSTALLER_ROOT / "daemon.spec",
-        artifact_name="predict-mv-daemon",
+        artifact_name="PredictMV",
     ),
     "cli": BuildTarget(
         key="cli",
         spec_path=PYINSTALLER_ROOT / "daemon-cli.spec",
-        artifact_name="predict-mv-daemon-cli",
+        artifact_name="predict",
     ),
 }
 
@@ -53,6 +53,18 @@ def executable_name(base_name: str) -> str:
     return f"{base_name}.exe" if platform.system().lower() == "windows" else base_name
 
 
+def download_segment(platform_id: str) -> str:
+    if platform_id.startswith("windows-"):
+        return "windows"
+    if platform_id.startswith("linux-"):
+        return "linux"
+    return platform_id
+
+
+def linux_archive_name(platform_id: str) -> str:
+    return f"predictmv-{platform_id}.tar.gz"
+
+
 def build_command(*, target: BuildTarget, dist_dir: Path, work_dir: Path) -> list[str]:
     return [
         sys.executable,
@@ -69,9 +81,14 @@ def build_command(*, target: BuildTarget, dist_dir: Path, work_dir: Path) -> lis
 
 
 def write_manifest(*, platform_id: str, dist_dir: Path, selected_targets: list[BuildTarget]) -> Path:
+    segment = download_segment(platform_id)
     manifest = {
         "version": __version__,
         "platform": platform_id,
+        "channel": "stable",
+        "download_segment": segment,
+        "daemon_binary": executable_name(TARGETS["daemon"].artifact_name),
+        "cli_binary": executable_name(TARGETS["cli"].artifact_name),
         "artifacts": [
             {
                 "target": target.key,
@@ -81,6 +98,17 @@ def write_manifest(*, platform_id: str, dist_dir: Path, selected_targets: list[B
             for target in selected_targets
         ],
     }
+    if segment == "windows":
+        manifest["update"] = {
+            "mode": "installer",
+            "file": "PredictMVDaemonSetup.exe",
+        }
+    elif segment == "linux":
+        manifest["update"] = {
+            "mode": "archive",
+            "archive_file": linux_archive_name(platform_id),
+            "install_script_file": "install.sh",
+        }
     manifest_path = dist_dir / "manifest.json"
     manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
     return manifest_path

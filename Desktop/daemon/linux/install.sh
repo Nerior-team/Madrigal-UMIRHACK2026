@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SERVICE_NAME="predict-mv-daemon"
+SERVICE_NAME="predictmv"
 SERVICE_USER="predict-mv"
 INSTALL_DIR="/opt/predict-mv/daemon"
 STATE_DIR="/var/lib/predict-mv"
 LOG_DIR="/var/log/predict-mv"
 SYSTEMD_DIR="/etc/systemd/system"
-CLI_LINK="/usr/local/bin/predict-mv-daemon-cli"
+CLI_LINK="/usr/local/bin/predict"
 DOWNLOAD_BASE_URL="https://nerior.store/downloads/linux"
-ARCHIVE_NAME="predict-mv-daemon-linux-x64.tar.gz"
+ARCHIVE_NAME="predictmv-linux-x64.tar.gz"
 ARCHIVE_URL="${DOWNLOAD_BASE_URL}/${ARCHIVE_NAME}"
 ARCHIVE_PATH=""
 SKIP_START="false"
@@ -63,7 +63,6 @@ fi
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TMP_DIR="$(mktemp -d)"
 ARCHIVE_TMP="${TMP_DIR}/${ARCHIVE_NAME}"
-SERVICE_TEMPLATE="${SCRIPT_DIR}/predict-mv-daemon.service"
 SERVICE_PATH="${SYSTEMD_DIR}/${SERVICE_NAME}.service"
 
 cleanup() {
@@ -118,18 +117,33 @@ ensure_service_user
 
 mkdir -p "${INSTALL_DIR}" "${STATE_DIR}/config" "${LOG_DIR}" "${SYSTEMD_DIR}"
 tar -xzf "${ARCHIVE_TMP}" -C "${TMP_DIR}"
-install -m 0755 "${TMP_DIR}/bin/predict-mv-daemon" "${INSTALL_DIR}/predict-mv-daemon"
-install -m 0755 "${TMP_DIR}/bin/predict-mv-daemon-cli" "${INSTALL_DIR}/predict-mv-daemon-cli"
-ln -sf "${INSTALL_DIR}/predict-mv-daemon-cli" "${CLI_LINK}"
+install -m 0755 "${TMP_DIR}/bin/PredictMV" "${INSTALL_DIR}/PredictMV"
+install -m 0755 "${TMP_DIR}/bin/predict" "${INSTALL_DIR}/predict"
+ln -sf "${INSTALL_DIR}/predict" "${CLI_LINK}"
 chown -R "${SERVICE_USER}:${SERVICE_USER}" "${INSTALL_DIR}" "${STATE_DIR}" "${LOG_DIR}"
 
-sed \
-  -e "s|/opt/predict-mv/daemon|${INSTALL_DIR}|g" \
-  -e "s|/var/lib/predict-mv|${STATE_DIR}|g" \
-  -e "s|/var/log/predict-mv|${LOG_DIR}|g" \
-  -e "s|User=predict-mv|User=${SERVICE_USER}|g" \
-  -e "s|Group=predict-mv|Group=${SERVICE_USER}|g" \
-  "${SERVICE_TEMPLATE}" > "${SERVICE_PATH}"
+cat > "${SERVICE_PATH}" <<EOF
+[Unit]
+Description=PredictMV Daemon
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=${SERVICE_USER}
+Group=${SERVICE_USER}
+WorkingDirectory=${INSTALL_DIR}
+Environment=XDG_CONFIG_HOME=${STATE_DIR}/config
+ExecStart=${INSTALL_DIR}/PredictMV
+Restart=always
+RestartSec=5
+KillMode=process
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
+EOF
 
 systemctl daemon-reload
 systemctl enable "${SERVICE_NAME}" >/dev/null
@@ -138,10 +152,10 @@ if [[ "${SKIP_START}" != "true" ]]; then
 fi
 
 cat <<EOF
-Predict MV daemon installed.
+PredictMV daemon installed.
 Service: ${SERVICE_NAME}
 CLI: ${CLI_LINK}
 
 Next step:
-predict-mv-daemon-cli pair --backend-url https://nerior.store
+predict pair --backend-url https://nerior.store
 EOF

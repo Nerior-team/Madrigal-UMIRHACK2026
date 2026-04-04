@@ -1,4 +1,4 @@
-#define MyAppName "Predict MV Daemon"
+#define MyAppName "PredictMV"
 #define MyAppPublisher "Predict MV"
 
 #ifndef SourceDir
@@ -19,7 +19,7 @@ AppName={#MyAppName}
 AppVersion={#AppVersion}
 AppPublisher={#MyAppPublisher}
 DefaultDirName={autopf}\Predict MV\Daemon
-DefaultGroupName=Predict MV
+DefaultGroupName=PredictMV
 DisableProgramGroupPage=yes
 OutputDir={#OutputDir}
 OutputBaseFilename=PredictMVDaemonSetup
@@ -28,21 +28,23 @@ SolidCompression=yes
 ArchitecturesInstallIn64BitMode=x64compatible
 PrivilegesRequired=admin
 WizardStyle=modern
-UninstallDisplayIcon={app}\predict-mv-daemon.exe
+UninstallDisplayIcon={app}\PredictMV.exe
 ChangesEnvironment=yes
+SetupIconFile={#SourceDir}\logo.ico
 
 [Dirs]
 Name: "{commonappdata}\PredictMV"
 Name: "{commonappdata}\PredictMV\logs"
 
 [Files]
-Source: "{#SourceDir}\predict-mv-daemon.exe"; DestDir: "{app}"; Flags: ignoreversion
-Source: "{#SourceDir}\predict-mv-daemon-cli.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#SourceDir}\PredictMV.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#SourceDir}\predict.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#SourceDir}\PredictMVService.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#SourceDir}\PredictMVService.xml"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#SourceDir}\logo.ico"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
-Name: "{group}\Predict MV Daemon CLI"; Filename: "{app}\predict-mv-daemon-cli.exe"
+Name: "{group}\Predict CLI"; Filename: "{app}\predict.exe"; IconFilename: "{app}\logo.ico"
 
 [Run]
 Filename: "{app}\PredictMVService.exe"; Parameters: "install"; Flags: runhidden waituntilterminated

@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SERVICE_NAME="predict-mv-daemon"
+SERVICE_NAME="predictmv"
 INSTALL_DIR="/opt/predict-mv/daemon"
 STATE_DIR="/var/lib/predict-mv"
 LOG_DIR="/var/log/predict-mv"
 SYSTEMD_DIR="/etc/systemd/system"
-CLI_LINK="/usr/local/bin/predict-mv-daemon-cli"
+CLI_LINK="/usr/local/bin/predict"
 PURGE="false"
 
 while [[ $# -gt 0 ]]; do
@@ -59,4 +59,4 @@ if [[ "${PURGE}" == "true" ]]; then
   rm -rf "${STATE_DIR}" "${LOG_DIR}"
 fi
 
-echo "Predict MV daemon uninstalled."
+echo "PredictMV daemon uninstalled."
