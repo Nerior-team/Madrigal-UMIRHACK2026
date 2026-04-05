@@ -153,6 +153,18 @@ a {
   text-align: center;
 }
 
+.auth-card__preview-image {
+  position: absolute;
+  inset: 18px;
+  width: calc(100% - 36px);
+  height: calc(100% - 36px);
+  display: block;
+  object-fit: cover;
+  object-position: center top;
+  border-radius: 20px;
+  box-shadow: 0 20px 44px rgba(18, 9, 13, 0.18);
+}
+
 .auth-card__preview-copy p {
   margin: 0;
   font-family: "Space Grotesk", sans-serif;
