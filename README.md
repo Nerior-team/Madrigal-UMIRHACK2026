@@ -121,7 +121,9 @@ Frontend:
 Интеграции:
 
 * Telegram бот
-@Predict_mv_bot
+
+`https://t.me/Predict_mv_bot`
+
 Ссылка для привязки к аккаунту имеет вид:
 
 `/start=...`
