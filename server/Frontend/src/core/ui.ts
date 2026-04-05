@@ -1,7 +1,14 @@
 const MOSCOW_TIME_ZONE = "Europe/Moscow";
 
 export function normalizeMachineTitle(value: string): string {
-  return value.trim();
+  const normalized = value.trim().replace(/\s+/g, " ");
+  if (!normalized) return "Нет данных";
+
+  if (/^linux\b/i.test(normalized) && /\b(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)\b/.test(normalized)) {
+    return "Linux";
+  }
+
+  return normalized;
 }
 
 export function normalizeMachineOsLabel(value: string): string {

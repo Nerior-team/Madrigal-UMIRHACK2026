@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   AlertTriangle,
   ArrowDownRight,
@@ -30,6 +31,16 @@ import {
   matchesSearchQuery,
   normalizeMachineTitle,
 } from "./core/ui";
+import {
+  logsPath,
+  machinePath,
+  resolveAppRoute,
+  workspacePath,
+} from "./core/routes";
+import {
+  buildTaskPreview,
+  getTaskPreviewShellLabel,
+} from "./core/task-preview";
 
 const apiClient = api;
 
@@ -152,6 +163,7 @@ type AccessActivityItem = {
 
 type LogStatusTone = "success" | "warning" | "critical";
 type LogEntry = LogsDashboardResponse["entries"][number];
+type LogStreamItem = LogsDashboardResponse["streamItems"][number];
 type ReportPeriod = "day" | "week" | "month" | "all";
 type ReportTaskItem = ReportsDashboardResponse["tasks"][number];
 
@@ -453,9 +465,33 @@ function mapSessionKindLabel(sessionKind: "web" | "desktop" | "cli"): string {
 }
 
 export function App() {
-  const [screen, setScreen] = useState<AppScreen>("auth");
-  const [authMode, setAuthMode] = useState<AuthMode>("login");
-  const [workspaceTab, setWorkspaceTab] = useState<WorkspaceTab>("machines");
+  const navigate = useNavigate();
+  const location = useLocation();
+  const route = useMemo(
+    () => resolveAppRoute(location.pathname, location.search),
+    [location.pathname, location.search],
+  );
+  const screen: AppScreen = route.section === "auth" ? "auth" : "machines";
+  const authMode: AuthMode =
+    route.section === "auth" ? route.authMode : "login";
+  const workspaceTab: WorkspaceTab =
+    route.section === "workspace" ? route.workspaceTab : "machines";
+  const selectedMachineId = route.section === "workspace" ? route.machineId ?? null : null;
+  const machineDetailTab: MachineDetailTab =
+    route.section === "workspace" && route.machineId
+      ? route.machineTab ?? "dashboard"
+      : "dashboard";
+  const logContext = useMemo(
+    () =>
+      route.section === "workspace" && route.workspaceTab === "logs"
+        ? {
+            machineId: route.logMachineId ?? null,
+            taskId: route.logTaskId ?? null,
+          }
+        : { machineId: null, taskId: null },
+    [route],
+  );
+  const [sessionReady, setSessionReady] = useState(false);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -481,7 +517,7 @@ export function App() {
     AccessActivityItem[]
   >([]);
   const [logEntries, setLogEntries] = useState<LogEntry[]>([]);
-  const [logStreamLines, setLogStreamLines] = useState<string[]>([]);
+  const [logStreamItems, setLogStreamItems] = useState<LogStreamItem[]>([]);
   const [workspaceSearchQuery, setWorkspaceSearchQuery] = useState("");
   const [resultsStatusFilter, setResultsStatusFilter] = useState<
     "all" | ResultStatusTone
@@ -515,11 +551,6 @@ export function App() {
     "all",
   );
   const [logsAutoScrollEnabled, setLogsAutoScrollEnabled] = useState(true);
-  const [selectedMachineId, setSelectedMachineId] = useState<string | null>(
-    null,
-  );
-  const [machineDetailTab, setMachineDetailTab] =
-    useState<MachineDetailTab>("dashboard");
   const [isCreateTaskOpen, setIsCreateTaskOpen] = useState(false);
   const [isLinuxInstallGuideOpen, setIsLinuxInstallGuideOpen] = useState(false);
   const [profileAvatarUrl, setProfileAvatarUrl] = useState<string | null>(null);
@@ -531,6 +562,7 @@ export function App() {
   const [taskParamValues, setTaskParamValues] = useState<Record<string, string>>(
     {},
   );
+  const [taskUseSudo, setTaskUseSudo] = useState(false);
   const profileAvatarInputRef = useRef<HTMLInputElement | null>(null);
   const [registeredEmail, setRegisteredEmail] = useState(() => {
     try {
@@ -542,11 +574,93 @@ export function App() {
     }
   });
 
+  const setScreen = (nextScreen: AppScreen) => {
+    if (nextScreen === "auth") {
+      navigate("/login");
+      return;
+    }
+
+    navigate(workspacePath("machines"));
+  };
+
+  const setAuthMode = (nextMode: AuthMode) => {
+    navigate(
+      nextMode === "login"
+        ? "/login"
+        : nextMode === "register"
+          ? "/register"
+          : "/confirm",
+    );
+  };
+
+  const setWorkspaceTab = (nextTab: WorkspaceTab) => {
+    navigate(workspacePath(nextTab));
+  };
+
+  const setSelectedMachineId = (machineId: string | null) => {
+    navigate(machineId ? machinePath(machineId) : workspacePath("machines"));
+  };
+
+  const setMachineDetailTab = (nextTab: MachineDetailTab) => {
+    if (!selectedMachineId) return;
+    navigate(machinePath(selectedMachineId, nextTab));
+  };
+
+  const openMachine = (machineId: string, tab: MachineDetailTab = "dashboard") => {
+    navigate(machinePath(machineId, tab));
+  };
+
+  const openTaskLogs = (taskId: string, machineId: string) => {
+    navigate(logsPath({ machineId, taskId }));
+  };
+
   const profileDisplayName = useMemo(() => {
-    if (!profileDashboard) return "Рмя Фамилия";
+    if (!profileDashboard) return "Имя Фамилия";
     const trimmed = profileDashboard.fullName.trim();
-    return trimmed || "Рмя Фамилия";
+    return trimmed || "Имя Фамилия";
   }, [profileDashboard]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const bootstrapSession = async () => {
+      if (!apiClient.hasPersistedAuthToken()) {
+        if (cancelled) return;
+        setProfileDashboard(null);
+        setSessionReady(true);
+        if (route.section === "workspace") {
+          navigate("/login", { replace: true });
+        }
+        return;
+      }
+
+      try {
+        const profile = await apiClient.getProfileDashboard();
+        if (cancelled) return;
+
+        setProfileDashboard(profile);
+        setSessionReady(true);
+
+        if (route.section === "auth" && route.authMode !== "confirm") {
+          navigate(workspacePath("machines"), { replace: true });
+        }
+      } catch {
+        apiClient.clearPersistedAuthToken();
+        if (cancelled) return;
+        setProfileDashboard(null);
+        setSessionReady(true);
+        if (route.section === "workspace") {
+          navigate("/login", { replace: true });
+        }
+      }
+    };
+
+    void bootstrapSession();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [navigate, route.section, route.section === "auth" ? route.authMode : ""]);
 
   const profileSessions = useMemo(() => {
     if (!profileDashboard) return [];
@@ -596,10 +710,11 @@ export function App() {
   }, [machineDashboardCards, selectedMachineId, taskMachineId]);
 
   useEffect(() => {
-    if (!isCreateTaskOpen || !taskMachineId) {
+    if (!taskMachineId) {
       setTaskTemplateOptions([]);
       setTaskCommand("");
       setTaskParamValues({});
+      setTaskUseSudo(false);
       return;
     }
 
@@ -625,7 +740,7 @@ export function App() {
     return () => {
       cancelled = true;
     };
-  }, [isCreateTaskOpen, taskMachineId]);
+  }, [taskMachineId]);
 
   useEffect(() => {
     setTaskParamValues((current) => {
@@ -659,15 +774,32 @@ export function App() {
         : logEntries.filter((entry) => entry.tone === logFilterTone);
 
     return byTone.filter((entry) =>
+      (logContext.machineId ? entry.machineId === logContext.machineId : true) &&
+      (logContext.taskId ? entry.taskId === logContext.taskId : true) &&
       matchesSearchQuery(workspaceSearchQuery, [
-        entry.id,
+        entry.taskTitle,
         entry.machine,
         entry.action,
         entry.email,
         entry.status,
       ]),
     );
-  }, [logEntries, logFilterTone, workspaceSearchQuery]);
+  }, [logContext.machineId, logContext.taskId, logEntries, logFilterTone, workspaceSearchQuery]);
+
+  const visibleLogStreamItems = useMemo(
+    () =>
+      logStreamItems.filter(
+        (item) =>
+          (logContext.machineId ? item.machineId === logContext.machineId : true) &&
+          (logContext.taskId ? item.taskId === logContext.taskId : true) &&
+          matchesSearchQuery(workspaceSearchQuery, [
+            item.title,
+            item.machine,
+            item.text,
+          ]),
+      ),
+    [logContext.machineId, logContext.taskId, logStreamItems, workspaceSearchQuery],
+  );
 
   const logStatusStats = useMemo(
     () => ({
@@ -1041,9 +1173,7 @@ export function App() {
   const selectedMachineLogEntries = useMemo(
     () =>
       selectedMachine
-        ? visibleLogEntries.filter((entry) =>
-            matchesSearchQuery(selectedMachine.machine, [entry.machine]),
-          )
+        ? visibleLogEntries.filter((entry) => entry.machineId === selectedMachine.id)
         : [],
     [selectedMachine, visibleLogEntries],
   );
@@ -1054,6 +1184,50 @@ export function App() {
       null,
     [taskCommand, taskTemplateOptions],
   );
+
+  const selectedTaskMachine = useMemo(
+    () =>
+      machineDashboardCards.find((machine) => machine.id === taskMachineId) ?? null,
+    [machineDashboardCards, taskMachineId],
+  );
+
+  useEffect(() => {
+    if (!/^linux\b/i.test(selectedTaskMachine?.os ?? "")) {
+      setTaskUseSudo(false);
+    }
+  }, [selectedTaskMachine?.os]);
+
+  const taskPreviewShellLabel = useMemo(
+    () => getTaskPreviewShellLabel(selectedTaskMachine?.os ?? ""),
+    [selectedTaskMachine?.os],
+  );
+
+  const taskPreviewCommand = useMemo(
+    () =>
+      selectedTaskTemplate
+        ? buildTaskPreview({
+            commandPattern: selectedTaskTemplate.commandPattern,
+            params: taskParamValues,
+            useSudo: taskUseSudo && /^linux\b/i.test(selectedTaskMachine?.os ?? ""),
+          })
+        : "",
+    [selectedTaskMachine?.os, selectedTaskTemplate, taskParamValues, taskUseSudo],
+  );
+
+  const selectedMachineCanCreateTask = useMemo(
+    () =>
+      selectedMachine
+        ? selectedMachine.myRole === "Владелец" ||
+          selectedMachine.myRole === "Администратор" ||
+          selectedMachine.myRole === "Оператор"
+        : false,
+    [selectedMachine],
+  );
+
+  const canSubmitTask =
+    Boolean(taskMachineId) &&
+    Boolean(taskCommand) &&
+    Boolean(taskPreviewCommand);
 
   const visibleAccessRows = useMemo(
     () =>
@@ -1133,7 +1307,7 @@ export function App() {
   ]);
 
   useEffect(() => {
-    if (screen !== "machines") return;
+    if (!sessionReady || screen !== "machines") return;
 
     const loadMachines = async () => {
       const machines = await apiClient.getMachines();
@@ -1169,7 +1343,7 @@ export function App() {
 
       const logsDashboard = await apiClient.getLogsDashboard();
       setLogEntries(logsDashboard.entries);
-      setLogStreamLines(logsDashboard.streamLines);
+      setLogStreamItems(logsDashboard.streamItems);
     };
 
     const loadReportsDashboard = async () => {
@@ -1184,11 +1358,6 @@ export function App() {
 
       const resultsDashboard = await apiClient.getResultsDashboard();
       setResultHistoryRows(resultsDashboard.rows);
-    };
-
-    const loadProfileDashboard = async () => {
-      const profile = await apiClient.getProfileDashboard();
-      setProfileDashboard(profile);
     };
 
     loadMachines().catch(() => setMachineDashboardCards([]));
@@ -1206,7 +1375,7 @@ export function App() {
     });
     loadLogsDashboard().catch(() => {
       setLogEntries([]);
-      setLogStreamLines([]);
+      setLogStreamItems([]);
     });
     loadReportsDashboard().catch(() => {
       setReportTasks([]);
@@ -1214,10 +1383,7 @@ export function App() {
     loadResultsDashboard().catch(() => {
       setResultHistoryRows([]);
     });
-    loadProfileDashboard().catch(() => {
-      setProfileDashboard(null);
-    });
-  }, [screen, selectedMachineId, workspaceTab]);
+  }, [screen, selectedMachineId, sessionReady, workspaceTab]);
 
   useEffect(() => {
     if (!isCreateTaskOpen) return;
@@ -1248,23 +1414,17 @@ export function App() {
     }
 
     if (normalized.includes("открыть логи")) {
-      setWorkspaceTab("logs");
-      setSelectedMachineId(null);
-      setMachineDetailTab("dashboard");
+      navigate(logsPath());
       return;
     }
 
     if (normalized.includes("добавить агента")) {
-      setWorkspaceTab("machines");
-      setSelectedMachineId(null);
-      setMachineDetailTab("dashboard");
+      navigate(workspacePath("machines"));
       return;
     }
 
     if (normalized.includes("управление")) {
-      setWorkspaceTab("access");
-      setSelectedMachineId(null);
-      setMachineDetailTab("dashboard");
+      navigate(workspacePath("access"));
     }
   };
 
@@ -1297,6 +1457,21 @@ export function App() {
     void navigator.clipboard.writeText(commands.join("\n"));
   };
 
+  const copyTaskPreview = () => {
+    if (!taskPreviewCommand) return;
+    if (typeof navigator === "undefined" || !navigator.clipboard?.writeText) {
+      return;
+    }
+
+    void navigator.clipboard.writeText(taskPreviewCommand);
+  };
+
+  const resetTaskComposer = () => {
+    setTaskCommand(taskTemplateOptions[0]?.templateKey ?? "");
+    setTaskParamValues({});
+    setTaskUseSudo(false);
+  };
+
   const handleProfileAvatarChange = (
     event: React.ChangeEvent<HTMLInputElement>,
   ) => {
@@ -1319,6 +1494,7 @@ export function App() {
     setIsCreateTaskOpen(false);
     setIsLinuxInstallGuideOpen(false);
     setAuthChallengeId(null);
+    apiClient.clearPersistedAuthToken();
     setAuthMode("login");
     setScreen("auth");
   };
@@ -1340,10 +1516,33 @@ export function App() {
       });
       setTaskParamValues({});
       closeCreateTaskModal();
-      if (workspaceTab === "tasks" || selectedMachineId) {
-        const tasks = await apiClient.getTasks();
-        setTaskCards(tasks);
+      await refreshTaskLinkedViews();
+    } catch {
+      return;
+    }
+  };
+
+  const refreshTaskLinkedViews = async () => {
+    const [tasks, resultsDashboard, logsDashboard] = await Promise.all([
+      apiClient.getTasks(),
+      apiClient.getResultsDashboard(),
+      apiClient.getLogsDashboard(),
+    ]);
+
+    setTaskCards(tasks);
+    setResultHistoryRows(resultsDashboard.rows);
+    setLogEntries(logsDashboard.entries);
+    setLogStreamItems(logsDashboard.streamItems);
+  };
+
+  const handleTaskSecondaryAction = async (task: TaskCard) => {
+    try {
+      if (task.status === "in_progress") {
+        await apiClient.cancelTask(task.id);
+      } else {
+        await apiClient.retryTask(task.id);
       }
+      await refreshTaskLinkedViews();
     } catch {
       return;
     }
@@ -1456,6 +1655,21 @@ export function App() {
     </header>
   );
 
+  if (!sessionReady) {
+    return (
+      <main className="auth-page" aria-label="Загрузка">
+        <section className="auth-card auth-card--loading">
+          <div className="auth-card__content auth-card__content--loading">
+            <header className="brand-block">
+              <p className="brand-block__name">PREDICT MV</p>
+              <p className="brand-block__tagline">Загрузка рабочего пространства</p>
+            </header>
+          </div>
+        </section>
+      </main>
+    );
+  }
+
   if (screen === "machines") {
     return (
       <main
@@ -1510,9 +1724,7 @@ export function App() {
                   }
                   onClick={() => {
                     if (item.tab) {
-                      setWorkspaceTab(item.tab);
-                      setSelectedMachineId(null);
-                      setMachineDetailTab("dashboard");
+                      navigate(workspacePath(item.tab));
                     }
                   }}
                 >
@@ -1536,9 +1748,7 @@ export function App() {
                 : "machines-profile"
             }
             onClick={() => {
-              setWorkspaceTab("profile");
-              setSelectedMachineId(null);
-              setMachineDetailTab("dashboard");
+              navigate(workspacePath("profile"));
               setProfileSection("general");
             }}
           >
@@ -1554,9 +1764,7 @@ export function App() {
                 : "machines-profile machines-install"
             }
             onClick={() => {
-              setWorkspaceTab("install");
-              setSelectedMachineId(null);
-              setMachineDetailTab("dashboard");
+              navigate(workspacePath("install"));
             }}
           >
             <img src="/download.png" alt="" aria-hidden="true" />
@@ -1842,12 +2050,14 @@ export function App() {
                                 <button
                                   type="button"
                                   className="task-card__btn task-card__btn--secondary"
+                                  onClick={() => handleTaskSecondaryAction(task)}
                                 >
                                   {secondaryActionLabel}
                                 </button>
                                 <button
                                   type="button"
                                   className="task-card__btn task-card__btn--primary"
+                                  onClick={() => openTaskLogs(task.id, task.machineId)}
                                 >
                                   {primaryActionLabel}
                                 </button>
@@ -1947,7 +2157,7 @@ export function App() {
 
                 <section className="results-table-card">
                   <header className="results-table-card__header">
-                    <h2>Рстория запусков</h2>
+                    <h2>История запусков</h2>
 
                     <span className="results-table-card__caption">Поиск выполняется через верхнюю панель</span>
                   </header>
@@ -1988,11 +2198,9 @@ export function App() {
                                 <button
                                   type="button"
                                   className="results-actions__logs"
-                                  onClick={() => {
-                                    setWorkspaceTab("logs");
-                                    setSelectedMachineId(null);
-                                    setMachineDetailTab("dashboard");
-                                  }}
+                                  onClick={() =>
+                                    openTaskLogs(row.id, row.machineId)
+                                  }
                                 >
                                   Смотреть логи
                                 </button>
@@ -2020,7 +2228,7 @@ export function App() {
                 <header className="logs-dashboard__header">
                   <div>
                     <h1>Логи</h1>
-                    <p>Рстория системных событий по задачам и машинам</p>
+                    <p>История системных событий по задачам и машинам</p>
                   </div>
                 </header>
 
@@ -2064,20 +2272,24 @@ export function App() {
                     <table className="logs-table__grid">
                       <thead>
                         <tr>
-                          <th>ID события</th>
+                          <th>Задача</th>
                           <th>Машина</th>
-                          <th>Действие</th>
                           <th>Пользователь</th>
                           <th>Статус</th>
                           <th>Дата</th>
+                          <th>Действия</th>
                         </tr>
                       </thead>
                       <tbody>
                         {visibleLogEntries.map((entry) => (
                           <tr key={entry.id}>
-                            <td>{entry.id}</td>
+                            <td>
+                              <div className="logs-table__task">
+                                <strong>{entry.taskTitle}</strong>
+                                <span>{entry.action}</span>
+                              </div>
+                            </td>
                             <td>{entry.machine}</td>
-                            <td>{entry.action}</td>
                             <td>{entry.email}</td>
                             <td>
                               <span
@@ -2087,6 +2299,17 @@ export function App() {
                               </span>
                             </td>
                             <td>{entry.createdAt}</td>
+                            <td>
+                              <button
+                                type="button"
+                                className="logs-table__details"
+                                onClick={() =>
+                                  openTaskLogs(entry.taskId, entry.machineId)
+                                }
+                              >
+                                К деталям
+                              </button>
+                            </td>
                           </tr>
                         ))}
                       </tbody>
@@ -2097,13 +2320,13 @@ export function App() {
                         Показано {visibleLogEntries.length} из{" "}
                         {logEntries.length}
                       </span>
-                      <span>Событий в потоке: {logStreamLines.length}</span>
+                      <span>Событий в потоке: {visibleLogStreamItems.length}</span>
                     </footer>
                   </section>
 
                   <aside className="logs-stream" aria-label="Поток логов">
                     <header className="logs-stream__header">
-                      <h2>Live stream</h2>
+                      <h2>Поток задачи</h2>
                       <button
                         type="button"
                         className={
@@ -2116,8 +2339,8 @@ export function App() {
                         }
                       >
                         {logsAutoScrollEnabled
-                          ? "Autoscroll: On"
-                          : "Autoscroll: Off"}
+                          ? "Автопрокрутка: вкл"
+                          : "Автопрокрутка: выкл"}
                       </button>
                     </header>
 
@@ -2126,8 +2349,21 @@ export function App() {
                       role="log"
                       aria-live="polite"
                     >
-                      {logStreamLines.map((line, index) => (
-                        <p key={`${line}_${index}`}>{line}</p>
+                      {visibleLogStreamItems.map((item) => (
+                        <article
+                          key={item.id}
+                          className={`logs-stream__item logs-stream__item--${item.kind}`}
+                        >
+                          <p className="logs-stream__item-title">
+                            {item.kind === "request"
+                              ? "Отправленная задача"
+                              : "Ответ"}{" "}
+                            <span>
+                              ({item.createdAt} {item.machine})
+                            </span>
+                          </p>
+                          <p className="logs-stream__item-text">{item.text}</p>
+                        </article>
                       ))}
                     </div>
                   </aside>
@@ -2469,13 +2705,11 @@ export function App() {
                                 type="button"
                                 className="reports-table-card__action"
                                 onClick={() => {
-                                  setWorkspaceTab(
+                                  navigate(
                                     row.actionLabel === "Смотреть логи"
-                                      ? "logs"
-                                      : "tasks",
+                                      ? logsPath()
+                                      : workspacePath("tasks"),
                                   );
-                                  setSelectedMachineId(null);
-                                  setMachineDetailTab("dashboard");
                                 }}
                               >
                                 {row.actionLabel}
@@ -2648,14 +2882,14 @@ export function App() {
 
                       <div className="profile-fields profile-fields--two">
                         <label className="profile-field">
-                          <span>Рмя</span>
+                          <span>Имя</span>
                           <input
                             type="text"
                             value={profileFirstName}
                             onChange={(event) =>
                               setProfileFirstName(event.target.value)
                             }
-                            placeholder="Рмя"
+                            placeholder="Имя"
                           />
                         </label>
 
@@ -2926,7 +3160,7 @@ export function App() {
                             ? "machine-details__tab machine-details__tab--active"
                             : "machine-details__tab"
                         }
-                        onClick={() => setMachineDetailTab(tab.key)}
+                        onClick={() => openMachine(selectedMachine.id, tab.key)}
                       >
                         {tab.label}
                       </button>
@@ -2940,31 +3174,127 @@ export function App() {
                       <section className="machine-details__panel machine-details__panel--task-create">
                         <header className="machine-details__section-head">
                           <h2>Задача</h2>
-                          <button
-                            type="button"
-                            className="machine-details__inline-action"
-                            onClick={openCreateTaskModal}
-                          >
-                            <Plus size={16} />
-                          </button>
+                          <span className="machine-details__task-role">
+                            {selectedMachine.myRole}
+                          </span>
                         </header>
 
-                        <div className="machine-details__task-create-card">
-                          <p className="machine-details__task-create-label">
-                            Машина
-                          </p>
-                          <strong>{getMachineDisplayName(selectedMachine)}</strong>
-                          <p className="machine-details__task-create-text">
-                            Создай новую задачу для этой машины через верхнюю кнопку.
-                          </p>
-                          <button
-                            type="button"
-                            className="machine-details__primary-button"
-                            onClick={openCreateTaskModal}
+                        {selectedMachineCanCreateTask ? (
+                          <form
+                            className="machine-details__task-create-card"
+                            onSubmit={handleCreateTaskSubmit}
                           >
-                            Создать задачу
-                          </button>
-                        </div>
+                            <label className="machine-details__task-field">
+                              <span>Команда</span>
+                              <select
+                                value={taskCommand}
+                                onChange={(event) =>
+                                  setTaskCommand(event.target.value)
+                                }
+                                disabled={!taskTemplateOptions.length}
+                              >
+                                <option value="">
+                                  {taskTemplateOptions.length
+                                    ? "Введите или выберите команду"
+                                    : "Нет доступных команд"}
+                                </option>
+                                {taskTemplateOptions.map((template) => (
+                                  <option
+                                    key={template.templateKey}
+                                    value={template.templateKey}
+                                  >
+                                    {template.name}
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
+
+                            {selectedTaskTemplate?.parameters.length ? (
+                              selectedTaskTemplate.parameters.map((parameter) => (
+                                <label
+                                  key={parameter.key}
+                                  className="machine-details__task-field"
+                                >
+                                  <span>{parameter.label}</span>
+                                  <select
+                                    value={taskParamValues[parameter.key] ?? ""}
+                                    onChange={(event) =>
+                                      setTaskParamValues((current) => ({
+                                        ...current,
+                                        [parameter.key]: event.target.value,
+                                      }))
+                                    }
+                                  >
+                                    {parameter.allowedValues.map((option) => (
+                                      <option key={option} value={option}>
+                                        {option}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </label>
+                              ))
+                            ) : (
+                              <p className="machine-details__task-create-text">
+                                У выбранной команды нет дополнительных параметров.
+                              </p>
+                            )}
+
+                            {/^linux\b/i.test(selectedMachine.os) ? (
+                              <label className="machine-details__task-checkbox">
+                                <input
+                                  type="checkbox"
+                                  checked={taskUseSudo}
+                                  onChange={(event) =>
+                                    setTaskUseSudo(event.target.checked)
+                                  }
+                                />
+                                <span>Разрешить sudo</span>
+                              </label>
+                            ) : null}
+
+                            <div className="machine-details__task-terminal">
+                              <div className="machine-details__task-terminal-head">
+                                <span>{taskPreviewShellLabel}</span>
+                                <button
+                                  type="button"
+                                  className="machine-details__inline-action machine-details__inline-action--ghost"
+                                  onClick={copyTaskPreview}
+                                >
+                                  <span>Копировать</span>
+                                </button>
+                              </div>
+                              <code>
+                                {taskPreviewCommand ||
+                                  "Выберите команду и параметры, чтобы увидеть итоговый запуск."}
+                              </code>
+                            </div>
+
+                            <div className="machine-details__task-actions">
+                              <button
+                                type="button"
+                                className="machine-details__link-button"
+                                onClick={resetTaskComposer}
+                              >
+                                Сбросить
+                              </button>
+                              <button
+                                type="submit"
+                                className="machine-details__primary-button"
+                                disabled={!canSubmitTask}
+                              >
+                                Добавить
+                              </button>
+                            </div>
+                          </form>
+                        ) : (
+                          <div className="machine-details__task-create-card">
+                            <strong>{getMachineDisplayName(selectedMachine)}</strong>
+                            <p className="machine-details__task-create-text">
+                              Для этой машины доступен только выбор разрешённых сценариев
+                              от администратора.
+                            </p>
+                          </div>
+                        )}
                       </section>
 
                       <section className="machine-details__panel">
@@ -2973,7 +3303,7 @@ export function App() {
                           <button
                             type="button"
                             className="machine-details__link-button"
-                            onClick={() => setMachineDetailTab("tasks")}
+                            onClick={() => openMachine(selectedMachine.id, "tasks")}
                           >
                             Смотреть все
                           </button>
@@ -2999,6 +3329,15 @@ export function App() {
                                   >
                                     {task.resultText}
                                   </span>
+                                  <button
+                                    type="button"
+                                    className="machine-details__link-button"
+                                    onClick={() =>
+                                      openTaskLogs(task.id, selectedMachine.id)
+                                    }
+                                  >
+                                    Посмотреть логи
+                                  </button>
                                 </div>
                               </article>
                             ))
@@ -3017,7 +3356,9 @@ export function App() {
                         <button
                           type="button"
                           className="machine-details__link-button"
-                          onClick={() => setMachineDetailTab("results")}
+                          onClick={() =>
+                            openMachine(selectedMachine.id, "results")
+                          }
                         >
                           Смотреть все
                         </button>
@@ -3056,7 +3397,9 @@ export function App() {
                                     <button
                                       type="button"
                                       className="results-actions__logs"
-                                      onClick={() => setWorkspaceTab("logs")}
+                                      onClick={() =>
+                                        openTaskLogs(row.id, row.machineId)
+                                      }
                                     >
                                       Смотреть логи
                                     </button>
@@ -3079,7 +3422,7 @@ export function App() {
                         <button
                           type="button"
                           className="machine-details__link-button"
-                          onClick={() => setMachineDetailTab("logs")}
+                          onClick={() => openMachine(selectedMachine.id, "logs")}
                         >
                           Смотреть все
                         </button>
@@ -3089,21 +3432,23 @@ export function App() {
                         <table className="logs-table__grid">
                           <thead>
                             <tr>
-                              <th>ID события</th>
-                              <th>Машина</th>
-                              <th>Действие</th>
+                              <th>Задача</th>
                               <th>Пользователь</th>
                               <th>Статус</th>
                               <th>Дата</th>
+                              <th>Действия</th>
                             </tr>
                           </thead>
                           <tbody>
                             {selectedMachineLogEntries.length ? (
                               selectedMachineLogEntries.slice(0, 4).map((entry) => (
                                 <tr key={entry.id}>
-                                  <td>{entry.id}</td>
-                                  <td>{entry.machine}</td>
-                                  <td>{entry.action}</td>
+                                  <td>
+                                    <div className="logs-table__task">
+                                      <strong>{entry.taskTitle}</strong>
+                                      <span>{entry.action}</span>
+                                    </div>
+                                  </td>
                                   <td>{entry.email}</td>
                                   <td>
                                     <span
@@ -3113,11 +3458,22 @@ export function App() {
                                     </span>
                                   </td>
                                   <td>{entry.createdAt}</td>
+                                  <td>
+                                    <button
+                                      type="button"
+                                      className="logs-table__details"
+                                      onClick={() =>
+                                        openTaskLogs(entry.taskId, entry.machineId)
+                                      }
+                                    >
+                                      К деталям
+                                    </button>
+                                  </td>
                                 </tr>
                               ))
                             ) : (
                               <tr>
-                                <td colSpan={6}>Нет логов по этой машине</td>
+                                <td colSpan={5}>Нет логов по этой машине</td>
                               </tr>
                             )}
                           </tbody>
@@ -3146,6 +3502,13 @@ export function App() {
                             >
                               {task.resultText}
                             </span>
+                            <button
+                              type="button"
+                              className="machine-details__link-button"
+                              onClick={() => openTaskLogs(task.id, task.machineId)}
+                            >
+                              Посмотреть логи
+                            </button>
                           </article>
                         ))
                       ) : (
@@ -3204,21 +3567,23 @@ export function App() {
                       <table className="logs-table__grid">
                         <thead>
                           <tr>
-                            <th>ID события</th>
-                            <th>Машина</th>
-                            <th>Действие</th>
+                            <th>Задача</th>
                             <th>Пользователь</th>
                             <th>Статус</th>
                             <th>Дата</th>
+                            <th>Действия</th>
                           </tr>
                         </thead>
                         <tbody>
                           {selectedMachineLogEntries.length ? (
                             selectedMachineLogEntries.map((entry) => (
                               <tr key={entry.id}>
-                                <td>{entry.id}</td>
-                                <td>{entry.machine}</td>
-                                <td>{entry.action}</td>
+                                <td>
+                                  <div className="logs-table__task">
+                                    <strong>{entry.taskTitle}</strong>
+                                    <span>{entry.action}</span>
+                                  </div>
+                                </td>
                                 <td>{entry.email}</td>
                                 <td>
                                   <span
@@ -3228,11 +3593,22 @@ export function App() {
                                   </span>
                                 </td>
                                 <td>{entry.createdAt}</td>
+                                <td>
+                                  <button
+                                    type="button"
+                                    className="logs-table__details"
+                                    onClick={() =>
+                                      openTaskLogs(entry.taskId, entry.machineId)
+                                    }
+                                  >
+                                    К деталям
+                                  </button>
+                                </td>
                               </tr>
                             ))
                           ) : (
                             <tr>
-                              <td colSpan={6}>Нет логов по этой машине</td>
+                              <td colSpan={5}>Нет логов по этой машине</td>
                             </tr>
                           )}
                         </tbody>
@@ -3284,14 +3660,12 @@ export function App() {
                             role="button"
                             tabIndex={0}
                             onClick={() => {
-                              setSelectedMachineId(card.id);
-                              setMachineDetailTab("dashboard");
+                              openMachine(card.id);
                             }}
                             onKeyDown={(event) => {
                               if (event.key === "Enter" || event.key === " ") {
                                 event.preventDefault();
-                                setSelectedMachineId(card.id);
-                                setMachineDetailTab("dashboard");
+                                openMachine(card.id);
                               }
                             }}
                           >
@@ -3763,4 +4137,3 @@ export function App() {
     </main>
   );
 }
-

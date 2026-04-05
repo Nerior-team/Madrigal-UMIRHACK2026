@@ -11,6 +11,14 @@ describe("normalizeMachineTitle", () => {
   it("returns the original display name without appending ids", () => {
     expect(normalizeMachineTitle("win_10")).toBe("win_10");
   });
+
+  it("collapses kernel-style linux names into a readable title", () => {
+    expect(
+      normalizeMachineTitle(
+        "linux #1 SMP PREEMPT_DYNAMIC Wed Oct 29 18:42:47 MSK 2025",
+      ),
+    ).toBe("Linux");
+  });
 });
 
 describe("normalizeMachineOsLabel", () => {

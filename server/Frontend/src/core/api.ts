@@ -3,6 +3,7 @@ import {
   normalizeMachineOsLabel,
   normalizeMachineTitle,
 } from "./ui";
+import { formatLogStreamLine } from "./logs";
 
 export interface AuthResponse {
   token?: string;
@@ -101,12 +102,26 @@ export interface AccessDashboardResponse {
 export interface LogsDashboardResponse {
   entries: Array<{
     id: string;
+    taskId: string;
+    machineId: string;
+    taskTitle: string;
     machine: string;
     action: string;
     email: string;
     status: string;
     tone: "success" | "warning" | "critical";
     createdAt: string;
+  }>;
+  streamItems: Array<{
+    id: string;
+    taskId: string;
+    machineId: string;
+    kind: "request" | "response";
+    machine: string;
+    title: string;
+    text: string;
+    createdAt: string;
+    createdAtIso: string;
   }>;
   streamLines: string[];
 }
@@ -164,6 +179,7 @@ export interface CommandTemplateOption {
   name: string;
   description?: string | null;
   runner: string;
+  commandPattern: string;
   parameters: CommandTemplateParameter[];
   parserKind: string;
 }
@@ -211,6 +227,7 @@ type BackendCommandTemplateRead = {
   name: string;
   description?: string | null;
   runner: string;
+  command_pattern: string;
   parameters: Array<{
     key: string;
     label: string;
@@ -239,6 +256,7 @@ type BackendTaskRead = {
   machine_id: string;
   template_key: string;
   template_name: string;
+  rendered_command?: string | null;
   status: BackendTaskStatus;
   requested_by_user_id: string;
   created_at: string;
@@ -289,6 +307,18 @@ function persistAuthToken(token?: string): void {
   } catch {
     // Ignore storage failures and continue with in-memory session.
   }
+}
+
+function clearPersistedAuthToken(): void {
+  try {
+    window.localStorage.removeItem(AUTH_TOKEN_KEY);
+  } catch {
+    // Ignore storage failures and continue with in-memory session.
+  }
+}
+
+function hasPersistedAuthToken(): boolean {
+  return Boolean(readAuthToken());
 }
 
 function formatDateTime(value?: string | null): string {
@@ -657,7 +687,41 @@ async function loadTaskLogs(
   return logsByTask;
 }
 
+function getTaskRenderedCommand(task: BackendTaskRead): string {
+  return task.rendered_command?.trim() || task.template_name;
+}
+
+async function loadUserEmailMap(
+  machineIds: string[],
+): Promise<Map<string, string>> {
+  if (!machineIds.length) return new Map();
+
+  const settled = await Promise.allSettled(
+    machineIds.map((machineId) =>
+      request<BackendMachineAccessEntry[]>(
+        `/machines/${encodeURIComponent(machineId)}/access`,
+      ),
+    ),
+  );
+
+  const emailMap = new Map<string, string>();
+  for (const result of settled) {
+    if (result.status !== "fulfilled") continue;
+
+    for (const entry of result.value) {
+      if (!emailMap.has(entry.user_id)) {
+        emailMap.set(entry.user_id, entry.email);
+      }
+    }
+  }
+
+  return emailMap;
+}
+
 export const api = {
+  hasPersistedAuthToken,
+  clearPersistedAuthToken,
+
   async getProfileDashboard(): Promise<ProfileDashboardResponse> {
     const response = await request<BackendMeResponse>("/auth/me");
     const { firstName, lastName } = deriveNameFromEmail(response.user.email);
@@ -750,16 +814,17 @@ export const api = {
       `/machines/${encodeURIComponent(machineId)}/commands/templates`,
     );
 
-    return templates.map((template) => ({
-      id: template.id,
-      templateKey: template.template_key,
-      name: template.name,
-      description: template.description,
-      runner: template.runner,
-      parserKind: template.parser_kind,
-      parameters: template.parameters.map((parameter) => ({
-        key: parameter.key,
-        label: parameter.label,
+      return templates.map((template) => ({
+        id: template.id,
+        templateKey: template.template_key,
+        name: template.name,
+        description: template.description,
+        runner: template.runner,
+        commandPattern: template.command_pattern,
+        parserKind: template.parser_kind,
+        parameters: template.parameters.map((parameter) => ({
+          key: parameter.key,
+          label: parameter.label,
         allowedValues: parameter.allowed_values,
       })),
     }));
@@ -780,6 +845,18 @@ export const api = {
     });
   },
 
+  async retryTask(taskId: string): Promise<void> {
+    await request(`/tasks/${encodeURIComponent(taskId)}/retry`, {
+      method: "POST",
+    });
+  },
+
+  async cancelTask(taskId: string): Promise<void> {
+    await request(`/tasks/${encodeURIComponent(taskId)}/cancel`, {
+      method: "POST",
+    });
+  },
+
   async getHomeDashboard(): Promise<HomeDashboardResponse> {
     const machines = await request<BackendMachineSummary[]>("/machines");
     const machineCards = machines.map(mapMachineSummary);
@@ -787,6 +864,9 @@ export const api = {
       machines.map((machine) => [machine.id, machine]),
     );
     const tasks = await loadMachineTasks(machines.map((machine) => machine.id));
+    const userEmailMap = await loadUserEmailMap(
+      machines.map((machine) => machine.id),
+    );
     const taskCards = tasks.map((task) => mapTask(task, machineMap));
 
     const onlineCount = machineCards.filter(
@@ -881,7 +961,9 @@ export const api = {
                 ? "Ошибка"
                 : "В процессе",
           createdAt,
-          sender: task.requested_by_user_id,
+          sender:
+            userEmailMap.get(task.requested_by_user_id) ??
+            task.requested_by_user_id,
         };
       }),
     };
@@ -901,6 +983,9 @@ export const api = {
     const machines = await request<BackendMachineSummary[]>("/machines");
     const machineMap = new Map(
       machines.map((machine) => [machine.id, machine]),
+    );
+    const userEmailMap = await loadUserEmailMap(
+      machines.map((machine) => machine.id),
     );
     const tasks = await loadMachineTasks(machines.map((machine) => machine.id));
 
@@ -922,14 +1007,20 @@ export const api = {
 
         return {
           id: task.id,
+          taskId: task.id,
+          machineId: task.machine_id,
+          taskTitle: task.template_name,
           machine: normalizeMachineTitle(
             machine?.display_name || machine?.hostname || task.machine_id,
           ),
           action,
-          email: task.requested_by_user_id,
+          email:
+            userEmailMap.get(task.requested_by_user_id) ??
+            task.requested_by_user_id,
           status,
           tone,
           createdAt: formatDateTime(createdAtIso),
+          renderedCommand: getTaskRenderedCommand(task),
           createdAtIso,
         };
       })
@@ -939,15 +1030,61 @@ export const api = {
           new Date(a.createdAtIso).getTime(),
       );
 
-    const streamLines = entries
-      .slice(0, 40)
-      .map(
-        (entry) =>
-          `[${entry.createdAt}] ${entry.machine}: ${entry.action} (${entry.status})`,
+    const streamItems = recentTasks.flatMap((task) => {
+      const machine = machineMap.get(task.machine_id);
+      const machineLabel = normalizeMachineTitle(
+        machine?.display_name || machine?.hostname || task.machine_id,
+      );
+      const taskLogs = logsByTask.get(task.id) ?? [];
+      const taskStartedAt = pickTaskCreatedAtIso(task);
+      const items: LogsDashboardResponse["streamItems"] = [
+        {
+          id: `${task.id}:request`,
+          taskId: task.id,
+          machineId: task.machine_id,
+          kind: "request",
+          machine: machineLabel,
+          title: task.template_name,
+          text: getTaskRenderedCommand(task),
+          createdAt: formatDateTime(taskStartedAt),
+          createdAtIso: taskStartedAt,
+        },
+      ];
+
+      taskLogs.forEach((logEntry, index) => {
+        const logText = shortenText(logEntry.chunk, 240);
+        if (!logText) return;
+
+        items.push({
+          id: `${task.id}:response:${index}`,
+          taskId: task.id,
+          machineId: task.machine_id,
+          kind: "response",
+          machine: machineLabel,
+          title: task.template_name,
+          text: logText,
+          createdAt: formatDateTime(logEntry.created_at),
+          createdAtIso: logEntry.created_at,
+        });
+      });
+
+      return items;
+    });
+
+    const streamLines = streamItems
+      .slice(-60)
+      .map((item) =>
+        formatLogStreamLine({
+          kind: item.kind,
+          createdAt: item.createdAtIso,
+          machine: item.machine,
+          text: item.text,
+        }),
       );
 
     return {
-      entries: entries.map(({ createdAtIso, ...entry }) => entry),
+      entries: entries.map(({ createdAtIso, renderedCommand, ...entry }) => entry),
+      streamItems,
       streamLines,
     };
   },
@@ -956,6 +1093,9 @@ export const api = {
     const machines = await request<BackendMachineSummary[]>("/machines");
     const machineMap = new Map(
       machines.map((machine) => [machine.id, machine]),
+    );
+    const userEmailMap = await loadUserEmailMap(
+      machines.map((machine) => machine.id),
     );
     const tasks = await loadMachineTasks(machines.map((machine) => machine.id));
 
@@ -970,7 +1110,9 @@ export const api = {
           ),
           machineStatus: machine ? mapMachineStatus(machine.status) : "offline",
           templateName: task.template_name,
-          requestedBy: task.requested_by_user_id,
+          requestedBy:
+            userEmailMap.get(task.requested_by_user_id) ??
+            task.requested_by_user_id,
           status: mapTaskStatus(task.status),
           createdAtIso: pickTaskCreatedAtIso(task),
           durationMs: pickTaskDurationMs(task),
@@ -1011,7 +1153,7 @@ export const api = {
           machine: normalizeMachineTitle(
             machine?.display_name || machine?.hostname || task.machine_id,
           ),
-          command: `predict run ${task.template_name}`,
+          command: getTaskRenderedCommand(task),
           resultAt: formatResultDateTime(resultAtIso),
           resultAtIso,
         };
