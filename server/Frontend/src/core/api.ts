@@ -1,3 +1,9 @@
+import {
+  formatMoscowDateTime,
+  normalizeMachineOsLabel,
+  normalizeMachineTitle,
+} from "./ui";
+
 export interface AuthResponse {
   token?: string;
   requiresConfirmation?: boolean;
@@ -40,15 +46,21 @@ export interface HomeDashboardResponse {
 export interface MachineCardResponse {
   id: string;
   machine: string;
+  hostname: string;
   os: string;
   heartbeat: string;
   owner: string;
+  myRole: string;
   initials?: string;
   status: "online" | "running" | "offline";
   badgeTone: "violet" | "cyan" | "green";
 }
 
 export interface TaskCardResponse {
+  id: string;
+  machineId: string;
+  machine: string;
+  templateKey: string;
   taskNumber: string;
   title: string;
   startedAt: string;
@@ -116,6 +128,7 @@ export interface ReportsDashboardResponse {
 export interface ResultsDashboardResponse {
   rows: Array<{
     id: string;
+    machineId: string;
     title: string;
     statusLabel: string;
     statusTone: "success" | "error" | "cancelled";
@@ -137,6 +150,22 @@ export interface ProfileDashboardResponse {
   sessionKind: "web" | "desktop" | "cli";
   twoFactorEnabled: boolean;
   enabledTwoFactorMethods: string[];
+}
+
+export interface CommandTemplateParameter {
+  key: string;
+  label: string;
+  allowedValues: string[];
+}
+
+export interface CommandTemplateOption {
+  id?: string | null;
+  templateKey: string;
+  name: string;
+  description?: string | null;
+  runner: string;
+  parameters: CommandTemplateParameter[];
+  parserKind: string;
 }
 
 type BackendSessionKind = "web" | "desktop" | "cli";
@@ -176,6 +205,20 @@ type BackendMachineSummary = {
   my_role: BackendMachineRole;
 };
 
+type BackendCommandTemplateRead = {
+  id?: string | null;
+  template_key: string;
+  name: string;
+  description?: string | null;
+  runner: string;
+  parameters: Array<{
+    key: string;
+    label: string;
+    allowed_values: string[];
+  }>;
+  parser_kind: string;
+};
+
 type BackendTaskStatus =
   | "queued"
   | "dispatched"
@@ -194,6 +237,7 @@ type BackendTaskAttempt = {
 type BackendTaskRead = {
   id: string;
   machine_id: string;
+  template_key: string;
   template_name: string;
   status: BackendTaskStatus;
   requested_by_user_id: string;
@@ -253,6 +297,7 @@ function formatDateTime(value?: string | null): string {
   if (Number.isNaN(date.getTime())) return "Нет данных";
 
   return new Intl.DateTimeFormat("ru-RU", {
+    timeZone: "Europe/Moscow",
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
@@ -273,6 +318,7 @@ function formatResultDateTime(value?: string | null): string {
     date.getDate() === now.getDate();
 
   const timePart = new Intl.DateTimeFormat("ru-RU", {
+    timeZone: "Europe/Moscow",
     hour: "2-digit",
     minute: "2-digit",
   }).format(date);
@@ -282,6 +328,7 @@ function formatResultDateTime(value?: string | null): string {
   }
 
   const datePart = new Intl.DateTimeFormat("ru-RU", {
+    timeZone: "Europe/Moscow",
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
@@ -316,12 +363,16 @@ function mapMachineSummary(
 ): MachineCardResponse {
   return {
     id: machine.id,
-    machine: machine.display_name || machine.hostname,
-    os: machine.os_version
-      ? `${machine.os_family} ${machine.os_version}`
-      : machine.os_family,
-    heartbeat: formatDateTime(machine.last_heartbeat_at),
+    machine: normalizeMachineTitle(machine.display_name || machine.hostname),
+    hostname: machine.hostname,
+    os: normalizeMachineOsLabel(
+      machine.os_version
+        ? `${machine.os_family} ${machine.os_version}`
+        : machine.os_family,
+    ),
+    heartbeat: formatMoscowDateTime(machine.last_heartbeat_at),
     owner: machine.owner_email,
+    myRole: mapAccessRoleLabel(machine.my_role),
     status: mapMachineStatus(machine.status),
     badgeTone: mapMachineBadgeTone(machine.my_role),
   };
@@ -388,6 +439,12 @@ function mapTask(
       : formatDateTime(lastAttempt?.finished_at ?? task.created_at);
 
   return {
+    id: task.id,
+    machineId: task.machine_id,
+    machine: normalizeMachineTitle(
+      machine?.display_name || machine?.hostname || task.machine_id,
+    ),
+    templateKey: task.template_key,
     taskNumber,
     title: taskTitle,
     startedAt,
@@ -686,6 +743,43 @@ export const api = {
     return machines.map(mapMachineSummary);
   },
 
+  async getMachineCommandTemplates(
+    machineId: string,
+  ): Promise<CommandTemplateOption[]> {
+    const templates = await request<BackendCommandTemplateRead[]>(
+      `/machines/${encodeURIComponent(machineId)}/commands/templates`,
+    );
+
+    return templates.map((template) => ({
+      id: template.id,
+      templateKey: template.template_key,
+      name: template.name,
+      description: template.description,
+      runner: template.runner,
+      parserKind: template.parser_kind,
+      parameters: template.parameters.map((parameter) => ({
+        key: parameter.key,
+        label: parameter.label,
+        allowedValues: parameter.allowed_values,
+      })),
+    }));
+  },
+
+  async createTask(input: {
+    machineId: string;
+    templateKey: string;
+    params?: Record<string, string>;
+  }): Promise<void> {
+    await request("/tasks", {
+      method: "POST",
+      body: JSON.stringify({
+        machine_id: input.machineId,
+        template_key: input.templateKey,
+        params: input.params ?? {},
+      }),
+    });
+  },
+
   async getHomeDashboard(): Promise<HomeDashboardResponse> {
     const machines = await request<BackendMachineSummary[]>("/machines");
     const machineCards = machines.map(mapMachineSummary);
@@ -828,8 +922,9 @@ export const api = {
 
         return {
           id: task.id,
-          machine:
+          machine: normalizeMachineTitle(
             machine?.display_name || machine?.hostname || task.machine_id,
+          ),
           action,
           email: task.requested_by_user_id,
           status,
@@ -870,8 +965,9 @@ export const api = {
         return {
           id: task.id,
           machineId: task.machine_id,
-          machine:
+          machine: normalizeMachineTitle(
             machine?.display_name || machine?.hostname || task.machine_id,
+          ),
           machineStatus: machine ? mapMachineStatus(machine.status) : "offline",
           templateName: task.template_name,
           requestedBy: task.requested_by_user_id,
@@ -908,11 +1004,13 @@ export const api = {
 
         return {
           id: task.id,
+          machineId: task.machine_id,
           title: task.template_name,
           statusLabel: mapResultStatusLabel(task.status),
           statusTone: mapResultStatus(task.status),
-          machine:
+          machine: normalizeMachineTitle(
             machine?.display_name || machine?.hostname || task.machine_id,
+          ),
           command: `predict run ${task.template_name}`,
           resultAt: formatResultDateTime(resultAtIso),
           resultAtIso,

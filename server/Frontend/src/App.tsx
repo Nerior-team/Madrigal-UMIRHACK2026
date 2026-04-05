@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+﻿import { useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertTriangle,
   ArrowDownRight,
@@ -20,11 +20,16 @@ import {
 } from "lucide-react";
 import {
   api,
+  type CommandTemplateOption,
   type LogsDashboardResponse,
   type ProfileDashboardResponse,
   type ResultsDashboardResponse,
   type ReportsDashboardResponse,
 } from "./core";
+import {
+  matchesSearchQuery,
+  normalizeMachineTitle,
+} from "./core/ui";
 
 const apiClient = api;
 
@@ -48,9 +53,11 @@ type MachineCardStatus = "online" | "running" | "offline";
 type MachineDashboardCard = {
   id: string;
   machine: string;
+  hostname: string;
   os: string;
   heartbeat: string;
   owner: string;
+  myRole: string;
   initials?: string;
   status: MachineCardStatus;
   badgeTone: "violet" | "cyan" | "green";
@@ -97,6 +104,10 @@ type HomeTaskRow = {
 };
 
 type TaskCard = {
+  id: string;
+  machineId: string;
+  machine: string;
+  templateKey: string;
   taskNumber: string;
   title: string;
   startedAt: string;
@@ -198,46 +209,38 @@ function getReportComparisonStats(
     successRate: finishedTasks ? (completedTasks / finishedTasks) * 100 : 100,
   };
 }
-
 const machineStatusSections = [
-  { key: "online", label: "Онлайн" },
-  { key: "running", label: "Выполняют задачу" },
-  { key: "offline", label: "Оффлайн" },
+  { key: "online", label: "РћРЅР»Р°Р№РЅ" },
+  { key: "running", label: "Р’С‹РїРѕР»РЅСЏСЋС‚ Р·Р°РґР°С‡Сѓ" },
+  { key: "offline", label: "РћС„С„Р»Р°Р№РЅ" },
 ] as const;
 
 const taskStatusSections = [
-  { key: "completed", label: "Завершенные" },
-  { key: "in_progress", label: "В процессе" },
-  { key: "error", label: "Ошибки" },
+  { key: "completed", label: "Р—Р°РІРµСЂС€РµРЅРЅС‹Рµ" },
+  { key: "in_progress", label: "Р’ РїСЂРѕС†РµСЃСЃРµ" },
+  { key: "error", label: "РћС€РёР±РєРё" },
 ] as const;
 
 const machineDetailTabs: Array<{ key: MachineDetailTab; label: string }> = [
-  { key: "dashboard", label: "Дашборд" },
-  { key: "logs", label: "Логи" },
-  { key: "tasks", label: "Задачи" },
-  { key: "results", label: "Результаты" },
+  { key: "dashboard", label: "Р”Р°С€Р±РѕСЂРґ" },
+  { key: "logs", label: "Р›РѕРіРё" },
+  { key: "tasks", label: "Р—Р°РґР°С‡Рё" },
+  { key: "results", label: "Р РµР·СѓР»СЊС‚Р°С‚С‹" },
 ];
 
 const machineStatusLabelByStatus: Record<MachineCardStatus, string> = {
-  online: "Онлайн",
-  running: "Выполняет задачу",
-  offline: "Оффлайн",
+  online: "РћРЅР»Р°Р№РЅ",
+  running: "Р’С‹РїРѕР»РЅСЏРµС‚ Р·Р°РґР°С‡Сѓ",
+  offline: "РћС„С„Р»Р°Р№РЅ",
 };
 
 function getMachineDisplayName(card: MachineDashboardCard): string {
-  if (card.machine.includes("№")) {
-    return card.machine;
-  }
-
-  const numericId = card.id.replace(/\D/g, "");
-  return numericId
-    ? `${card.machine} №${numericId}`
-    : `${card.machine} ${card.id}`;
+  return normalizeMachineTitle(card.machine);
 }
 
 function formatDurationLong(durationMs?: number): string {
   if (!durationMs || durationMs <= 0) {
-    return "0 с";
+    return "0 СЃ";
   }
 
   const totalSeconds = Math.round(durationMs / 1000);
@@ -245,26 +248,26 @@ function formatDurationLong(durationMs?: number): string {
   const seconds = totalSeconds % 60;
 
   if (!minutes) {
-    return `${totalSeconds} с`;
+    return `${totalSeconds} СЃ`;
   }
 
-  return `${minutes} мин ${seconds} с`;
+  return `${minutes} РјРёРЅ ${seconds} СЃ`;
 }
 
 function formatDurationCompact(durationMs?: number): string {
   if (!durationMs || durationMs <= 0) {
-    return "—";
+    return "вЂ”";
   }
 
   if (durationMs >= 60_000) {
-    return `${(durationMs / 60_000).toFixed(1)} мин`;
+    return `${(durationMs / 60_000).toFixed(1)} РјРёРЅ`;
   }
 
   if (durationMs >= 1_000) {
-    return `${(durationMs / 1_000).toFixed(1)} с`;
+    return `${(durationMs / 1_000).toFixed(1)} СЃ`;
   }
 
-  return `${Math.round(durationMs)} мс`;
+  return `${Math.round(durationMs)} РјСЃ`;
 }
 
 function getReportTemplateIcon(templateTitle: string): string {
@@ -274,13 +277,13 @@ function getReportTemplateIcon(templateTitle: string): string {
 }
 
 const menuItems: MenuItem[] = [
-  { label: "Главная", iconSrc: "/main.png", tab: "home" },
-  { label: "Машины", iconSrc: "/machines.png", tab: "machines" },
-  { label: "Задачи", iconSrc: "/zadachi.png", tab: "tasks" },
-  { label: "Результаты", iconSrc: "/res.png", tab: "results" },
-  { label: "Логи", iconSrc: "/logs.png", tab: "logs" },
-  { label: "Доступ", iconSrc: "/access.png", tab: "access" },
-  { label: "Отчеты", iconSrc: "/otch.png", tab: "reports" },
+  { label: "Р“Р»Р°РІРЅР°СЏ", iconSrc: "/main.png", tab: "home" },
+  { label: "РњР°С€РёРЅС‹", iconSrc: "/machines.png", tab: "machines" },
+  { label: "Р—Р°РґР°С‡Рё", iconSrc: "/zadachi.png", tab: "tasks" },
+  { label: "Р РµР·СѓР»СЊС‚Р°С‚С‹", iconSrc: "/res.png", tab: "results" },
+  { label: "Р›РѕРіРё", iconSrc: "/logs.png", tab: "logs" },
+  { label: "Р”РѕСЃС‚СѓРї", iconSrc: "/access.png", tab: "access" },
+  { label: "РћС‚С‡РµС‚С‹", iconSrc: "/otch.png", tab: "reports" },
 ];
 
 const WINDOWS_DAEMON_INSTALL_URL =
@@ -290,7 +293,7 @@ const LINUX_ARCHIVE_INSTALL_URL =
 
 const linuxInstallGuideSteps: Array<{ title: string; commands: string[] }> = [
   {
-    title: "Установка",
+    title: "РЈСЃС‚Р°РЅРѕРІРєР°",
     commands: [
       "curl -fsSL https://nerior.store/downloads/linux/install.sh -o install.sh",
       "chmod +x install.sh",
@@ -298,14 +301,14 @@ const linuxInstallGuideSteps: Array<{ title: string; commands: string[] }> = [
     ],
   },
   {
-    title: "Проверка установки и связка агента",
+    title: "РџСЂРѕРІРµСЂРєР° СѓСЃС‚Р°РЅРѕРІРєРё Рё СЃРІСЏР·РєР° Р°РіРµРЅС‚Р°",
     commands: [
       "sudo /usr/local/bin/predict version",
       "sudo /usr/local/bin/predict pair --backend-url https://nerior.store",
     ],
   },
   {
-    title: "Проверка связки и информация об агенте",
+    title: "РџСЂРѕРІРµСЂРєР° СЃРІСЏР·РєРё Рё РёРЅС„РѕСЂРјР°С†РёСЏ РѕР± Р°РіРµРЅС‚Рµ",
     commands: ["sudo /usr/local/bin/predict status"],
   },
 ];
@@ -314,7 +317,7 @@ const installCards: Array<{
   id: "windows" | "linux";
   title: string;
   versions: string[];
-  actions: [string, string];
+  actions: string[];
   activeActionIndex: number;
   hint: string;
 }> = [
@@ -322,17 +325,17 @@ const installCards: Array<{
     id: "windows",
     title: "Windows",
     versions: ["Windows 10 x64", "Windows 11 x64"],
-    actions: ["daemon сервис", "Desktop приложение"],
-    activeActionIndex: 1,
-    hint: "Desktop приложение включает в себя daemon сервис и графический интерфейс",
+    actions: ["Скачать установщик", "Desktop скоро"],
+    activeActionIndex: 0,
+    hint: "Сейчас доступен daemon-установщик. Desktop-клиент подключим сразу после сборки отдельного артефакта",
   },
   {
     id: "linux",
     title: "Linux",
     versions: ["Ubuntu 22.04+ x86_64", "Debian 12+ x86_64"],
-    actions: ["Инструкция по установке", "Установить архив"],
-    activeActionIndex: 1,
-    hint: "На Linux доступен только systemd сервис без графического интерфейса",
+    actions: ["Команды установки", "Скачать архив"],
+    activeActionIndex: 0,
+    hint: "На Linux ставится только systemd-сервис без графического клиента",
   },
 ];
 
@@ -344,23 +347,34 @@ const REPORT_PERIOD_WINDOW_MS: Record<ReportPeriod, number> = {
 };
 
 const ACCESS_ROWS_LIMIT = 10;
+const SIDEBAR_ACTIVE_TOP_BY_TAB: Record<WorkspaceTab, number> = {
+  home: 68,
+  machines: 124,
+  tasks: 180,
+  results: 236,
+  logs: 292,
+  access: 348,
+  reports: 404,
+  install: 460,
+  profile: 516,
+};
 
 const profileSections: Array<{ key: ProfileSection; label: string }> = [
-  { key: "general", label: "Основная информация" },
-  { key: "security", label: "Безопасность" },
-  { key: "sessions", label: "Активные сессии" },
-  { key: "notifications", label: "Настройки уведомлений" },
+  { key: "general", label: "РћСЃРЅРѕРІРЅР°СЏ РёРЅС„РѕСЂРјР°С†РёСЏ" },
+  { key: "security", label: "Р‘РµР·РѕРїР°СЃРЅРѕСЃС‚СЊ" },
+  { key: "sessions", label: "РђРєС‚РёРІРЅС‹Рµ СЃРµСЃСЃРёРё" },
+  { key: "notifications", label: "РќР°СЃС‚СЂРѕР№РєРё СѓРІРµРґРѕРјР»РµРЅРёР№" },
 ];
 
 function getInstallActionUrl(
   cardId: "windows" | "linux",
   actionLabel: string,
 ): string | null {
-  if (cardId === "windows" && actionLabel === "daemon сервис") {
+  if (cardId === "windows") {
     return WINDOWS_DAEMON_INSTALL_URL;
   }
 
-  if (cardId === "linux" && actionLabel === "Установить архив") {
+  if (cardId === "linux" && actionLabel === "Скачать архив") {
     return LINUX_ARCHIVE_INSTALL_URL;
   }
 
@@ -433,7 +447,7 @@ function renderLinuxInstallCommandTokens(commandLine: string) {
 }
 
 function mapSessionKindLabel(sessionKind: "web" | "desktop" | "cli"): string {
-  if (sessionKind === "web") return "Браузер";
+  if (sessionKind === "web") return "Р‘СЂР°СѓР·РµСЂ";
   if (sessionKind === "desktop") return "Desktop";
   return "CLI";
 }
@@ -468,14 +482,13 @@ export function App() {
   >([]);
   const [logEntries, setLogEntries] = useState<LogEntry[]>([]);
   const [logStreamLines, setLogStreamLines] = useState<string[]>([]);
-  const [logsSearchQuery, setLogsSearchQuery] = useState("");
+  const [workspaceSearchQuery, setWorkspaceSearchQuery] = useState("");
   const [resultsStatusFilter, setResultsStatusFilter] = useState<
     "all" | ResultStatusTone
   >("all");
   const [resultsMachineFilter, setResultsMachineFilter] = useState("all");
   const [resultsCommandFilter, setResultsCommandFilter] = useState("all");
   const [resultsDateFilter, setResultsDateFilter] = useState("all");
-  const [resultsSearchQuery, setResultsSearchQuery] = useState("");
   const [resultHistoryRows, setResultHistoryRows] = useState<
     ResultHistoryRow[]
   >([]);
@@ -484,7 +497,6 @@ export function App() {
   const [reportMachine, setReportMachine] = useState("all");
   const [reportTemplate, setReportTemplate] = useState("all");
   const [reportTeam, setReportTeam] = useState("all");
-  const [reportSearchQuery, setReportSearchQuery] = useState("");
   const [isReportsRefreshing, setIsReportsRefreshing] = useState(false);
   const [profileDashboard, setProfileDashboard] =
     useState<ProfileDashboardResponse | null>(null);
@@ -511,10 +523,14 @@ export function App() {
   const [isCreateTaskOpen, setIsCreateTaskOpen] = useState(false);
   const [isLinuxInstallGuideOpen, setIsLinuxInstallGuideOpen] = useState(false);
   const [profileAvatarUrl, setProfileAvatarUrl] = useState<string | null>(null);
-  const [taskName, setTaskName] = useState("");
+  const [taskMachineId, setTaskMachineId] = useState("");
   const [taskCommand, setTaskCommand] = useState("");
-  const [taskParam1, setTaskParam1] = useState("");
-  const [taskParam2, setTaskParam2] = useState("");
+  const [taskTemplateOptions, setTaskTemplateOptions] = useState<
+    CommandTemplateOption[]
+  >([]);
+  const [taskParamValues, setTaskParamValues] = useState<Record<string, string>>(
+    {},
+  );
   const profileAvatarInputRef = useRef<HTMLInputElement | null>(null);
   const [registeredEmail, setRegisteredEmail] = useState(() => {
     try {
@@ -527,9 +543,9 @@ export function App() {
   });
 
   const profileDisplayName = useMemo(() => {
-    if (!profileDashboard) return "Имя Фамилия";
+    if (!profileDashboard) return "РРјСЏ Р¤Р°РјРёР»РёСЏ";
     const trimmed = profileDashboard.fullName.trim();
-    return trimmed || "Имя Фамилия";
+    return trimmed || "РРјСЏ Р¤Р°РјРёР»РёСЏ";
   }, [profileDashboard]);
 
   const profileSessions = useMemo(() => {
@@ -551,22 +567,107 @@ export function App() {
     setProfileLastName(profileDashboard.lastName);
   }, [profileDashboard]);
 
+  useEffect(() => {
+    setWorkspaceSearchQuery("");
+  }, [workspaceTab, selectedMachineId, machineDetailTab]);
+
+  useEffect(() => {
+    if (!machineDashboardCards.length) {
+      setTaskMachineId("");
+      return;
+    }
+
+    if (
+      taskMachineId &&
+      machineDashboardCards.some((machine) => machine.id === taskMachineId)
+    ) {
+      return;
+    }
+
+    if (
+      selectedMachineId &&
+      machineDashboardCards.some((machine) => machine.id === selectedMachineId)
+    ) {
+      setTaskMachineId(selectedMachineId);
+      return;
+    }
+
+    setTaskMachineId(machineDashboardCards[0]?.id ?? "");
+  }, [machineDashboardCards, selectedMachineId, taskMachineId]);
+
+  useEffect(() => {
+    if (!isCreateTaskOpen || !taskMachineId) {
+      setTaskTemplateOptions([]);
+      setTaskCommand("");
+      setTaskParamValues({});
+      return;
+    }
+
+    let cancelled = false;
+    apiClient
+      .getMachineCommandTemplates(taskMachineId)
+      .then((templates) => {
+        if (cancelled) return;
+        setTaskTemplateOptions(templates);
+        const fallbackTemplateKey = templates[0]?.templateKey ?? "";
+        setTaskCommand((current) =>
+          current && templates.some((template) => template.templateKey === current)
+            ? current
+            : fallbackTemplateKey,
+        );
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setTaskTemplateOptions([]);
+        setTaskCommand("");
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isCreateTaskOpen, taskMachineId]);
+
+  useEffect(() => {
+    setTaskParamValues((current) => {
+      if (!taskCommand) return {};
+
+      const template = taskTemplateOptions.find(
+        (option) => option.templateKey === taskCommand,
+      );
+      if (!template) return {};
+
+      const nextValues = template.parameters.reduce<Record<string, string>>(
+        (acc, parameter) => {
+          const preserved = current[parameter.key];
+          acc[parameter.key] =
+            preserved && parameter.allowedValues.includes(preserved)
+              ? preserved
+              : parameter.allowedValues[0] ?? "";
+          return acc;
+        },
+        {},
+      );
+
+      return nextValues;
+    });
+  }, [taskCommand, taskTemplateOptions]);
+
   const visibleLogEntries = useMemo(() => {
     const byTone =
       logFilterTone === "all"
         ? logEntries
         : logEntries.filter((entry) => entry.tone === logFilterTone);
 
-    const normalizedQuery = logsSearchQuery.trim().toLowerCase();
-    if (!normalizedQuery) return byTone;
-
     return byTone.filter((entry) =>
-      [entry.id, entry.machine, entry.action, entry.email, entry.status]
-        .join(" ")
-        .toLowerCase()
-        .includes(normalizedQuery),
+      matchesSearchQuery(workspaceSearchQuery, [
+        entry.id,
+        entry.machine,
+        entry.action,
+        entry.email,
+        entry.status,
+      ]),
     );
-  }, [logEntries, logFilterTone, logsSearchQuery]);
+  }, [logEntries, logFilterTone, workspaceSearchQuery]);
 
   const logStatusStats = useMemo(
     () => ({
@@ -699,7 +800,6 @@ export function App() {
       groupedRows.set(task.templateName, bucket);
     }
 
-    const normalizedSearch = reportSearchQuery.trim().toLowerCase();
     return [...groupedRows.entries()]
       .map(
         ([key, value]): ReportSummaryRow => ({
@@ -713,15 +813,12 @@ export function App() {
               ? value.durationTotalMs / value.durationCount
               : undefined,
           actionLabel:
-            value.errorCount > 0 ? "Смотреть логи" : "Перейти к задачам",
+            value.errorCount > 0 ? "РЎРјРѕС‚СЂРµС‚СЊ Р»РѕРіРё" : "РџРµСЂРµР№С‚Рё Рє Р·Р°РґР°С‡Р°Рј",
         }),
       )
-      .filter((row) => {
-        if (!normalizedSearch) return true;
-        return row.title.toLowerCase().includes(normalizedSearch);
-      })
+      .filter((row) => matchesSearchQuery(workspaceSearchQuery, [row.title]))
       .sort((a, b) => b.totalTasks - a.totalTasks);
-  }, [filteredReportTasks, reportSearchQuery]);
+  }, [filteredReportTasks, workspaceSearchQuery]);
 
   const reportStats = useMemo(() => {
     const durations = filteredReportTasks
@@ -770,18 +867,18 @@ export function App() {
   const reportTrend = useMemo(() => {
     const periodLabel =
       reportPeriod === "day"
-        ? "за сутки"
+        ? "Р·Р° СЃСѓС‚РєРё"
         : reportPeriod === "week"
-          ? "за неделю"
+          ? "Р·Р° РЅРµРґРµР»СЋ"
           : reportPeriod === "month"
-            ? "за месяц"
-            : "за период";
+            ? "Р·Р° РјРµСЃСЏС†"
+            : "Р·Р° РїРµСЂРёРѕРґ";
 
     const fallback = {
-      duration: `Динамика ${periodLabel}`,
-      machines: "Отслеживание по выбранной выборке",
-      errors: "Сравнение с предыдущим периодом",
-      success: "Сравнение с предыдущим периодом",
+      duration: `Р”РёРЅР°РјРёРєР° ${periodLabel}`,
+      machines: "РћС‚СЃР»РµР¶РёРІР°РЅРёРµ РїРѕ РІС‹Р±СЂР°РЅРЅРѕР№ РІС‹Р±РѕСЂРєРµ",
+      errors: "РЎСЂР°РІРЅРµРЅРёРµ СЃ РїСЂРµРґС‹РґСѓС‰РёРј РїРµСЂРёРѕРґРѕРј",
+      success: "РЎСЂР°РІРЅРµРЅРёРµ СЃ РїСЂРµРґС‹РґСѓС‰РёРј РїРµСЂРёРѕРґРѕРј",
     };
 
     if (!reportComparison) {
@@ -805,20 +902,20 @@ export function App() {
 
     const durationText =
       durationDiffSec === 0
-        ? `Без изменений ${periodLabel}`
-        : `${durationDiffSec > 0 ? "Выше" : "Ниже"} на ${Math.abs(durationDiffSec)} с ${periodLabel}`;
+        ? `Р‘РµР· РёР·РјРµРЅРµРЅРёР№ ${periodLabel}`
+        : `${durationDiffSec > 0 ? "Р’С‹С€Рµ" : "РќРёР¶Рµ"} РЅР° ${Math.abs(durationDiffSec)} СЃ ${periodLabel}`;
     const machinesText =
       machinesDiff === 0
-        ? "Количество активных машин без изменений"
-        : `На ${Math.abs(machinesDiff)} ${machinesDiff > 0 ? "больше" : "меньше"} активных машин, чем в прошлом периоде`;
+        ? "РљРѕР»РёС‡РµСЃС‚РІРѕ Р°РєС‚РёРІРЅС‹С… РјР°С€РёРЅ Р±РµР· РёР·РјРµРЅРµРЅРёР№"
+        : `РќР° ${Math.abs(machinesDiff)} ${machinesDiff > 0 ? "Р±РѕР»СЊС€Рµ" : "РјРµРЅСЊС€Рµ"} Р°РєС‚РёРІРЅС‹С… РјР°С€РёРЅ, С‡РµРј РІ РїСЂРѕС€Р»РѕРј РїРµСЂРёРѕРґРµ`;
     const errorsText =
       errorsDiff === 0
-        ? "Ошибки без изменений"
-        : `На ${Math.abs(errorsDiff)} ${errorsDiff > 0 ? "больше" : "меньше"} ошибок, чем раньше`;
+        ? "РћС€РёР±РєРё Р±РµР· РёР·РјРµРЅРµРЅРёР№"
+        : `РќР° ${Math.abs(errorsDiff)} ${errorsDiff > 0 ? "Р±РѕР»СЊС€Рµ" : "РјРµРЅСЊС€Рµ"} РѕС€РёР±РѕРє, С‡РµРј СЂР°РЅСЊС€Рµ`;
     const successText =
       Math.abs(successDiff) < 0.05
-        ? "Процент успеха стабилен"
-        : `${successDiff > 0 ? "Выше" : "Ниже"} на ${Math.abs(successDiff).toFixed(1)}% относительно прошлого периода`;
+        ? "РџСЂРѕС†РµРЅС‚ СѓСЃРїРµС…Р° СЃС‚Р°Р±РёР»РµРЅ"
+        : `${successDiff > 0 ? "Р’С‹С€Рµ" : "РќРёР¶Рµ"} РЅР° ${Math.abs(successDiff).toFixed(1)}% РѕС‚РЅРѕСЃРёС‚РµР»СЊРЅРѕ РїСЂРѕС€Р»РѕРіРѕ РїРµСЂРёРѕРґР°`;
 
     return {
       duration: durationText,
@@ -833,19 +930,38 @@ export function App() {
       machineStatusSections.map((section) => ({
         ...section,
         cards: machineDashboardCards.filter(
-          (card) => card.status === section.key,
+          (card) =>
+            card.status === section.key &&
+            matchesSearchQuery(workspaceSearchQuery, [
+              card.machine,
+              card.hostname,
+              card.os,
+              card.owner,
+              card.heartbeat,
+              machineStatusLabelByStatus[card.status],
+            ]),
         ),
       })),
-    [machineDashboardCards],
+    [machineDashboardCards, workspaceSearchQuery],
   );
 
   const taskStatusGroups = useMemo(
     () =>
       taskStatusSections.map((section) => ({
         ...section,
-        cards: taskCards.filter((task) => task.status === section.key),
+        cards: taskCards.filter(
+          (task) =>
+            task.status === section.key &&
+            matchesSearchQuery(workspaceSearchQuery, [
+              task.taskNumber,
+              task.title,
+              task.machine,
+              task.serverNumber,
+              task.resultText,
+            ]),
+        ),
       })),
-    [taskCards],
+    [taskCards, workspaceSearchQuery],
   );
 
   const visibleTaskStatusGroups = useMemo(
@@ -865,9 +981,94 @@ export function App() {
     [machineDashboardCards, selectedMachineId],
   );
 
+  const visibleHomeActionCards = useMemo(
+    () =>
+      homeActionCards.filter((card) =>
+        matchesSearchQuery(workspaceSearchQuery, [card.label]),
+      ),
+    [homeActionCards, workspaceSearchQuery],
+  );
+
+  const visibleHomeTaskRows = useMemo(
+    () =>
+      homeTaskRows.filter((row) =>
+        matchesSearchQuery(workspaceSearchQuery, [
+          row.id,
+          row.machine,
+          row.status,
+          row.createdAt,
+          row.sender,
+        ]),
+      ),
+    [homeTaskRows, workspaceSearchQuery],
+  );
+
+  const selectedMachineTaskCards = useMemo(
+    () =>
+      selectedMachine
+        ? taskCards.filter(
+            (task) =>
+              task.machineId === selectedMachine.id &&
+              matchesSearchQuery(workspaceSearchQuery, [
+                task.taskNumber,
+                task.title,
+                task.machine,
+                task.resultText,
+              ]),
+          )
+        : [],
+    [selectedMachine, taskCards, workspaceSearchQuery],
+  );
+
+  const selectedMachineResultRows = useMemo(
+    () =>
+      selectedMachine
+        ? resultHistoryRows.filter(
+            (row) =>
+              row.machineId === selectedMachine.id &&
+              matchesSearchQuery(workspaceSearchQuery, [
+                row.title,
+                row.statusLabel,
+                row.machine,
+                row.command,
+                row.resultAt,
+              ]),
+          )
+        : [],
+    [resultHistoryRows, selectedMachine, workspaceSearchQuery],
+  );
+
+  const selectedMachineLogEntries = useMemo(
+    () =>
+      selectedMachine
+        ? visibleLogEntries.filter((entry) =>
+            matchesSearchQuery(selectedMachine.machine, [entry.machine]),
+          )
+        : [],
+    [selectedMachine, visibleLogEntries],
+  );
+
+  const selectedTaskTemplate = useMemo(
+    () =>
+      taskTemplateOptions.find((template) => template.templateKey === taskCommand) ??
+      null,
+    [taskCommand, taskTemplateOptions],
+  );
+
   const visibleAccessRows = useMemo(
-    () => accessUserRows.slice(0, ACCESS_ROWS_LIMIT),
-    [accessUserRows],
+    () =>
+      accessUserRows
+        .filter((row) =>
+          matchesSearchQuery(workspaceSearchQuery, [
+            row.email,
+            row.role,
+            row.resource,
+            row.status,
+            row.action,
+          ]),
+        )
+        .slice(0, ACCESS_ROWS_LIMIT),
+    [accessUserRows, workspaceSearchQuery],
   );
 
   const resultsMachineOptions = useMemo(
@@ -887,7 +1088,6 @@ export function App() {
   );
 
   const visibleResultRows = useMemo(() => {
-    const normalizedSearch = resultsSearchQuery.trim().toLowerCase();
     const now = new Date();
     const todayY = now.getFullYear();
     const todayM = now.getMonth();
@@ -913,11 +1113,13 @@ export function App() {
             );
           })());
       const bySearch =
-        !normalizedSearch ||
-        [row.title, row.machine, row.command, row.resultAt, row.statusLabel]
-          .join(" ")
-          .toLowerCase()
-          .includes(normalizedSearch);
+        matchesSearchQuery(workspaceSearchQuery, [
+          row.title,
+          row.machine,
+          row.command,
+          row.resultAt,
+          row.statusLabel,
+        ]);
 
       return byStatus && byMachine && byCommand && byDate && bySearch;
     });
@@ -926,8 +1128,8 @@ export function App() {
     resultsDateFilter,
     resultsMachineFilter,
     resultHistoryRows,
-    resultsSearchQuery,
     resultsStatusFilter,
+    workspaceSearchQuery,
   ]);
 
   useEffect(() => {
@@ -947,7 +1149,7 @@ export function App() {
     };
 
     const loadTasks = async () => {
-      if (workspaceTab === "tasks") {
+      if (workspaceTab === "tasks" || selectedMachineId) {
         const tasks = await apiClient.getTasks();
         setTaskCards(tasks);
       }
@@ -963,7 +1165,7 @@ export function App() {
     };
 
     const loadLogsDashboard = async () => {
-      if (workspaceTab !== "logs") return;
+      if (workspaceTab !== "logs" && !selectedMachineId) return;
 
       const logsDashboard = await apiClient.getLogsDashboard();
       setLogEntries(logsDashboard.entries);
@@ -978,7 +1180,7 @@ export function App() {
     };
 
     const loadResultsDashboard = async () => {
-      if (workspaceTab !== "results") return;
+      if (workspaceTab !== "results" && !selectedMachineId) return;
 
       const resultsDashboard = await apiClient.getResultsDashboard();
       setResultHistoryRows(resultsDashboard.rows);
@@ -1015,7 +1217,7 @@ export function App() {
     loadProfileDashboard().catch(() => {
       setProfileDashboard(null);
     });
-  }, [screen, workspaceTab]);
+  }, [screen, selectedMachineId, workspaceTab]);
 
   useEffect(() => {
     if (!isCreateTaskOpen) return;
@@ -1031,32 +1233,35 @@ export function App() {
   }, [isCreateTaskOpen]);
 
   const openCreateTaskModal = () => {
+    if (selectedMachineId) {
+      setTaskMachineId(selectedMachineId);
+    }
     setIsCreateTaskOpen(true);
   };
 
   const handleHomeActionClick = (label: string) => {
     const normalized = label.trim().toLowerCase();
 
-    if (normalized.includes("создать задачу")) {
+    if (normalized.includes("СЃРѕР·РґР°С‚СЊ Р·Р°РґР°С‡Сѓ")) {
       openCreateTaskModal();
       return;
     }
 
-    if (normalized.includes("открыть логи")) {
+    if (normalized.includes("РѕС‚РєСЂС‹С‚СЊ Р»РѕРіРё")) {
       setWorkspaceTab("logs");
       setSelectedMachineId(null);
       setMachineDetailTab("dashboard");
       return;
     }
 
-    if (normalized.includes("добавить агента")) {
+    if (normalized.includes("РґРѕР±Р°РІРёС‚СЊ Р°РіРµРЅС‚Р°")) {
       setWorkspaceTab("machines");
       setSelectedMachineId(null);
       setMachineDetailTab("dashboard");
       return;
     }
 
-    if (normalized.includes("управление")) {
+    if (normalized.includes("СѓРїСЂР°РІР»РµРЅРёРµ")) {
       setWorkspaceTab("access");
       setSelectedMachineId(null);
       setMachineDetailTab("dashboard");
@@ -1118,9 +1323,30 @@ export function App() {
     setScreen("auth");
   };
 
-  const handleCreateTaskSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleCreateTaskSubmit = async (
+    event: React.FormEvent<HTMLFormElement>,
+  ) => {
     event.preventDefault();
-    closeCreateTaskModal();
+
+    if (!taskMachineId || !taskCommand) {
+      return;
+    }
+
+    try {
+      await apiClient.createTask({
+        machineId: taskMachineId,
+        templateKey: taskCommand,
+        params: taskParamValues,
+      });
+      setTaskParamValues({});
+      closeCreateTaskModal();
+      if (workspaceTab === "tasks" || selectedMachineId) {
+        const tasks = await apiClient.getTasks();
+        setTaskCards(tasks);
+      }
+    } catch {
+      return;
+    }
   };
 
   const handleAuthSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -1183,52 +1409,83 @@ export function App() {
     }
   };
 
+  const workspaceSearchPlaceholder = selectedMachine
+    ? `РџРѕРёСЃРє РїРѕ ${getMachineDisplayName(selectedMachine)}`
+    : workspaceTab === "home"
+      ? "РџРѕРёСЃРє РїРѕ РіР»Р°РІРЅРѕР№"
+      : workspaceTab === "machines"
+        ? "РџРѕРёСЃРє РїРѕ РјР°С€РёРЅР°Рј"
+        : workspaceTab === "tasks"
+          ? "РџРѕРёСЃРє РїРѕ Р·Р°РґР°С‡Р°Рј"
+          : workspaceTab === "results"
+            ? "РџРѕРёСЃРє РїРѕ СЂРµР·СѓР»СЊС‚Р°С‚Р°Рј"
+            : workspaceTab === "logs"
+              ? "РџРѕРёСЃРє РїРѕ Р»РѕРіР°Рј"
+              : workspaceTab === "access"
+                ? "РџРѕРёСЃРє РїРѕ РґРѕСЃС‚СѓРїР°Рј"
+                : workspaceTab === "reports"
+                  ? "РџРѕРёСЃРє РїРѕ РѕС‚С‡РµС‚Р°Рј"
+                  : workspaceTab === "install"
+                    ? "РџРѕРёСЃРє РїРѕ СѓСЃС‚Р°РЅРѕРІРєРµ"
+                    : "РџРѕРёСЃРє РїРѕ РїСЂРѕС„РёР»СЋ";
+
+  const sidebarActiveTop = SIDEBAR_ACTIVE_TOP_BY_TAB[workspaceTab];
+
+  const renderWorkspaceTopbar = () => (
+    <header className="home-topbar">
+      <label className="home-search home-search--workspace" aria-label="Поиск">
+        <Search aria-hidden="true" />
+        <input
+          type="search"
+          value={workspaceSearchQuery}
+          onChange={(event) => setWorkspaceSearchQuery(event.target.value)}
+          placeholder={workspaceSearchPlaceholder}
+        />
+      </label>
+
+      <div className="home-topbar__actions">
+        <button
+          type="button"
+          className="home-new-task"
+          onClick={openCreateTaskModal}
+        >
+          <Plus aria-hidden="true" />
+          <span>Создать задачу</span>
+        </button>
+      </div>
+    </header>
+  );
+
   if (screen === "machines") {
     return (
       <main
         className="machines-page"
         aria-label={
           workspaceTab === "home"
-            ? "Страница главная"
+            ? "РЎС‚СЂР°РЅРёС†Р° РіР»Р°РІРЅР°СЏ"
             : workspaceTab === "tasks"
-              ? "Страница задач"
+              ? "РЎС‚СЂР°РЅРёС†Р° Р·Р°РґР°С‡"
               : workspaceTab === "results"
-                ? "Страница результатов"
+                ? "РЎС‚СЂР°РЅРёС†Р° СЂРµР·СѓР»СЊС‚Р°С‚РѕРІ"
                 : workspaceTab === "logs"
-                  ? "Страница логов"
+                  ? "РЎС‚СЂР°РЅРёС†Р° Р»РѕРіРѕРІ"
                   : workspaceTab === "access"
-                    ? "Страница доступа"
+                    ? "РЎС‚СЂР°РЅРёС†Р° РґРѕСЃС‚СѓРїР°"
                     : workspaceTab === "reports"
-                      ? "Страница отчетов"
+                      ? "РЎС‚СЂР°РЅРёС†Р° РѕС‚С‡РµС‚РѕРІ"
                       : workspaceTab === "install"
-                        ? "Страница установки"
+                        ? "РЎС‚СЂР°РЅРёС†Р° СѓСЃС‚Р°РЅРѕРІРєРё"
                         : workspaceTab === "profile"
-                          ? "Страница профиля"
-                          : "Страница машин"
+                          ? "РЎС‚СЂР°РЅРёС†Р° РїСЂРѕС„РёР»СЏ"
+                          : "РЎС‚СЂР°РЅРёС†Р° РјР°С€РёРЅ"
         }
       >
-        <aside
-          className={
-            workspaceTab === "home"
-              ? "machines-sidebar machines-sidebar--home"
-              : workspaceTab === "tasks"
-                ? "machines-sidebar machines-sidebar--tasks"
-                : workspaceTab === "results"
-                  ? "machines-sidebar machines-sidebar--results"
-                  : workspaceTab === "logs"
-                    ? "machines-sidebar machines-sidebar--logs"
-                    : workspaceTab === "access"
-                      ? "machines-sidebar machines-sidebar--access"
-                      : workspaceTab === "reports"
-                        ? "machines-sidebar machines-sidebar--reports"
-                        : workspaceTab === "install"
-                          ? "machines-sidebar machines-sidebar--install"
-                          : workspaceTab === "profile"
-                            ? "machines-sidebar machines-sidebar--profile"
-                            : "machines-sidebar machines-sidebar--machines"
-          }
-        >
-          <span className="machines-sidebar__active-strip" aria-hidden="true" />
+        <aside className="machines-sidebar">
+          <span
+            className="machines-sidebar__active-strip"
+            aria-hidden="true"
+            style={{ transform: `translateY(${sidebarActiveTop}px)` }}
+          />
           <div className="machines-logo">
             <img
               src="/logo.png"
@@ -1238,7 +1495,7 @@ export function App() {
             <strong>PREDICT MV</strong>
           </div>
 
-          <nav className="machines-nav" aria-label="Навигация">
+          <nav className="machines-nav" aria-label="РќР°РІРёРіР°С†РёСЏ">
             {menuItems.map((item) => {
               const isActive = item.tab === workspaceTab;
 
@@ -1303,7 +1560,7 @@ export function App() {
             }}
           >
             <img src="/download.png" alt="" aria-hidden="true" />
-            <span>Установка</span>
+            <span>РЈСЃС‚Р°РЅРѕРІРєР°</span>
           </button>
         </aside>
 
@@ -1323,32 +1580,8 @@ export function App() {
           }
         >
           {workspaceTab === "home" ? (
-            <section className="home-dashboard" aria-label="Главная">
-              <header className="home-topbar reports-topbar">
-                <label className="home-search reports-topbar__search">
-                  <Search size={24} />
-                  <input type="text" placeholder="Поиск" />
-                </label>
-
-                <div className="home-topbar__actions">
-                  <button
-                    type="button"
-                    className="machines-bell"
-                    aria-label="Уведомления"
-                  >
-                    <img src="/uved.png" alt="" aria-hidden="true" />
-                  </button>
-
-                  <button
-                    type="button"
-                    className="home-new-task"
-                    onClick={openCreateTaskModal}
-                  >
-                    <Plus size={24} />
-                    <span>Создать задачу</span>
-                  </button>
-                </div>
-              </header>
+            <section className="home-dashboard" aria-label="Р“Р»Р°РІРЅР°СЏ">
+              {renderWorkspaceTopbar()}
 
               <div className="home-body">
                 <div className="home-metrics">
@@ -1408,11 +1641,11 @@ export function App() {
                   <div className="home-main-column">
                     <section className="home-quick-actions">
                       <header className="home-block-title">
-                        <h2>Быстрые действия</h2>
+                        <h2>Р‘С‹СЃС‚СЂС‹Рµ РґРµР№СЃС‚РІРёСЏ</h2>
                       </header>
 
                       <div className="home-quick-actions__grid">
-                        {homeActionCards.map((card) => (
+                        {visibleHomeActionCards.map((card) => (
                           <button
                             key={card.label}
                             type="button"
@@ -1428,22 +1661,22 @@ export function App() {
 
                     <section className="home-tasks">
                       <header className="home-tasks__header">
-                        <h2>Активные задачи</h2>
-                        <button type="button">Посмотреть все</button>
+                        <h2>РђРєС‚РёРІРЅС‹Рµ Р·Р°РґР°С‡Рё</h2>
+                        <button type="button">РџРѕСЃРјРѕС‚СЂРµС‚СЊ РІСЃРµ</button>
                       </header>
 
                       <table className="home-tasks__table">
                         <thead>
                           <tr>
-                            <th>ID Задачи</th>
-                            <th>Машина</th>
-                            <th>Статус</th>
-                            <th>Время отправки</th>
-                            <th>Отправитель</th>
+                            <th>ID Р—Р°РґР°С‡Рё</th>
+                            <th>РњР°С€РёРЅР°</th>
+                            <th>РЎС‚Р°С‚СѓСЃ</th>
+                            <th>Р’СЂРµРјСЏ РѕС‚РїСЂР°РІРєРё</th>
+                            <th>РћС‚РїСЂР°РІРёС‚РµР»СЊ</th>
                           </tr>
                         </thead>
                         <tbody>
-                          {homeTaskRows.map((row, index) => (
+                          {visibleHomeTaskRows.map((row, index) => (
                             <tr key={`${row.id}_${index}`}>
                               <td>{row.id}</td>
                               <td>{row.machine}</td>
@@ -1460,7 +1693,7 @@ export function App() {
                   <aside className="home-errors">
                     <header className="home-errors__title">
                       <img src="/error.png" alt="" aria-hidden="true" />
-                      <h3>Последние ошибки</h3>
+                      <h3>РџРѕСЃР»РµРґРЅРёРµ РѕС€РёР±РєРё</h3>
                     </header>
 
                     <div className="home-errors__list">
@@ -1481,49 +1714,15 @@ export function App() {
               </div>
             </section>
           ) : workspaceTab === "tasks" ? (
-            <section className="tasks-dashboard" aria-label="Задачи">
-              <header className="home-topbar reports-topbar">
-                <label className="home-search reports-topbar__search">
-                  <Search size={24} />
-                  <input type="text" placeholder="Поиск" />
-                </label>
-
-                <div className="home-topbar__actions">
-                  <button
-                    type="button"
-                    className="machines-bell"
-                    aria-label="Уведомления"
-                  >
-                    <img src="/uved.png" alt="" aria-hidden="true" />
-                  </button>
-
-                  <button
-                    type="button"
-                    className="home-new-task"
-                    onClick={openCreateTaskModal}
-                  >
-                    <Plus size={24} />
-                    <span>Создать задачу</span>
-                  </button>
-                </div>
-              </header>
+            <section className="tasks-dashboard" aria-label="Р—Р°РґР°С‡Рё">
+              {renderWorkspaceTopbar()}
 
               <div className="tasks-body">
-                <p className="tasks-dashboard__breadcrumb">
-                  <img src="/dom.png" alt="" aria-hidden="true" />
-                  <img
-                    src="/strelka.png?v=2"
-                    alt=""
-                    aria-hidden="true"
-                    className="tasks-dashboard__breadcrumb-arrow"
-                  />
-                  <span>Задачи</span>
-                </p>
 
                 <header className="tasks-dashboard__header">
                   <div className="tasks-dashboard__title-box">
-                    <h1>Задачи</h1>
-                    <p>Всего {taskCards.length}</p>
+                    <h1>Р—Р°РґР°С‡Рё</h1>
+                    <p>Р’СЃРµРіРѕ {taskCards.length}</p>
                   </div>
                 </header>
 
@@ -1533,48 +1732,29 @@ export function App() {
                     className={`tasks-dashboard__chip ${taskFilterStatus === "all" ? "tasks-dashboard__chip--active" : ""}`}
                     onClick={() => setTaskFilterStatus("all")}
                   >
-                    Все
+                    Р’СЃРµ
                   </button>
                   <button
                     type="button"
                     className={`tasks-dashboard__chip ${taskFilterStatus === "completed" ? "tasks-dashboard__chip--active" : ""}`}
                     onClick={() => setTaskFilterStatus("completed")}
                   >
-                    Завершенные
+                    Р—Р°РІРµСЂС€РµРЅРЅС‹Рµ
                   </button>
                   <button
                     type="button"
                     className={`tasks-dashboard__chip ${taskFilterStatus === "in_progress" ? "tasks-dashboard__chip--active" : ""}`}
                     onClick={() => setTaskFilterStatus("in_progress")}
                   >
-                    В процессе
+                    Р’ РїСЂРѕС†РµСЃСЃРµ
                   </button>
                   <button
                     type="button"
                     className={`tasks-dashboard__chip ${taskFilterStatus === "error" ? "tasks-dashboard__chip--active" : ""}`}
                     onClick={() => setTaskFilterStatus("error")}
                   >
-                    Ошибки
+                    РћС€РёР±РєРё
                   </button>
-
-                  <div className="tasks-dashboard__icons">
-                    <button
-                      type="button"
-                      className="tasks-dashboard__icon-btn"
-                      aria-label="Фильтр"
-                    >
-                      <img src="/up.png" alt="" aria-hidden="true" />
-                      <img src="/down.png" alt="" aria-hidden="true" />
-                    </button>
-
-                    <button
-                      type="button"
-                      className="tasks-dashboard__icon-btn"
-                      aria-label="Поиск"
-                    >
-                      <Search size={20} />
-                    </button>
-                  </div>
                 </div>
 
                 <div className="tasks-dashboard__statuses">
@@ -1597,14 +1777,14 @@ export function App() {
                         {section.cards.map((task, index) => {
                           const secondaryActionLabel =
                             task.status === "in_progress"
-                              ? "Убить"
-                              : "Повторить";
+                              ? "РЈР±РёС‚СЊ"
+                              : "РџРѕРІС‚РѕСЂРёС‚СЊ";
                           const primaryActionLabel =
                             task.status === "in_progress"
-                              ? "Детали"
-                              : "Посмотреть логи";
+                              ? "Р”РµС‚Р°Р»Рё"
+                              : "РџРѕСЃРјРѕС‚СЂРµС‚СЊ Р»РѕРіРё";
                           const completedLabel =
-                            task.status === "error" ? "Прервана" : "Завершена";
+                            task.status === "error" ? "РџСЂРµСЂРІР°РЅР°" : "Р—Р°РІРµСЂС€РµРЅР°";
 
                           return (
                             <article
@@ -1614,7 +1794,7 @@ export function App() {
                               <div className="task-card__header">
                                 <div className="task-card__title-box">
                                   <p className="task-card__number">
-                                    Задача №{task.taskNumber}
+                                    Р—Р°РґР°С‡Р° в„–{task.taskNumber}
                                   </p>
                                   <h3 className="task-card__title">
                                     {task.title}
@@ -1622,7 +1802,7 @@ export function App() {
                                 </div>
 
                                 <div className="task-card__timeline">
-                                  <p>Запущена: {task.startedAt}</p>
+                                  <p>Р—Р°РїСѓС‰РµРЅР°: {task.startedAt}</p>
                                   {task.completedAt ? (
                                     <p>{`${completedLabel}: ${task.completedAt}`}</p>
                                   ) : null}
@@ -1638,7 +1818,7 @@ export function App() {
                                     alt=""
                                     aria-hidden="true"
                                   />
-                                  <span>Сервер №{task.serverNumber}</span>
+                                  <span>РЎРµСЂРІРµСЂ в„–{task.serverNumber}</span>
                                 </div>
                                 <div
                                   className={`task-card__result task-card__result--${task.resultColor}`}
@@ -1682,36 +1862,12 @@ export function App() {
               </div>
             </section>
           ) : workspaceTab === "results" ? (
-            <section className="results-dashboard" aria-label="Результаты">
-              <header className="home-topbar reports-topbar">
-                <label className="home-search reports-topbar__search">
-                  <Search size={24} />
-                  <input type="text" placeholder="Поиск" />
-                </label>
-
-                <div className="home-topbar__actions">
-                  <button
-                    type="button"
-                    className="machines-bell"
-                    aria-label="Уведомления"
-                  >
-                    <img src="/uved.png" alt="" aria-hidden="true" />
-                  </button>
-
-                  <button
-                    type="button"
-                    className="home-new-task"
-                    onClick={openCreateTaskModal}
-                  >
-                    <Plus size={24} />
-                    <span>Создать задачу</span>
-                  </button>
-                </div>
-              </header>
+            <section className="results-dashboard" aria-label="Р РµР·СѓР»СЊС‚Р°С‚С‹">
+              {renderWorkspaceTopbar()}
 
               <div className="results-dashboard__body">
                 <header className="results-dashboard__header">
-                  <h1>Результаты</h1>
+                  <h1>Р РµР·СѓР»СЊС‚Р°С‚С‹</h1>
                 </header>
 
                 <div className="results-dashboard__filters">
@@ -1724,10 +1880,10 @@ export function App() {
                         )
                       }
                     >
-                      <option value="all">Статус</option>
-                      <option value="success">Выполнено</option>
-                      <option value="error">Ошибка</option>
-                      <option value="cancelled">Отменено</option>
+                      <option value="all">РЎС‚Р°С‚СѓСЃ</option>
+                      <option value="success">Р’С‹РїРѕР»РЅРµРЅРѕ</option>
+                      <option value="error">РћС€РёР±РєР°</option>
+                      <option value="cancelled">РћС‚РјРµРЅРµРЅРѕ</option>
                     </select>
                   </label>
 
@@ -1738,7 +1894,7 @@ export function App() {
                         setResultsMachineFilter(event.target.value)
                       }
                     >
-                      <option value="all">Машина</option>
+                      <option value="all">РњР°С€РёРЅР°</option>
                       {resultsMachineOptions.map((machine) => (
                         <option key={machine} value={machine}>
                           {machine}
@@ -1754,7 +1910,7 @@ export function App() {
                         setResultsCommandFilter(event.target.value)
                       }
                     >
-                      <option value="all">Команда</option>
+                      <option value="all">РљРѕРјР°РЅРґР°</option>
                       {resultsCommandOptions.map((command) => (
                         <option key={command} value={command}>
                           {command}
@@ -1770,8 +1926,8 @@ export function App() {
                         setResultsDateFilter(event.target.value)
                       }
                     >
-                      <option value="all">Дата результата</option>
-                      <option value="today">Сегодня</option>
+                      <option value="all">Р”Р°С‚Р° СЂРµР·СѓР»СЊС‚Р°С‚Р°</option>
+                      <option value="today">РЎРµРіРѕРґРЅСЏ</option>
                     </select>
                   </label>
                 </div>
@@ -1784,37 +1940,27 @@ export function App() {
                       onClick={() => setResultsMachineFilter("all")}
                     >
                       <span>{resultsMachineFilter}</span>
-                      <span aria-hidden="true">×</span>
+                      <span aria-hidden="true">Г—</span>
                     </button>
                   </div>
                 ) : null}
 
                 <section className="results-table-card">
                   <header className="results-table-card__header">
-                    <h2>История запусков</h2>
+                    <h2>РСЃС‚РѕСЂРёСЏ Р·Р°РїСѓСЃРєРѕРІ</h2>
 
-                    <label className="results-table-card__search">
-                      <Search size={20} />
-                      <input
-                        type="text"
-                        placeholder="Поиск по таблице..."
-                        value={resultsSearchQuery}
-                        onChange={(event) =>
-                          setResultsSearchQuery(event.target.value)
-                        }
-                      />
-                    </label>
+                    <span className="results-table-card__caption">Поиск выполняется через верхнюю панель</span>
                   </header>
 
                   <table className="results-table-card__grid">
                     <thead>
                       <tr>
-                        <th>Название</th>
-                        <th>Статус</th>
-                        <th>Машина</th>
-                        <th>Команда</th>
-                        <th>Дата результата</th>
-                        <th>Действия</th>
+                        <th>РќР°Р·РІР°РЅРёРµ</th>
+                        <th>РЎС‚Р°С‚СѓСЃ</th>
+                        <th>РњР°С€РёРЅР°</th>
+                        <th>РљРѕРјР°РЅРґР°</th>
+                        <th>Р”Р°С‚Р° СЂРµР·СѓР»СЊС‚Р°С‚Р°</th>
+                        <th>Р”РµР№СЃС‚РІРёСЏ</th>
                       </tr>
                     </thead>
 
@@ -1848,7 +1994,7 @@ export function App() {
                                     setMachineDetailTab("dashboard");
                                   }}
                                 >
-                                  Смотреть логи
+                                  РЎРјРѕС‚СЂРµС‚СЊ Р»РѕРіРё
                                 </button>
                               </div>
                             </td>
@@ -1857,7 +2003,7 @@ export function App() {
                       ) : (
                         <tr>
                           <td colSpan={6}>
-                            Нет результатов для выбранных фильтров
+                            РќРµС‚ СЂРµР·СѓР»СЊС‚Р°С‚РѕРІ РґР»СЏ РІС‹Р±СЂР°РЅРЅС‹С… С„РёР»СЊС‚СЂРѕРІ
                           </td>
                         </tr>
                       )}
@@ -1867,38 +2013,14 @@ export function App() {
               </div>
             </section>
           ) : workspaceTab === "logs" ? (
-            <section className="logs-dashboard" aria-label="Логи">
-              <header className="home-topbar reports-topbar">
-                <label className="home-search reports-topbar__search">
-                  <Search size={24} />
-                  <input type="text" placeholder="Поиск" />
-                </label>
-
-                <div className="home-topbar__actions">
-                  <button
-                    type="button"
-                    className="machines-bell"
-                    aria-label="Уведомления"
-                  >
-                    <img src="/uved.png" alt="" aria-hidden="true" />
-                  </button>
-
-                  <button
-                    type="button"
-                    className="home-new-task"
-                    onClick={openCreateTaskModal}
-                  >
-                    <Plus size={24} />
-                    <span>Создать задачу</span>
-                  </button>
-                </div>
-              </header>
+            <section className="logs-dashboard" aria-label="Р›РѕРіРё">
+              {renderWorkspaceTopbar()}
 
               <div className="logs-dashboard__body">
                 <header className="logs-dashboard__header">
                   <div>
-                    <h1>Логи</h1>
-                    <p>История системных событий по задачам и машинам</p>
+                    <h1>Р›РѕРіРё</h1>
+                    <p>РСЃС‚РѕСЂРёСЏ СЃРёСЃС‚РµРјРЅС‹С… СЃРѕР±С‹С‚РёР№ РїРѕ Р·Р°РґР°С‡Р°Рј Рё РјР°С€РёРЅР°Рј</p>
                   </div>
                 </header>
 
@@ -1909,55 +2031,45 @@ export function App() {
                       className={`logs-dashboard__chip ${logFilterTone === "all" ? "logs-dashboard__chip--active" : ""}`}
                       onClick={() => setLogFilterTone("all")}
                     >
-                      Все ({logEntries.length})
+                      Р’СЃРµ ({logEntries.length})
                     </button>
                     <button
                       type="button"
                       className={`logs-dashboard__chip ${logFilterTone === "success" ? "logs-dashboard__chip--active" : ""}`}
                       onClick={() => setLogFilterTone("success")}
                     >
-                      Завершено ({logStatusStats.success})
+                      Р—Р°РІРµСЂС€РµРЅРѕ ({logStatusStats.success})
                     </button>
                     <button
                       type="button"
                       className={`logs-dashboard__chip ${logFilterTone === "warning" ? "logs-dashboard__chip--active" : ""}`}
                       onClick={() => setLogFilterTone("warning")}
                     >
-                      Требует внимания ({logStatusStats.warning})
+                      РўСЂРµР±СѓРµС‚ РІРЅРёРјР°РЅРёСЏ ({logStatusStats.warning})
                     </button>
                     <button
                       type="button"
                       className={`logs-dashboard__chip ${logFilterTone === "critical" ? "logs-dashboard__chip--active" : ""}`}
                       onClick={() => setLogFilterTone("critical")}
                     >
-                      Критично ({logStatusStats.critical})
+                      РљСЂРёС‚РёС‡РЅРѕ ({logStatusStats.critical})
                     </button>
                   </div>
 
-                  <label className="logs-dashboard__search">
-                    <Search size={20} />
-                    <input
-                      type="text"
-                      placeholder="Поиск по логам..."
-                      value={logsSearchQuery}
-                      onChange={(event) =>
-                        setLogsSearchQuery(event.target.value)
-                      }
-                    />
-                  </label>
+                  <span className="logs-dashboard__search-note">Поиск выполняется через верхнюю панель</span>
                 </div>
 
                 <div className="logs-dashboard__content">
-                  <section className="logs-table" aria-label="Таблица логов">
+                  <section className="logs-table" aria-label="РўР°Р±Р»РёС†Р° Р»РѕРіРѕРІ">
                     <table className="logs-table__grid">
                       <thead>
                         <tr>
-                          <th>ID события</th>
-                          <th>Машина</th>
-                          <th>Действие</th>
-                          <th>Пользователь</th>
-                          <th>Статус</th>
-                          <th>Дата</th>
+                          <th>ID СЃРѕР±С‹С‚РёСЏ</th>
+                          <th>РњР°С€РёРЅР°</th>
+                          <th>Р”РµР№СЃС‚РІРёРµ</th>
+                          <th>РџРѕР»СЊР·РѕРІР°С‚РµР»СЊ</th>
+                          <th>РЎС‚Р°С‚СѓСЃ</th>
+                          <th>Р”Р°С‚Р°</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -1982,14 +2094,14 @@ export function App() {
 
                     <footer className="logs-table__footer">
                       <span>
-                        Показано {visibleLogEntries.length} из{" "}
+                        РџРѕРєР°Р·Р°РЅРѕ {visibleLogEntries.length} РёР·{" "}
                         {logEntries.length}
                       </span>
-                      <span>Событий в потоке: {logStreamLines.length}</span>
+                      <span>РЎРѕР±С‹С‚РёР№ РІ РїРѕС‚РѕРєРµ: {logStreamLines.length}</span>
                     </footer>
                   </section>
 
-                  <aside className="logs-stream" aria-label="Поток логов">
+                  <aside className="logs-stream" aria-label="РџРѕС‚РѕРє Р»РѕРіРѕРІ">
                     <header className="logs-stream__header">
                       <h2>Live stream</h2>
                       <button
@@ -2023,38 +2135,14 @@ export function App() {
               </div>
             </section>
           ) : workspaceTab === "access" ? (
-            <section className="access-dashboard" aria-label="Доступ">
-              <header className="home-topbar reports-topbar">
-                <label className="home-search reports-topbar__search">
-                  <Search size={24} />
-                  <input type="text" placeholder="Поиск" />
-                </label>
-
-                <div className="home-topbar__actions">
-                  <button
-                    type="button"
-                    className="machines-bell"
-                    aria-label="Уведомления"
-                  >
-                    <img src="/uved.png" alt="" aria-hidden="true" />
-                  </button>
-
-                  <button
-                    type="button"
-                    className="home-new-task"
-                    onClick={openCreateTaskModal}
-                  >
-                    <Plus size={24} />
-                    <span>Создать задачу</span>
-                  </button>
-                </div>
-              </header>
+            <section className="access-dashboard" aria-label="Р”РѕСЃС‚СѓРї">
+              {renderWorkspaceTopbar()}
 
               <div className="access-dashboard__body">
                 <header className="access-dashboard__header">
-                  <h1>Управление доступом</h1>
+                  <h1>РЈРїСЂР°РІР»РµРЅРёРµ РґРѕСЃС‚СѓРїРѕРј</h1>
                   <button type="button" className="access-dashboard__invite">
-                    <span>Отправить приглашение</span>
+                    <span>РћС‚РїСЂР°РІРёС‚СЊ РїСЂРёРіР»Р°С€РµРЅРёРµ</span>
                     <img src="/plus.png" alt="" aria-hidden="true" />
                   </button>
                 </header>
@@ -2077,7 +2165,7 @@ export function App() {
                   <section className="access-users">
                     <div className="access-users__toolbar">
                       <button type="button" className="access-users__template">
-                        <span>Шаблон DV-Sync</span>
+                        <span>РЁР°Р±Р»РѕРЅ DV-Sync</span>
                         <img src="/arrow.png" alt="" aria-hidden="true" />
                       </button>
 
@@ -2085,7 +2173,7 @@ export function App() {
                         <Search size={20} />
                         <input
                           type="text"
-                          placeholder="Поиск по пользователям..."
+                          placeholder="РџРѕРёСЃРє РїРѕ РїРѕР»СЊР·РѕРІР°С‚РµР»СЏРј..."
                         />
                       </label>
                     </div>
@@ -2094,11 +2182,11 @@ export function App() {
                       <table className="access-users__table">
                         <thead>
                           <tr>
-                            <th>Пользователь</th>
-                            <th>Роль</th>
-                            <th>Ресурс</th>
-                            <th>Статус</th>
-                            <th>Действия</th>
+                            <th>РџРѕР»СЊР·РѕРІР°С‚РµР»СЊ</th>
+                            <th>Р РѕР»СЊ</th>
+                            <th>Р РµСЃСѓСЂСЃ</th>
+                            <th>РЎС‚Р°С‚СѓСЃ</th>
+                            <th>Р”РµР№СЃС‚РІРёСЏ</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -2143,7 +2231,7 @@ export function App() {
                             ))
                           ) : (
                             <tr>
-                              <td colSpan={5}>Нет данных по доступам</td>
+                              <td colSpan={5}>РќРµС‚ РґР°РЅРЅС‹С… РїРѕ РґРѕСЃС‚СѓРїР°Рј</td>
                             </tr>
                           )}
                         </tbody>
@@ -2152,15 +2240,15 @@ export function App() {
 
                     <footer className="access-users__footer">
                       <span>
-                        Показано {visibleAccessRows.length} из{" "}
+                        РџРѕРєР°Р·Р°РЅРѕ {visibleAccessRows.length} РёР·{" "}
                         {accessUserRows.length}
                       </span>
-                      <button type="button">Показать все</button>
+                      <button type="button">РџРѕРєР°Р·Р°С‚СЊ РІСЃРµ</button>
                     </footer>
                   </section>
 
                   <aside className="access-activity">
-                    <h2>Журнал изменений</h2>
+                    <h2>Р–СѓСЂРЅР°Р» РёР·РјРµРЅРµРЅРёР№</h2>
 
                     <div className="access-activity__list">
                       {accessActivityItems.length ? (
@@ -2188,7 +2276,7 @@ export function App() {
                           </article>
                         ))
                       ) : (
-                        <p>Нет событий доступа</p>
+                        <p>РќРµС‚ СЃРѕР±С‹С‚РёР№ РґРѕСЃС‚СѓРїР°</p>
                       )}
                     </div>
                   </aside>
@@ -2196,36 +2284,12 @@ export function App() {
               </div>
             </section>
           ) : workspaceTab === "reports" ? (
-            <section className="reports-dashboard" aria-label="Отчеты">
-              <header className="home-topbar reports-topbar">
-                <label className="home-search reports-topbar__search">
-                  <Search size={24} />
-                  <input type="text" placeholder="Поиск" />
-                </label>
-
-                <div className="home-topbar__actions">
-                  <button
-                    type="button"
-                    className="machines-bell"
-                    aria-label="Уведомления"
-                  >
-                    <img src="/uved.png" alt="" aria-hidden="true" />
-                  </button>
-
-                  <button
-                    type="button"
-                    className="home-new-task"
-                    onClick={openCreateTaskModal}
-                  >
-                    <Plus size={24} />
-                    <span>Создать задачу</span>
-                  </button>
-                </div>
-              </header>
+            <section className="reports-dashboard" aria-label="РћС‚С‡РµС‚С‹">
+              {renderWorkspaceTopbar()}
 
               <div className="reports-dashboard__body">
                 <header className="reports-dashboard__header">
-                  <h1>Отчеты и статистика</h1>
+                  <h1>РћС‚С‡РµС‚С‹ Рё СЃС‚Р°С‚РёСЃС‚РёРєР°</h1>
 
                   <button
                     type="button"
@@ -2235,8 +2299,8 @@ export function App() {
                   >
                     <span>
                       {isReportsRefreshing
-                        ? "Обновление..."
-                        : "Обновить данные"}
+                        ? "РћР±РЅРѕРІР»РµРЅРёРµ..."
+                        : "РћР±РЅРѕРІРёС‚СЊ РґР°РЅРЅС‹Рµ"}
                     </span>
                     <RefreshCw size={16} />
                   </button>
@@ -2250,10 +2314,10 @@ export function App() {
                         setReportPeriod(event.target.value as ReportPeriod)
                       }
                     >
-                      <option value="day">Период</option>
-                      <option value="week">Неделя</option>
-                      <option value="month">Месяц</option>
-                      <option value="all">Все время</option>
+                      <option value="day">РџРµСЂРёРѕРґ</option>
+                      <option value="week">РќРµРґРµР»СЏ</option>
+                      <option value="month">РњРµСЃСЏС†</option>
+                      <option value="all">Р’СЃРµ РІСЂРµРјСЏ</option>
                     </select>
                   </label>
 
@@ -2262,7 +2326,7 @@ export function App() {
                       value={reportMachine}
                       onChange={(event) => setReportMachine(event.target.value)}
                     >
-                      <option value="all">Все машины</option>
+                      <option value="all">Р’СЃРµ РјР°С€РёРЅС‹</option>
                       {reportMachineOptions.map((machine) => (
                         <option key={machine.id} value={machine.id}>
                           {machine.label}
@@ -2278,7 +2342,7 @@ export function App() {
                         setReportTemplate(event.target.value)
                       }
                     >
-                      <option value="all">Все шаблоны</option>
+                      <option value="all">Р’СЃРµ С€Р°Р±Р»РѕРЅС‹</option>
                       {reportTemplateOptions.map((template) => (
                         <option key={template} value={template}>
                           {template}
@@ -2292,7 +2356,7 @@ export function App() {
                       value={reportTeam}
                       onChange={(event) => setReportTeam(event.target.value)}
                     >
-                      <option value="all">Все команды</option>
+                      <option value="all">Р’СЃРµ РєРѕРјР°РЅРґС‹</option>
                       {reportTeamOptions.map((team) => (
                         <option key={team} value={team}>
                           {team}
@@ -2305,7 +2369,7 @@ export function App() {
                 <div className="reports-dashboard__stats">
                   <article className="reports-stat-card">
                     <header>
-                      <p>Средняя длительность</p>
+                      <p>РЎСЂРµРґРЅСЏСЏ РґР»РёС‚РµР»СЊРЅРѕСЃС‚СЊ</p>
                       <Clock3 size={24} />
                     </header>
                     <strong>
@@ -2319,7 +2383,7 @@ export function App() {
 
                   <article className="reports-stat-card">
                     <header>
-                      <p>Активные машины</p>
+                      <p>РђРєС‚РёРІРЅС‹Рµ РјР°С€РёРЅС‹</p>
                       <Monitor size={24} />
                     </header>
                     <strong>{`${reportStats.activeMachines}/${reportStats.totalMachines}`}</strong>
@@ -2331,7 +2395,7 @@ export function App() {
 
                   <article className="reports-stat-card">
                     <header>
-                      <p>Число ошибок</p>
+                      <p>Р§РёСЃР»Рѕ РѕС€РёР±РѕРє</p>
                       <AlertTriangle size={24} />
                     </header>
                     <strong>{`${reportStats.errorTasks}/${reportStats.totalTasks}`}</strong>
@@ -2343,7 +2407,7 @@ export function App() {
 
                   <article className="reports-stat-card">
                     <header>
-                      <p>Процент успеха</p>
+                      <p>РџСЂРѕС†РµРЅС‚ СѓСЃРїРµС…Р°</p>
                       <Percent size={24} />
                     </header>
                     <strong>{`${reportStats.successRate.toFixed(1)}%`}</strong>
@@ -2356,30 +2420,20 @@ export function App() {
 
                 <section className="reports-table-card">
                   <header className="reports-table-card__header">
-                    <h2>Сводка по шаблонам и машинам с drill-down</h2>
+                    <h2>РЎРІРѕРґРєР° РїРѕ С€Р°Р±Р»РѕРЅР°Рј Рё РјР°С€РёРЅР°Рј СЃ drill-down</h2>
 
-                    <label className="reports-table-card__search">
-                      <Search size={20} />
-                      <input
-                        type="text"
-                        placeholder="Поиск по таблице..."
-                        value={reportSearchQuery}
-                        onChange={(event) =>
-                          setReportSearchQuery(event.target.value)
-                        }
-                      />
-                    </label>
+                    <span className="reports-table-card__caption">Поиск выполняется через верхнюю панель</span>
                   </header>
 
                   <table className="reports-table-card__grid">
                     <thead>
                       <tr>
-                        <th>Шаблон или задача</th>
-                        <th>Всего задач</th>
-                        <th>Успешно</th>
-                        <th>Ошибки</th>
-                        <th>Ср. длительность</th>
-                        <th>Действия</th>
+                        <th>РЁР°Р±Р»РѕРЅ РёР»Рё Р·Р°РґР°С‡Р°</th>
+                        <th>Р’СЃРµРіРѕ Р·Р°РґР°С‡</th>
+                        <th>РЈСЃРїРµС€РЅРѕ</th>
+                        <th>РћС€РёР±РєРё</th>
+                        <th>РЎСЂ. РґР»РёС‚РµР»СЊРЅРѕСЃС‚СЊ</th>
+                        <th>Р”РµР№СЃС‚РІРёСЏ</th>
                       </tr>
                     </thead>
 
@@ -2416,7 +2470,7 @@ export function App() {
                                 className="reports-table-card__action"
                                 onClick={() => {
                                   setWorkspaceTab(
-                                    row.actionLabel === "Смотреть логи"
+                                    row.actionLabel === "РЎРјРѕС‚СЂРµС‚СЊ Р»РѕРіРё"
                                       ? "logs"
                                       : "tasks",
                                   );
@@ -2431,7 +2485,7 @@ export function App() {
                         ))
                       ) : (
                         <tr>
-                          <td colSpan={6}>Нет данных для выбранных фильтров</td>
+                          <td colSpan={6}>РќРµС‚ РґР°РЅРЅС‹С… РґР»СЏ РІС‹Р±СЂР°РЅРЅС‹С… С„РёР»СЊС‚СЂРѕРІ</td>
                         </tr>
                       )}
                     </tbody>
@@ -2444,36 +2498,12 @@ export function App() {
               </div>
             </section>
           ) : workspaceTab === "install" ? (
-            <section className="install-dashboard" aria-label="Установка">
-              <header className="home-topbar reports-topbar">
-                <label className="home-search reports-topbar__search">
-                  <Search size={24} />
-                  <input type="text" placeholder="Поиск" />
-                </label>
-
-                <div className="home-topbar__actions">
-                  <button
-                    type="button"
-                    className="machines-bell"
-                    aria-label="Уведомления"
-                  >
-                    <img src="/uved.png" alt="" aria-hidden="true" />
-                  </button>
-
-                  <button
-                    type="button"
-                    className="home-new-task"
-                    onClick={openCreateTaskModal}
-                  >
-                    <Plus size={24} />
-                    <span>Создать задачу</span>
-                  </button>
-                </div>
-              </header>
+            <section className="install-dashboard" aria-label="РЈСЃС‚Р°РЅРѕРІРєР°">
+              {renderWorkspaceTopbar()}
 
               <div className="install-dashboard__body">
                 <header className="install-dashboard__header">
-                  <h1>Установка</h1>
+                  <h1>РЈСЃС‚Р°РЅРѕРІРєР°</h1>
                 </header>
 
                 <div className="install-dashboard__grid">
@@ -2515,6 +2545,10 @@ export function App() {
                           <button
                             key={action}
                             type="button"
+                            disabled={
+                              card.id === "windows" &&
+                              action === "Desktop скоро"
+                            }
                             className={
                               index === card.activeActionIndex
                                 ? "install-card__action install-card__action--active"
@@ -2523,7 +2557,7 @@ export function App() {
                             onClick={() => {
                               if (
                                 card.id === "linux" &&
-                                action === "Инструкция по установке"
+                                action === "Команды установки"
                               ) {
                                 setIsLinuxInstallGuideOpen(true);
                                 return;
@@ -2547,36 +2581,12 @@ export function App() {
               </div>
             </section>
           ) : workspaceTab === "profile" ? (
-            <section className="profile-dashboard" aria-label="Профиль">
-              <header className="home-topbar reports-topbar">
-                <label className="home-search reports-topbar__search">
-                  <Search size={24} />
-                  <input type="text" placeholder="Поиск" />
-                </label>
-
-                <div className="home-topbar__actions">
-                  <button
-                    type="button"
-                    className="machines-bell"
-                    aria-label="Уведомления"
-                  >
-                    <img src="/uved.png" alt="" aria-hidden="true" />
-                  </button>
-
-                  <button
-                    type="button"
-                    className="home-new-task"
-                    onClick={openCreateTaskModal}
-                  >
-                    <Plus size={24} />
-                    <span>Создать задачу</span>
-                  </button>
-                </div>
-              </header>
+            <section className="profile-dashboard" aria-label="РџСЂРѕС„РёР»СЊ">
+              {renderWorkspaceTopbar()}
 
               <div className="profile-dashboard__body">
-                <aside className="profile-nav" aria-label="Разделы профиля">
-                  <h2>Профиль</h2>
+                <aside className="profile-nav" aria-label="Р Р°Р·РґРµР»С‹ РїСЂРѕС„РёР»СЏ">
+                  <h2>РџСЂРѕС„РёР»СЊ</h2>
                   <div className="profile-nav__items">
                     {profileSections.map((section) => (
                       <button
@@ -2599,8 +2609,8 @@ export function App() {
                   {profileSection === "general" ? (
                     <section className="profile-card profile-card--general">
                       <header className="profile-card__header">
-                        <h3>Основная информация</h3>
-                        <p>Управление личными данными и настройками профиля</p>
+                        <h3>РћСЃРЅРѕРІРЅР°СЏ РёРЅС„РѕСЂРјР°С†РёСЏ</h3>
+                        <p>РЈРїСЂР°РІР»РµРЅРёРµ Р»РёС‡РЅС‹РјРё РґР°РЅРЅС‹РјРё Рё РЅР°СЃС‚СЂРѕР№РєР°РјРё РїСЂРѕС„РёР»СЏ</p>
                       </header>
 
                       <div className="profile-main-info">
@@ -2621,7 +2631,7 @@ export function App() {
                               profileAvatarInputRef.current?.click()
                             }
                           >
-                            Добавить +
+                            Р”РѕР±Р°РІРёС‚СЊ +
                           </button>
                           <input
                             ref={profileAvatarInputRef}
@@ -2631,39 +2641,39 @@ export function App() {
                             onChange={handleProfileAvatarChange}
                           />
                           <span className="profile-main-info__hint">
-                            Формат JPG, PNG
+                            Р¤РѕСЂРјР°С‚ JPG, PNG
                           </span>
                         </div>
                       </div>
 
                       <div className="profile-fields profile-fields--two">
                         <label className="profile-field">
-                          <span>Имя</span>
+                          <span>РРјСЏ</span>
                           <input
                             type="text"
                             value={profileFirstName}
                             onChange={(event) =>
                               setProfileFirstName(event.target.value)
                             }
-                            placeholder="Имя"
+                            placeholder="РРјСЏ"
                           />
                         </label>
 
                         <label className="profile-field">
-                          <span>Фамилия</span>
+                          <span>Р¤Р°РјРёР»РёСЏ</span>
                           <input
                             type="text"
                             value={profileLastName}
                             onChange={(event) =>
                               setProfileLastName(event.target.value)
                             }
-                            placeholder="Фамилия"
+                            placeholder="Р¤Р°РјРёР»РёСЏ"
                           />
                         </label>
                       </div>
 
                       <label className="profile-field">
-                        <span>Электронная почта</span>
+                        <span>Р­Р»РµРєС‚СЂРѕРЅРЅР°СЏ РїРѕС‡С‚Р°</span>
                         <input
                           type="email"
                           value={profileDashboard?.email ?? ""}
@@ -2676,29 +2686,29 @@ export function App() {
                   {profileSection === "security" ? (
                     <section className="profile-card profile-card--security">
                       <header className="profile-card__header">
-                        <h3>Безопасность</h3>
-                        <p>Пароль и двухфакторная аутентификация</p>
+                        <h3>Р‘РµР·РѕРїР°СЃРЅРѕСЃС‚СЊ</h3>
+                        <p>РџР°СЂРѕР»СЊ Рё РґРІСѓС…С„Р°РєС‚РѕСЂРЅР°СЏ Р°СѓС‚РµРЅС‚РёС„РёРєР°С†РёСЏ</p>
                       </header>
 
                       <label className="profile-field">
-                        <span>Текущий пароль</span>
+                        <span>РўРµРєСѓС‰РёР№ РїР°СЂРѕР»СЊ</span>
                         <input type="password" value="********" readOnly />
                       </label>
 
                       <div className="profile-security-row">
                         <div>
                           <div className="profile-security-row__title-line">
-                            <strong>Двухфакторная аутентификация</strong>
+                            <strong>Р”РІСѓС…С„Р°РєС‚РѕСЂРЅР°СЏ Р°СѓС‚РµРЅС‚РёС„РёРєР°С†РёСЏ</strong>
                             {profileDashboard?.twoFactorEnabled ? (
                               <span className="profile-security-row__badge">
-                                Подключена
+                                РџРѕРґРєР»СЋС‡РµРЅР°
                               </span>
                             ) : null}
                           </div>
                           <p>
                             {profileDashboard?.twoFactorEnabled
-                              ? `Подключена (${profileDashboard.enabledTwoFactorMethods.join(", ") || "метод не указан"})`
-                              : "Не подключена"}
+                              ? `РџРѕРґРєР»СЋС‡РµРЅР° (${profileDashboard.enabledTwoFactorMethods.join(", ") || "РјРµС‚РѕРґ РЅРµ СѓРєР°Р·Р°РЅ"})`
+                              : "РќРµ РїРѕРґРєР»СЋС‡РµРЅР°"}
                           </p>
                         </div>
 
@@ -2711,8 +2721,8 @@ export function App() {
                           }
                         >
                           {profileDashboard?.twoFactorEnabled
-                            ? "Отключить"
-                            : "Подключить"}
+                            ? "РћС‚РєР»СЋС‡РёС‚СЊ"
+                            : "РџРѕРґРєР»СЋС‡РёС‚СЊ"}
                         </button>
                       </div>
                     </section>
@@ -2721,10 +2731,10 @@ export function App() {
                   {profileSection === "sessions" ? (
                     <section className="profile-card profile-card--sessions">
                       <header className="profile-card__header">
-                        <h3>Активные сессии</h3>
+                        <h3>РђРєС‚РёРІРЅС‹Рµ СЃРµСЃСЃРёРё</h3>
                         <p>
-                          Показаны устройства, на которых выполнен вход в Ваш
-                          аккаунт.
+                          РџРѕРєР°Р·Р°РЅС‹ СѓСЃС‚СЂРѕР№СЃС‚РІР°, РЅР° РєРѕС‚РѕСЂС‹С… РІС‹РїРѕР»РЅРµРЅ РІС…РѕРґ РІ Р’Р°С€
+                          Р°РєРєР°СѓРЅС‚.
                         </p>
                       </header>
 
@@ -2740,7 +2750,7 @@ export function App() {
                                   className="profile-session-row__icon profile-session-row__icon--current"
                                   aria-hidden="true"
                                 >
-                                  {session.deviceLabel === "Браузер" ? (
+                                  {session.deviceLabel === "Р‘СЂР°СѓР·РµСЂ" ? (
                                     <Smartphone size={20} />
                                   ) : (
                                     <Laptop size={20} />
@@ -2751,7 +2761,7 @@ export function App() {
                                     <strong>{session.deviceLabel}</strong>
                                     {session.isCurrent ? (
                                       <span className="profile-session-row__current">
-                                        На этом устройстве
+                                        РќР° СЌС‚РѕРј СѓСЃС‚СЂРѕР№СЃС‚РІРµ
                                       </span>
                                     ) : null}
                                   </div>
@@ -2764,13 +2774,13 @@ export function App() {
                                 className="profile-session-row__terminate"
                                 onClick={handleTerminateProfileSession}
                               >
-                                Завершить
+                                Р—Р°РІРµСЂС€РёС‚СЊ
                               </button>
                             </article>
                           ))
                         ) : (
                           <p className="profile-sessions-list__empty">
-                            Нет активных сессий
+                            РќРµС‚ Р°РєС‚РёРІРЅС‹С… СЃРµСЃСЃРёР№
                           </p>
                         )}
                       </div>
@@ -2780,13 +2790,13 @@ export function App() {
                   {profileSection === "notifications" ? (
                     <section className="profile-card profile-card--notifications">
                       <header className="profile-card__header">
-                        <h3>Настройки уведомлений</h3>
-                        <p>Укажите уведомления, которые нужно отправлять</p>
+                        <h3>РќР°СЃС‚СЂРѕР№РєРё СѓРІРµРґРѕРјР»РµРЅРёР№</h3>
+                        <p>РЈРєР°Р¶РёС‚Рµ СѓРІРµРґРѕРјР»РµРЅРёСЏ, РєРѕС‚РѕСЂС‹Рµ РЅСѓР¶РЅРѕ РѕС‚РїСЂР°РІР»СЏС‚СЊ</p>
                       </header>
 
                       <div className="profile-notifications">
                         <label>
-                          <span>Выполнение задачи</span>
+                          <span>Р’С‹РїРѕР»РЅРµРЅРёРµ Р·Р°РґР°С‡Рё</span>
                           <input
                             type="checkbox"
                             checked={profileNotifications.taskCompleted}
@@ -2800,7 +2810,7 @@ export function App() {
                         </label>
 
                         <label>
-                          <span>Предупреждение</span>
+                          <span>РџСЂРµРґСѓРїСЂРµР¶РґРµРЅРёРµ</span>
                           <input
                             type="checkbox"
                             checked={profileNotifications.warnings}
@@ -2814,7 +2824,7 @@ export function App() {
                         </label>
 
                         <label>
-                          <span>Отчет</span>
+                          <span>РћС‚С‡РµС‚</span>
                           <input
                             type="checkbox"
                             checked={profileNotifications.reports}
@@ -2832,10 +2842,10 @@ export function App() {
 
                   <footer className="profile-actions">
                     <button type="button" className="profile-actions__cancel">
-                      Отмена
+                      РћС‚РјРµРЅР°
                     </button>
                     <button type="button" className="profile-actions__save">
-                      Сохранить
+                      РЎРѕС…СЂР°РЅРёС‚СЊ
                     </button>
                   </footer>
                 </div>
@@ -2843,68 +2853,67 @@ export function App() {
             </section>
           ) : selectedMachine ? (
             <section className="machine-details" aria-label="Карточка машины">
-              <header className="home-topbar">
-                <label className="home-search">
-                  <Search size={24} />
-                  <input type="text" placeholder="Поиск" />
-                </label>
-
-                <div className="home-topbar__actions">
-                  <button
-                    type="button"
-                    className="machines-bell"
-                    aria-label="Уведомления"
-                  >
-                    <img src="/uved.png" alt="" aria-hidden="true" />
-                  </button>
-
-                  <button
-                    type="button"
-                    className="home-new-task"
-                    onClick={openCreateTaskModal}
-                  >
-                    <Plus size={24} />
-                    <span>Создать задачу</span>
-                  </button>
-                </div>
-              </header>
+              {renderWorkspaceTopbar()}
 
               <div className="machine-details__body">
-                <p className="machine-details__breadcrumb">
-                  <img src="/dom.png" alt="" aria-hidden="true" />
-                  <img
-                    src="/strelka.png?v=2"
-                    alt=""
-                    aria-hidden="true"
-                    className="machine-details__breadcrumb-arrow"
-                  />
-                  <button
-                    type="button"
-                    className="machine-details__breadcrumb-link"
-                    onClick={() => setSelectedMachineId(null)}
-                  >
-                    Машины
-                  </button>
-                  <img
-                    src="/strelka.png?v=2"
-                    alt=""
-                    aria-hidden="true"
-                    className="machine-details__breadcrumb-arrow"
-                  />
-                  <span>{getMachineDisplayName(selectedMachine)}</span>
-                </p>
-
-                <header className="machine-details__header">
-                  <h1>{getMachineDisplayName(selectedMachine)}</h1>
-                  <p className="machine-details__status">
-                    <span
-                      className={`machine-details__status-dot machine-details__status-dot--${selectedMachine.status}`}
-                    />
-                    <span>
-                      {machineStatusLabelByStatus[selectedMachine.status]}
-                    </span>
-                  </p>
+                <header className="machine-details__header machine-details__header--hero">
+                  <div>
+                    <h1>
+                      Агент {getMachineDisplayName(selectedMachine)}{" "}
+                      <span>{selectedMachine.owner}</span>
+                    </h1>
+                    <p className="machine-details__status">
+                      <span
+                        className={`machine-details__status-dot machine-details__status-dot--${selectedMachine.status}`}
+                      />
+                      <span>
+                        {machineStatusLabelByStatus[selectedMachine.status]}
+                      </span>
+                    </p>
+                  </div>
                 </header>
+
+                <section className="machine-details__panel">
+                  <h2>Обзор</h2>
+                  <div className="machine-details__overview-grid">
+                    <article className="machine-details__overview-card">
+                      <p className="machine-details__overview-label">Хост</p>
+                      <p className="machine-details__overview-value">
+                        {selectedMachine.hostname}
+                      </p>
+                    </article>
+
+                    <article className="machine-details__overview-card">
+                      <p className="machine-details__overview-label">Моя роль</p>
+                      <p className="machine-details__overview-value machine-details__overview-value--accent">
+                        {selectedMachine.myRole}
+                      </p>
+                    </article>
+
+                    <article className="machine-details__overview-card">
+                      <p className="machine-details__overview-label">ОС</p>
+                      <p className="machine-details__overview-value">
+                        {selectedMachine.os}
+                      </p>
+                    </article>
+
+                    <article className="machine-details__overview-card">
+                      <p className="machine-details__overview-label">Last heartbeat</p>
+                      <p className="machine-details__overview-value machine-details__overview-value--heartbeat">
+                        {selectedMachine.heartbeat}
+                      </p>
+                    </article>
+
+                    <article className="machine-details__overview-card">
+                      <p className="machine-details__overview-label">
+                        Создатель машины
+                      </p>
+                      <p className="machine-details__overview-value machine-details__overview-value--accent">
+                        {selectedMachine.owner}
+                      </p>
+                    </article>
+                  </div>
+                </section>
 
                 <div className="machine-details__tabs-row">
                   <div className="machine-details__tabs">
@@ -2923,165 +2932,326 @@ export function App() {
                       </button>
                     ))}
                   </div>
-
-                  <div className="machine-details__tabs-icons">
-                    <button
-                      type="button"
-                      className="machine-details__icon-btn"
-                      aria-label="Фильтр"
-                    >
-                      <img src="/up.png" alt="" aria-hidden="true" />
-                      <img src="/down.png" alt="" aria-hidden="true" />
-                    </button>
-                    <button
-                      type="button"
-                      className="machine-details__icon-btn"
-                      aria-label="Поиск"
-                    >
-                      <Search size={20} />
-                    </button>
-                  </div>
                 </div>
 
                 {machineDetailTab === "dashboard" ? (
                   <>
-                    <section className="machine-details__panel">
-                      <h2>Обзор</h2>
-                      <div className="machine-details__overview-grid">
-                        <article className="machine-details__overview-card">
-                          <p className="machine-details__overview-label">ОС</p>
-                          <p className="machine-details__overview-value">
-                            {selectedMachine.os}
-                          </p>
-                        </article>
+                    <div className="machine-details__dashboard-grid">
+                      <section className="machine-details__panel machine-details__panel--task-create">
+                        <header className="machine-details__section-head">
+                          <h2>Задача</h2>
+                          <button
+                            type="button"
+                            className="machine-details__inline-action"
+                            onClick={openCreateTaskModal}
+                          >
+                            <Plus size={16} />
+                          </button>
+                        </header>
 
-                        <article className="machine-details__overview-card">
-                          <p className="machine-details__overview-label">
-                            Создатель машины
+                        <div className="machine-details__task-create-card">
+                          <p className="machine-details__task-create-label">
+                            Машина
                           </p>
-                          <p className="machine-details__overview-value machine-details__overview-value--accent">
-                            {selectedMachine.owner}
+                          <strong>{getMachineDisplayName(selectedMachine)}</strong>
+                          <p className="machine-details__task-create-text">
+                            Создай новую задачу для этой машины через верхнюю кнопку.
                           </p>
-                        </article>
+                          <button
+                            type="button"
+                            className="machine-details__primary-button"
+                            onClick={openCreateTaskModal}
+                          >
+                            Создать задачу
+                          </button>
+                        </div>
+                      </section>
 
-                        <article className="machine-details__overview-card">
-                          <p className="machine-details__overview-label">
-                            Администраторы машины
-                          </p>
-                          <div className="machine-details__admins-list">
-                            <p className="machine-details__overview-value machine-details__overview-value--accent">
-                              {selectedMachine.owner}
+                      <section className="machine-details__panel">
+                        <header className="machine-details__section-head">
+                          <h2>Недавние задачи</h2>
+                          <button
+                            type="button"
+                            className="machine-details__link-button"
+                            onClick={() => setMachineDetailTab("tasks")}
+                          >
+                            Смотреть все
+                          </button>
+                        </header>
+
+                        <div className="machine-details__recent-list">
+                          {selectedMachineTaskCards.length ? (
+                            selectedMachineTaskCards.slice(0, 3).map((task) => (
+                              <article
+                                key={task.id}
+                                className="machine-details__recent-card"
+                              >
+                                <div>
+                                  <p className="machine-details__recent-kicker">
+                                    Задача №{task.taskNumber}
+                                  </p>
+                                  <strong>{task.title}</strong>
+                                  <p>{task.startedAt}</p>
+                                </div>
+                                <div className="machine-details__recent-actions">
+                                  <span
+                                    className={`results-status results-status--${task.status === "completed" ? "success" : task.status === "error" ? "error" : "cancelled"}`}
+                                  >
+                                    {task.resultText}
+                                  </span>
+                                </div>
+                              </article>
+                            ))
+                          ) : (
+                            <p className="machine-details__empty">
+                              По этой машине пока нет задач
                             </p>
-                          </div>
-                        </article>
+                          )}
+                        </div>
+                      </section>
+                    </div>
 
-                        <article className="machine-details__overview-card">
-                          <p className="machine-details__overview-label">
-                            Last heartbeat
-                          </p>
-                          <p className="machine-details__overview-value machine-details__overview-value--heartbeat">
-                            {selectedMachine.heartbeat}
-                          </p>
-                        </article>
+                    <section className="machine-details__panel">
+                      <header className="machine-details__section-head">
+                        <h2>Результаты</h2>
+                        <button
+                          type="button"
+                          className="machine-details__link-button"
+                          onClick={() => setMachineDetailTab("results")}
+                        >
+                          Смотреть все
+                        </button>
+                      </header>
+
+                      <div className="machine-details__table-wrap">
+                        <table className="results-table-card__grid">
+                          <thead>
+                            <tr>
+                              <th>Название</th>
+                              <th>Статус</th>
+                              <th>Команда</th>
+                              <th>Дата результата</th>
+                              <th>Действия</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {selectedMachineResultRows.length ? (
+                              selectedMachineResultRows.slice(0, 4).map((row) => (
+                                <tr key={row.id}>
+                                  <td>{row.title}</td>
+                                  <td>
+                                    <span
+                                      className={`results-status results-status--${row.statusTone}`}
+                                    >
+                                      {row.statusLabel}
+                                    </span>
+                                  </td>
+                                  <td>
+                                    <span className="results-command">
+                                      {row.command}
+                                    </span>
+                                  </td>
+                                  <td>{row.resultAt}</td>
+                                  <td>
+                                    <button
+                                      type="button"
+                                      className="results-actions__logs"
+                                      onClick={() => setWorkspaceTab("logs")}
+                                    >
+                                      Смотреть логи
+                                    </button>
+                                  </td>
+                                </tr>
+                              ))
+                            ) : (
+                              <tr>
+                                <td colSpan={5}>Нет результатов по этой машине</td>
+                              </tr>
+                            )}
+                          </tbody>
+                        </table>
                       </div>
                     </section>
 
-                    <section className="machine-details__panel machine-details__panel--actions">
-                      <h2>Быстрые действия</h2>
-                      <div className="machine-details__actions-grid">
+                    <section className="machine-details__panel">
+                      <header className="machine-details__section-head">
+                        <h2>Логи</h2>
                         <button
                           type="button"
-                          className="machine-details__action"
+                          className="machine-details__link-button"
+                          onClick={() => setMachineDetailTab("logs")}
                         >
-                          <span className="machine-details__action-icon">
-                            <img
-                              src="/updateagent.png"
-                              alt=""
-                              aria-hidden="true"
-                            />
-                          </span>
-                          <span>Обновить агента</span>
+                          Смотреть все
                         </button>
+                      </header>
 
-                        <button
-                          type="button"
-                          className="machine-details__action"
-                        >
-                          <span className="machine-details__action-icon">
-                            <img src="/diagnos.png" alt="" aria-hidden="true" />
-                          </span>
-                          <span>Запустить диагностику</span>
-                        </button>
-
-                        <button
-                          type="button"
-                          className="machine-details__action"
-                        >
-                          <span className="machine-details__action-icon">
-                            <img src="/eshe.png" alt="" aria-hidden="true" />
-                          </span>
-                          <span>Что-то еще</span>
-                        </button>
+                      <div className="machine-details__table-wrap">
+                        <table className="logs-table__grid">
+                          <thead>
+                            <tr>
+                              <th>ID события</th>
+                              <th>Машина</th>
+                              <th>Действие</th>
+                              <th>Пользователь</th>
+                              <th>Статус</th>
+                              <th>Дата</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {selectedMachineLogEntries.length ? (
+                              selectedMachineLogEntries.slice(0, 4).map((entry) => (
+                                <tr key={entry.id}>
+                                  <td>{entry.id}</td>
+                                  <td>{entry.machine}</td>
+                                  <td>{entry.action}</td>
+                                  <td>{entry.email}</td>
+                                  <td>
+                                    <span
+                                      className={`logs-table__status logs-table__status--${entry.tone}`}
+                                    >
+                                      {entry.status}
+                                    </span>
+                                  </td>
+                                  <td>{entry.createdAt}</td>
+                                </tr>
+                              ))
+                            ) : (
+                              <tr>
+                                <td colSpan={6}>Нет логов по этой машине</td>
+                              </tr>
+                            )}
+                          </tbody>
+                        </table>
                       </div>
                     </section>
                   </>
+                ) : machineDetailTab === "tasks" ? (
+                  <section className="machine-details__panel">
+                    <header className="machine-details__section-head">
+                      <h2>Задачи машины</h2>
+                    </header>
+                    <div className="machine-details__recent-list">
+                      {selectedMachineTaskCards.length ? (
+                        selectedMachineTaskCards.map((task) => (
+                          <article key={task.id} className="machine-details__recent-card">
+                            <div>
+                              <p className="machine-details__recent-kicker">
+                                Задача №{task.taskNumber}
+                              </p>
+                              <strong>{task.title}</strong>
+                              <p>{task.startedAt}</p>
+                            </div>
+                            <span
+                              className={`results-status results-status--${task.status === "completed" ? "success" : task.status === "error" ? "error" : "cancelled"}`}
+                            >
+                              {task.resultText}
+                            </span>
+                          </article>
+                        ))
+                      ) : (
+                        <p className="machine-details__empty">Нет задач по этой машине</p>
+                      )}
+                    </div>
+                  </section>
+                ) : machineDetailTab === "results" ? (
+                  <section className="machine-details__panel">
+                    <header className="machine-details__section-head">
+                      <h2>Результаты машины</h2>
+                    </header>
+                    <div className="machine-details__table-wrap">
+                      <table className="results-table-card__grid">
+                        <thead>
+                          <tr>
+                            <th>Название</th>
+                            <th>Статус</th>
+                            <th>Команда</th>
+                            <th>Дата результата</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {selectedMachineResultRows.length ? (
+                            selectedMachineResultRows.map((row) => (
+                              <tr key={row.id}>
+                                <td>{row.title}</td>
+                                <td>
+                                  <span
+                                    className={`results-status results-status--${row.statusTone}`}
+                                  >
+                                    {row.statusLabel}
+                                  </span>
+                                </td>
+                                <td>
+                                  <span className="results-command">{row.command}</span>
+                                </td>
+                                <td>{row.resultAt}</td>
+                              </tr>
+                            ))
+                          ) : (
+                            <tr>
+                              <td colSpan={4}>Нет результатов по этой машине</td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </section>
                 ) : (
-                  <section className="machine-details__panel machine-details__panel--placeholder">
-                    <h2>
-                      {
-                        machineDetailTabs.find(
-                          (tab) => tab.key === machineDetailTab,
-                        )?.label
-                      }
-                    </h2>
-                    <p>Раздел в разработке</p>
+                  <section className="machine-details__panel">
+                    <header className="machine-details__section-head">
+                      <h2>Логи машины</h2>
+                    </header>
+                    <div className="machine-details__table-wrap">
+                      <table className="logs-table__grid">
+                        <thead>
+                          <tr>
+                            <th>ID события</th>
+                            <th>Машина</th>
+                            <th>Действие</th>
+                            <th>Пользователь</th>
+                            <th>Статус</th>
+                            <th>Дата</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {selectedMachineLogEntries.length ? (
+                            selectedMachineLogEntries.map((entry) => (
+                              <tr key={entry.id}>
+                                <td>{entry.id}</td>
+                                <td>{entry.machine}</td>
+                                <td>{entry.action}</td>
+                                <td>{entry.email}</td>
+                                <td>
+                                  <span
+                                    className={`logs-table__status logs-table__status--${entry.tone}`}
+                                  >
+                                    {entry.status}
+                                  </span>
+                                </td>
+                                <td>{entry.createdAt}</td>
+                              </tr>
+                            ))
+                          ) : (
+                            <tr>
+                              <td colSpan={6}>Нет логов по этой машине</td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
                   </section>
                 )}
               </div>
             </section>
           ) : (
-            <section className="machines-dashboard" aria-label="Машины">
-              <p className="machines-dashboard__breadcrumb">
-                <img src="/dom.png" alt="" aria-hidden="true" />
-                <img
-                  src="/strelka.png?v=2"
-                  alt=""
-                  aria-hidden="true"
-                  className="machines-dashboard__breadcrumb-arrow"
-                />
-                <span>Машины</span>
-              </p>
+            <section className="machines-dashboard" aria-label="РњР°С€РёРЅС‹">
+              {renderWorkspaceTopbar()}
 
               <header className="machines-dashboard__header">
                 <div className="machines-dashboard__title-box">
-                  <h1>Машины</h1>
-                  <p>Всего {machineDashboardCards.length}</p>
+                  <h1>РњР°С€РёРЅС‹</h1>
+                  <p>Р’СЃРµРіРѕ {machineDashboardCards.length}</p>
                 </div>
               </header>
-
-              <div className="machines-dashboard__controls">
-                <button type="button" className="machines-dashboard__chip">
-                  <span>Linux</span>
-                  <span aria-hidden="true">×</span>
-                </button>
-
-                <button
-                  type="button"
-                  className="machines-dashboard__icon-btn"
-                  aria-label="Фильтр"
-                >
-                  <img src="/up.png" alt="" aria-hidden="true" />
-                  <img src="/down.png" alt="" aria-hidden="true" />
-                </button>
-
-                <button
-                  type="button"
-                  className="machines-dashboard__icon-btn"
-                  aria-label="Поиск"
-                >
-                  <Search size={20} />
-                </button>
-              </div>
 
               <div className="machines-dashboard__statuses">
                 {machineStatusGroups.map((section) => {
@@ -3196,7 +3366,7 @@ export function App() {
                       <button
                         type="button"
                         className="install-guide-modal__copy"
-                        aria-label="Скопировать команды"
+                        aria-label="РЎРєРѕРїРёСЂРѕРІР°С‚СЊ РєРѕРјР°РЅРґС‹"
                         onClick={() => copyLinuxGuideCommands(step.commands)}
                       >
                         <img src="/copy.png" alt="" aria-hidden="true" />
@@ -3223,7 +3393,7 @@ export function App() {
                   className="install-guide-modal__btn install-guide-modal__btn--secondary"
                   onClick={closeLinuxInstallGuide}
                 >
-                  Скрыть
+                  РЎРєСЂС‹С‚СЊ
                 </button>
 
                 <button
@@ -3232,20 +3402,20 @@ export function App() {
                   onClick={() => {
                     const url = getInstallActionUrl(
                       "linux",
-                      "Установить архив",
+                      "РЈСЃС‚Р°РЅРѕРІРёС‚СЊ Р°СЂС…РёРІ",
                     );
                     if (url) {
                       window.location.assign(url);
                     }
                   }}
                 >
-                  Установить архив
+                  РЈСЃС‚Р°РЅРѕРІРёС‚СЊ Р°СЂС…РёРІ
                 </button>
               </div>
 
               <p className="install-guide-modal__hint">
-                На linux доступен только systemd сервис без графического
-                интерфейса
+                РќР° linux РґРѕСЃС‚СѓРїРµРЅ С‚РѕР»СЊРєРѕ systemd СЃРµСЂРІРёСЃ Р±РµР· РіСЂР°С„РёС‡РµСЃРєРѕРіРѕ
+                РёРЅС‚РµСЂС„РµР№СЃР°
               </p>
             </section>
           </div>
@@ -3267,25 +3437,30 @@ export function App() {
               <button
                 type="button"
                 className="task-create-modal__close"
-                aria-label="Закрыть"
+                aria-label="Р—Р°РєСЂС‹С‚СЊ"
                 onClick={closeCreateTaskModal}
               >
                 <X size={20} />
               </button>
 
               <div className="task-create-modal__head">
-                <p>Задача №35006</p>
+                <p>Новая задача</p>
                 <h2 id="task-create-title">Создание задачи</h2>
               </div>
 
               <label className="task-create-modal__field">
-                <span>Название</span>
-                <input
-                  type="text"
-                  placeholder="Введите название..."
-                  value={taskName}
-                  onChange={(event) => setTaskName(event.target.value)}
-                />
+                <span>Машина</span>
+                <select
+                  value={taskMachineId}
+                  onChange={(event) => setTaskMachineId(event.target.value)}
+                >
+                  <option value="">Выбрать</option>
+                  {machineDashboardCards.map((machine) => (
+                    <option key={machine.id} value={machine.id}>
+                      {getMachineDisplayName(machine)}
+                    </option>
+                  ))}
+                </select>
               </label>
 
               <label className="task-create-modal__field">
@@ -3293,39 +3468,46 @@ export function App() {
                 <select
                   value={taskCommand}
                   onChange={(event) => setTaskCommand(event.target.value)}
+                  disabled={!taskMachineId || !taskTemplateOptions.length}
                 >
-                  <option value="">Выбрать</option>
-                  <option value="check-port">Проверка порта</option>
-                  <option value="check-service">Проверка сервиса</option>
+                  <option value="">
+                    {taskMachineId ? "Выбрать" : "Сначала выберите машину"}
+                  </option>
+                  {taskTemplateOptions.map((template) => (
+                    <option key={template.templateKey} value={template.templateKey}>
+                      {template.name}
+                    </option>
+                  ))}
                 </select>
               </label>
 
-              <div className="task-create-modal__params">
-                <label className="task-create-modal__field">
-                  <span>Параметр 1</span>
-                  <select
-                    value={taskParam1}
-                    onChange={(event) => setTaskParam1(event.target.value)}
-                  >
-                    <option value="">Выбрать</option>
-                    <option value="443">Порт 443</option>
-                    <option value="308">Порт 308</option>
-                    <option value="74978">Порт 74978</option>
-                  </select>
-                </label>
-
-                <label className="task-create-modal__field">
-                  <span>Параметр 2</span>
-                  <select
-                    value={taskParam2}
-                    onChange={(event) => setTaskParam2(event.target.value)}
-                  >
-                    <option value="">Выбрать</option>
-                    <option value="tcp">TCP</option>
-                    <option value="udp">UDP</option>
-                  </select>
-                </label>
-              </div>
+              {selectedTaskTemplate ? (
+                <div className="task-create-modal__params">
+                  {selectedTaskTemplate.parameters.map((parameter) => (
+                    <label
+                      key={parameter.key}
+                      className="task-create-modal__field"
+                    >
+                      <span>{parameter.label}</span>
+                      <select
+                        value={taskParamValues[parameter.key] ?? ""}
+                        onChange={(event) =>
+                          setTaskParamValues((current) => ({
+                            ...current,
+                            [parameter.key]: event.target.value,
+                          }))
+                        }
+                      >
+                        {parameter.allowedValues.map((option) => (
+                          <option key={option} value={option}>
+                            {option}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  ))}
+                </div>
+              ) : null}
 
               <button type="submit" className="task-create-modal__submit">
                 Создать задачу
@@ -3346,10 +3528,10 @@ export function App() {
         className="auth-card"
         aria-label={
           authMode === "login"
-            ? "Страница входа"
+            ? "РЎС‚СЂР°РЅРёС†Р° РІС…РѕРґР°"
             : authMode === "register"
-              ? "Страница регистрации"
-              : "Подтверждение входа"
+              ? "РЎС‚СЂР°РЅРёС†Р° СЂРµРіРёСЃС‚СЂР°С†РёРё"
+              : "РџРѕРґС‚РІРµСЂР¶РґРµРЅРёРµ РІС…РѕРґР°"
         }
       >
         <div className="auth-card__preview">
@@ -3362,13 +3544,13 @@ export function App() {
 
             <div className="auth-card__preview-copy">
               <p>
-                Сюда будет вставляться
+                РЎСЋРґР° Р±СѓРґРµС‚ РІСЃС‚Р°РІР»СЏС‚СЊСЃСЏ
                 <br />
-                меняемое со временем
+                РјРµРЅСЏРµРјРѕРµ СЃРѕ РІСЂРµРјРµРЅРµРј
                 <br />
-                изображение
+                РёР·РѕР±СЂР°Р¶РµРЅРёРµ
                 <br />
-                (или не меняемое)
+                (РёР»Рё РЅРµ РјРµРЅСЏРµРјРѕРµ)
               </p>
             </div>
           </div>
@@ -3377,33 +3559,33 @@ export function App() {
         <div className="auth-card__content">
           <header className="brand-block">
             <p className="brand-block__name">PREDICT MV</p>
-            <p className="brand-block__tagline">Любая валюта под рукой</p>
+            <p className="brand-block__tagline">Р›СЋР±Р°СЏ РІР°Р»СЋС‚Р° РїРѕРґ СЂСѓРєРѕР№</p>
           </header>
 
           {authMode === "confirm" ? (
-            <section className="confirm-panel" aria-label="Подтверждение входа">
+            <section className="confirm-panel" aria-label="РџРѕРґС‚РІРµСЂР¶РґРµРЅРёРµ РІС…РѕРґР°">
               <div className="confirm-panel__icon" aria-hidden="true">
                 <Shield size={34} />
               </div>
 
               <div className="confirm-panel__heading">
-                <h1>Подтверждение входа</h1>
+                <h1>РџРѕРґС‚РІРµСЂР¶РґРµРЅРёРµ РІС…РѕРґР°</h1>
                 <p>
-                  Мы отправили код подтверждения в{" "}
+                  РњС‹ РѕС‚РїСЂР°РІРёР»Рё РєРѕРґ РїРѕРґС‚РІРµСЂР¶РґРµРЅРёСЏ РІ{" "}
                   <a href="#telegram">Telegram</a>
                 </p>
               </div>
 
               <form className="confirm-form" onSubmit={handleConfirmSubmit}>
                 <label className="field">
-                  <span>Код подтверждения</span>
+                  <span>РљРѕРґ РїРѕРґС‚РІРµСЂР¶РґРµРЅРёСЏ</span>
                   <div className="field__control field__control--centered">
                     <input
                       value={verificationCode}
                       onChange={(event) =>
                         setVerificationCode(event.target.value)
                       }
-                      placeholder="Введите 6-значный код"
+                      placeholder="Р’РІРµРґРёС‚Рµ 6-Р·РЅР°С‡РЅС‹Р№ РєРѕРґ"
                       inputMode="numeric"
                       autoComplete="one-time-code"
                     />
@@ -3411,13 +3593,13 @@ export function App() {
                 </label>
 
                 <button className="submit-button" type="submit">
-                  <span>Подтвердить вход</span>
+                  <span>РџРѕРґС‚РІРµСЂРґРёС‚СЊ РІС…РѕРґ</span>
                 </button>
               </form>
 
               <p className="confirm-panel__resend">
-                <span>Не приходит код?</span>{" "}
-                <button type="button">Отправить еще раз</button>
+                <span>РќРµ РїСЂРёС…РѕРґРёС‚ РєРѕРґ?</span>{" "}
+                <button type="button">РћС‚РїСЂР°РІРёС‚СЊ РµС‰Рµ СЂР°Р·</button>
               </p>
 
               <button
@@ -3428,26 +3610,26 @@ export function App() {
                   setAuthMode("login");
                 }}
               >
-                Назад
+                РќР°Р·Р°Рґ
               </button>
 
               <p className="confirm-panel__legal">
-                Нажимая кнопку "Подтвердить вход" выше, вы подтверждаете, что
-                ознакомились и согласны с{" "}
-                <a href="#terms">Условиями Пользования</a> и{" "}
-                <a href="#privacy">Политикой Конфиденциальности</a>
+                РќР°Р¶РёРјР°СЏ РєРЅРѕРїРєСѓ "РџРѕРґС‚РІРµСЂРґРёС‚СЊ РІС…РѕРґ" РІС‹С€Рµ, РІС‹ РїРѕРґС‚РІРµСЂР¶РґР°РµС‚Рµ, С‡С‚Рѕ
+                РѕР·РЅР°РєРѕРјРёР»РёСЃСЊ Рё СЃРѕРіР»Р°СЃРЅС‹ СЃ{" "}
+                <a href="#terms">РЈСЃР»РѕРІРёСЏРјРё РџРѕР»СЊР·РѕРІР°РЅРёСЏ</a> Рё{" "}
+                <a href="#privacy">РџРѕР»РёС‚РёРєРѕР№ РљРѕРЅС„РёРґРµРЅС†РёР°Р»СЊРЅРѕСЃС‚Рё</a>
               </p>
             </section>
           ) : (
             <section className="auth-panel">
               <div className="auth-panel__heading">
                 <h1>
-                  {authMode === "login" ? "Вход в аккаунт" : "Регистрация"}
+                  {authMode === "login" ? "Р’С…РѕРґ РІ Р°РєРєР°СѓРЅС‚" : "Р РµРіРёСЃС‚СЂР°С†РёСЏ"}
                 </h1>
                 <p>
                   {authMode === "login"
-                    ? "Авторизуйтесь, чтобы продолжить"
-                    : "Зарегистрируйтесь, чтобы продолжить"}
+                    ? "РђРІС‚РѕСЂРёР·СѓР№С‚РµСЃСЊ, С‡С‚РѕР±С‹ РїСЂРѕРґРѕР»Р¶РёС‚СЊ"
+                    : "Р—Р°СЂРµРіРёСЃС‚СЂРёСЂСѓР№С‚РµСЃСЊ, С‡С‚РѕР±С‹ РїСЂРѕРґРѕР»Р¶РёС‚СЊ"}
                 </p>
               </div>
 
@@ -3467,14 +3649,14 @@ export function App() {
                 </label>
 
                 <label className="field">
-                  <span>Пароль</span>
+                  <span>РџР°СЂРѕР»СЊ</span>
                   <div className="field__control field__control--password">
                     <Lock size={16} />
                     <input
                       type={showPassword ? "text" : "password"}
                       value={password}
                       onChange={(event) => setPassword(event.target.value)}
-                      placeholder="••••••••"
+                      placeholder="вЂўвЂўвЂўвЂўвЂўвЂўвЂўвЂў"
                       autoComplete={
                         authMode === "login"
                           ? "current-password"
@@ -3486,7 +3668,7 @@ export function App() {
                       className="field__toggle"
                       onClick={() => setShowPassword((current) => !current)}
                       aria-label={
-                        showPassword ? "Скрыть пароль" : "Показать пароль"
+                        showPassword ? "РЎРєСЂС‹С‚СЊ РїР°СЂРѕР»СЊ" : "РџРѕРєР°Р·Р°С‚СЊ РїР°СЂРѕР»СЊ"
                       }
                     >
                       {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
@@ -3497,7 +3679,7 @@ export function App() {
                 {authMode === "register" && (
                   <>
                     <label className="field">
-                      <span>Повторите пароль</span>
+                      <span>РџРѕРІС‚РѕСЂРёС‚Рµ РїР°СЂРѕР»СЊ</span>
                       <div className="field__control field__control--password">
                         <Lock size={16} />
                         <input
@@ -3506,7 +3688,7 @@ export function App() {
                           onChange={(event) =>
                             setConfirmPassword(event.target.value)
                           }
-                          placeholder="••••••••"
+                          placeholder="вЂўвЂўвЂўвЂўвЂўвЂўвЂўвЂў"
                           autoComplete="new-password"
                         />
                         <button
@@ -3517,8 +3699,8 @@ export function App() {
                           }
                           aria-label={
                             showConfirmPassword
-                              ? "Скрыть пароль"
-                              : "Показать пароль"
+                              ? "РЎРєСЂС‹С‚СЊ РїР°СЂРѕР»СЊ"
+                              : "РџРѕРєР°Р·Р°С‚СЊ РїР°СЂРѕР»СЊ"
                           }
                         >
                           {showConfirmPassword ? (
@@ -3539,7 +3721,7 @@ export function App() {
                         }
                       />
                       <span>
-                        Я даю согласие на обработку персональных данных
+                        РЇ РґР°СЋ СЃРѕРіР»Р°СЃРёРµ РЅР° РѕР±СЂР°Р±РѕС‚РєСѓ РїРµСЂСЃРѕРЅР°Р»СЊРЅС‹С… РґР°РЅРЅС‹С…
                       </span>
                     </label>
                   </>
@@ -3547,7 +3729,7 @@ export function App() {
 
                 <button className="submit-button" type="submit">
                   <span>
-                    {authMode === "login" ? "Войти" : "Зарегистрироваться"}
+                    {authMode === "login" ? "Р’РѕР№С‚Рё" : "Р—Р°СЂРµРіРёСЃС‚СЂРёСЂРѕРІР°С‚СЊСЃСЏ"}
                   </span>
                 </button>
               </form>
@@ -3555,7 +3737,7 @@ export function App() {
               <p className="auth-panel__footer">
                 {authMode === "login" ? (
                   <>
-                    Нет аккаунта?{" "}
+                    РќРµС‚ Р°РєРєР°СѓРЅС‚Р°?{" "}
                     <button
                       type="button"
                       onClick={() => {
@@ -3563,12 +3745,12 @@ export function App() {
                         setAuthMode("register");
                       }}
                     >
-                      Зарегистрироваться
+                      Р—Р°СЂРµРіРёСЃС‚СЂРёСЂРѕРІР°С‚СЊСЃСЏ
                     </button>
                   </>
                 ) : (
                   <>
-                    Есть аккаунт?{" "}
+                    Р•СЃС‚СЊ Р°РєРєР°СѓРЅС‚?{" "}
                     <button
                       type="button"
                       onClick={() => {
@@ -3576,7 +3758,7 @@ export function App() {
                         setAuthMode("login");
                       }}
                     >
-                      Войти
+                      Р’РѕР№С‚Рё
                     </button>
                   </>
                 )}

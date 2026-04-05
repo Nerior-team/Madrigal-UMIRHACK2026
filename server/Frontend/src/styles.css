@@ -5995,3 +5995,600 @@ a {
     padding: 16px;
   }
 }
+
+/* frontend cleanup overrides */
+:root {
+  --sidebar-width: 248px;
+  --workspace-gap: 24px;
+  --workspace-topbar-height: 68px;
+  --motion-base: 180ms ease;
+  --motion-soft: 280ms ease;
+  --shadow-soft: 0 14px 34px rgba(39, 19, 25, 0.08);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+button,
+a,
+input,
+select,
+textarea {
+  transition:
+    transform var(--motion-base),
+    box-shadow var(--motion-base),
+    border-color var(--motion-base),
+    background-color var(--motion-base),
+    color var(--motion-base),
+    opacity var(--motion-base);
+}
+
+button:not(:disabled),
+a,
+.machines-nav__item,
+.machines-profile,
+.home-action-card,
+.task-card__btn,
+.results-actions__logs,
+.logs-dashboard__chip,
+.results-chip,
+.machines-dashboard__chip,
+.access-dashboard__invite,
+.access-users__template,
+.profile-card__button,
+.install-card__action,
+.machine-details__tab,
+.machine-details__primary-button,
+.machine-details__link-button,
+.machine-details__inline-action {
+  cursor: pointer;
+}
+
+button:not(:disabled):hover,
+a:hover,
+.machines-nav__item:hover,
+.machines-profile:hover,
+.home-action-card:hover,
+.task-card__btn:hover,
+.results-actions__logs:hover,
+.logs-dashboard__chip:hover,
+.results-chip:hover,
+.machines-dashboard__chip:hover,
+.access-dashboard__invite:hover,
+.access-users__template:hover,
+.profile-card__button:hover,
+.install-card__action:hover,
+.machine-details__tab:hover,
+.machine-details__primary-button:hover,
+.machine-details__link-button:hover,
+.machine-details__inline-action:hover {
+  transform: translateY(-1px);
+}
+
+button:not(:disabled):active,
+a:active,
+.machines-nav__item:active,
+.machines-profile:active,
+.home-action-card:active,
+.task-card__btn:active,
+.results-actions__logs:active,
+.logs-dashboard__chip:active,
+.results-chip:active,
+.machines-dashboard__chip:active,
+.access-dashboard__invite:active,
+.access-users__template:active,
+.profile-card__button:active,
+.install-card__action:active,
+.machine-details__tab:active,
+.machine-details__primary-button:active,
+.machine-details__link-button:active,
+.machine-details__inline-action:active {
+  transform: translateY(0) scale(0.985);
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+.machines-page {
+  display: block;
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at top left, rgba(141, 56, 71, 0.08), transparent 24%),
+    linear-gradient(180deg, #f7f3f4 0%, #f3f4f6 100%);
+}
+
+.machines-sidebar {
+  position: fixed;
+  inset: 0 auto 0 0;
+  z-index: 30;
+  width: var(--sidebar-width);
+  min-width: var(--sidebar-width);
+  min-height: 100vh;
+  border-right: 1px solid rgba(130, 51, 62, 0.12);
+  border-radius: 0 18px 18px 0;
+  padding: 18px 0 20px;
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 24px 40px rgba(33, 19, 24, 0.08);
+  backdrop-filter: blur(18px);
+  overflow-y: auto;
+}
+
+.machines-sidebar__active-strip {
+  top: 0;
+  left: 0;
+  width: 4px;
+  height: 44px;
+  border-radius: 0 999px 999px 0;
+  background: linear-gradient(180deg, #651321 0%, #a43746 100%);
+  box-shadow: 0 8px 24px rgba(130, 51, 62, 0.32);
+  transition:
+    transform 340ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    background var(--motion-soft);
+}
+
+.machines-sidebar--home .machines-sidebar__active-strip,
+.machines-sidebar--machines .machines-sidebar__active-strip,
+.machines-sidebar--tasks .machines-sidebar__active-strip,
+.machines-sidebar--results .machines-sidebar__active-strip,
+.machines-sidebar--reports .machines-sidebar__active-strip,
+.machines-sidebar--install .machines-sidebar__active-strip,
+.machines-sidebar--logs .machines-sidebar__active-strip,
+.machines-sidebar--access .machines-sidebar__active-strip,
+.machines-sidebar--profile .machines-sidebar__active-strip {
+  top: 0;
+  bottom: auto;
+}
+
+.machines-logo,
+.machines-nav__item,
+.machines-profile {
+  width: calc(100% - 16px);
+  margin-left: 8px;
+  margin-right: 8px;
+  border-radius: 12px;
+}
+
+.machines-nav {
+  gap: 10px;
+}
+
+.machines-nav__item,
+.machines-profile {
+  position: relative;
+  overflow: hidden;
+}
+
+.machines-nav__item::after,
+.machines-profile::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, rgba(130, 51, 62, 0.08), transparent 80%);
+  opacity: 0;
+  transition: opacity var(--motion-soft);
+}
+
+.machines-nav__item:hover::after,
+.machines-profile:hover::after,
+.machines-nav__item.active::after,
+.machines-profile--active::after {
+  opacity: 1;
+}
+
+.machines-nav__item:hover,
+.machines-profile:hover {
+  background: rgba(130, 51, 62, 0.08);
+  box-shadow: inset 0 0 0 1px rgba(130, 51, 62, 0.08);
+}
+
+.machines-nav__item.active,
+.machines-profile--active {
+  background: rgba(130, 51, 62, 0.13);
+  box-shadow: inset 0 0 0 1px rgba(130, 51, 62, 0.12);
+}
+
+.machines-content,
+.machines-content--machines,
+.home-content {
+  width: auto;
+  max-width: none;
+  margin-left: calc(var(--sidebar-width) + 8px);
+  min-height: 100vh;
+  padding: 0;
+  background: transparent;
+}
+
+.home-dashboard,
+.machines-dashboard,
+.tasks-dashboard,
+.results-dashboard,
+.logs-dashboard,
+.access-dashboard,
+.reports-dashboard,
+.install-dashboard,
+.profile-dashboard,
+.machine-details {
+  width: 100%;
+  min-height: 100vh;
+  background: transparent;
+}
+
+.home-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  min-height: var(--workspace-topbar-height);
+  height: var(--workspace-topbar-height);
+  padding: 12px 24px;
+  border-bottom: 1px solid rgba(130, 51, 62, 0.08);
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(18px);
+}
+
+.home-search,
+.home-search--workspace {
+  width: min(980px, 100%);
+  border-radius: 14px;
+  border: 1px solid rgba(130, 51, 62, 0.12);
+  background: rgba(246, 242, 243, 0.92);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+.home-search:focus-within,
+.home-search--workspace:focus-within,
+.machines-search:focus-within {
+  border-color: rgba(130, 51, 62, 0.28);
+  box-shadow:
+    0 0 0 4px rgba(130, 51, 62, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+.home-new-task {
+  min-width: 210px;
+  border: 1px solid rgba(101, 19, 33, 0.16);
+  border-radius: 14px;
+  box-shadow: 0 16px 32px rgba(101, 19, 33, 0.18);
+}
+
+.home-new-task:hover {
+  box-shadow: 0 18px 32px rgba(101, 19, 33, 0.24);
+}
+
+.machines-bell,
+.machines-dashboard__breadcrumb,
+.tasks-dashboard__breadcrumb,
+.machine-details__breadcrumb {
+  display: none !important;
+}
+
+.home-body,
+.tasks-body,
+.results-dashboard__body,
+.logs-dashboard__body,
+.access-dashboard__body,
+.reports-dashboard__body,
+.install-dashboard__body,
+.profile-dashboard__body,
+.machine-details__body {
+  width: min(var(--dashboard-max-width), calc(100% - 48px));
+  margin: 24px auto 40px;
+}
+
+.machines-table-wrap,
+.results-table-card,
+.logs-table,
+.access-users,
+.profile-card,
+.report-comparison,
+.report-summary,
+.install-card,
+.machine-details__panel {
+  box-shadow: var(--shadow-soft);
+}
+
+.machines-table tbody tr,
+.results-table-card__grid tbody tr,
+.logs-table__grid tbody tr,
+.access-users__table tbody tr {
+  transition: background-color var(--motion-base);
+}
+
+.machines-table tbody tr:hover,
+.results-table-card__grid tbody tr:hover,
+.logs-table__grid tbody tr:hover,
+.access-users__table tbody tr:hover {
+  background: rgba(130, 51, 62, 0.035);
+}
+
+.results-table-card__caption,
+.logs-dashboard__search-note,
+.reports-table-card__caption {
+  display: inline-flex;
+  align-items: center;
+  font-family: "Albert Sans", sans-serif;
+  font-size: 13px;
+  line-height: 18px;
+  color: #85777b;
+}
+
+.machine-details__header--hero {
+  gap: 12px;
+}
+
+.machine-details__header--hero .machine-details__header h1 {
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+.machine-details__overview-grid {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.machine-details__overview-card {
+  min-height: 148px;
+  border-color: rgba(130, 51, 62, 0.12);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+.machine-details__tabs-row {
+  margin-top: 4px;
+}
+
+.machine-details__tab {
+  border-radius: 12px;
+  border-color: rgba(130, 51, 62, 0.1);
+  background: rgba(244, 241, 242, 0.9);
+}
+
+.machine-details__tab--active {
+  background: #fff;
+  box-shadow: var(--shadow-soft);
+}
+
+.machine-details__dashboard-grid {
+  display: grid;
+  grid-template-columns: minmax(320px, 0.86fr) minmax(420px, 1.14fr);
+  gap: 20px;
+}
+
+.machine-details__section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.machine-details__inline-action,
+.machine-details__link-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 12px;
+  font-family: "Albert Sans", sans-serif;
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.machine-details__inline-action {
+  width: 34px;
+  height: 34px;
+  background: rgba(130, 51, 62, 0.08);
+  color: #82333e;
+}
+
+.machine-details__link-button {
+  min-height: 34px;
+  padding: 8px 12px;
+  color: #82333e;
+  background: rgba(130, 51, 62, 0.06);
+}
+
+.machine-details__task-create-card {
+  min-height: 240px;
+  border: 1px solid rgba(130, 51, 62, 0.12);
+  border-radius: 18px;
+  padding: 20px;
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  background:
+    radial-gradient(circle at top right, rgba(130, 51, 62, 0.08), transparent 35%),
+    linear-gradient(180deg, #fff 0%, #fbf7f8 100%);
+}
+
+.machine-details__task-create-card strong {
+  font-family: "Albert Sans", sans-serif;
+  font-size: 24px;
+  line-height: 30px;
+  letter-spacing: -0.03em;
+}
+
+.machine-details__task-create-label,
+.machine-details__task-create-text,
+.machine-details__empty,
+.machine-details__recent-kicker,
+.machine-details__recent-card p {
+  margin: 0;
+}
+
+.machine-details__task-create-label,
+.machine-details__recent-kicker {
+  font-family: "Albert Sans", sans-serif;
+  font-size: 12px;
+  line-height: 16px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #8d7f83;
+}
+
+.machine-details__task-create-text,
+.machine-details__empty,
+.machine-details__recent-card p {
+  color: #7a7174;
+}
+
+.machine-details__primary-button {
+  justify-self: start;
+  min-height: 44px;
+  padding: 10px 18px;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #82333e 0%, #651321 100%);
+  color: #fff;
+  font-family: "Albert Sans", sans-serif;
+  font-size: 15px;
+  line-height: 20px;
+  box-shadow: 0 18px 30px rgba(101, 19, 33, 0.18);
+}
+
+.machine-details__recent-list {
+  display: grid;
+  gap: 12px;
+}
+
+.machine-details__recent-card {
+  border: 1px solid rgba(130, 51, 62, 0.1);
+  border-radius: 16px;
+  padding: 16px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  background: #fff;
+}
+
+.machine-details__recent-card strong {
+  display: block;
+  margin: 4px 0 6px;
+  font-family: "Albert Sans", sans-serif;
+  font-size: 18px;
+  line-height: 24px;
+}
+
+.machine-details__recent-actions {
+  display: flex;
+  align-items: center;
+}
+
+.machine-details__table-wrap {
+  overflow-x: auto;
+}
+
+.task-create-modal__field select,
+.task-create-modal__field input {
+  border-radius: 14px;
+  border-color: rgba(130, 51, 62, 0.12);
+  background: #faf7f8;
+}
+
+.task-create-modal__field select:focus,
+.task-create-modal__field input:focus {
+  border-color: rgba(130, 51, 62, 0.28);
+  box-shadow: 0 0 0 4px rgba(130, 51, 62, 0.08);
+}
+
+.home-action-card,
+.machine-status-card,
+.task-card,
+.results-table-card,
+.logs-table,
+.logs-stream,
+.access-stat-card,
+.access-users__template,
+.report-summary-row,
+.install-card,
+.profile-card {
+  transition:
+    transform var(--motion-base),
+    box-shadow var(--motion-soft),
+    border-color var(--motion-base),
+    background-color var(--motion-base);
+}
+
+.home-action-card:hover,
+.machine-status-card:hover,
+.task-card:hover,
+.results-table-card:hover,
+.logs-table:hover,
+.logs-stream:hover,
+.access-stat-card:hover,
+.access-users__template:hover,
+.report-summary-row:hover,
+.install-card:hover,
+.profile-card:hover {
+  box-shadow: 0 18px 38px rgba(39, 19, 25, 0.12);
+}
+
+@media (max-width: 1180px) {
+  .machine-details__overview-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .machine-details__dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 960px) {
+  .machines-sidebar {
+    position: sticky;
+    width: 220px;
+    min-width: 220px;
+  }
+
+  .machines-content,
+  .machines-content--machines,
+  .home-content {
+    margin-left: 220px;
+  }
+
+  .home-topbar {
+    flex-wrap: wrap;
+    height: auto;
+  }
+
+  .home-search,
+  .home-search--workspace {
+    width: 100%;
+  }
+}
+
+@media (max-width: 768px) {
+  .machines-sidebar {
+    position: static;
+    width: 100%;
+    min-width: 0;
+    min-height: auto;
+    border-radius: 0;
+    padding-bottom: 12px;
+  }
+
+  .machines-content,
+  .machines-content--machines,
+  .home-content {
+    margin-left: 0;
+  }
+
+  .machines-sidebar__active-strip {
+    display: none;
+  }
+
+  .home-body,
+  .tasks-body,
+  .results-dashboard__body,
+  .logs-dashboard__body,
+  .access-dashboard__body,
+  .reports-dashboard__body,
+  .install-dashboard__body,
+  .profile-dashboard__body,
+  .machine-details__body {
+    width: calc(100% - 24px);
+    margin: 12px;
+  }
+}
