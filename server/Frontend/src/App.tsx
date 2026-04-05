@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertTriangle,
   ArrowDownRight,
@@ -210,28 +210,28 @@ function getReportComparisonStats(
   };
 }
 const machineStatusSections = [
-  { key: "online", label: "РћРЅР»Р°Р№РЅ" },
-  { key: "running", label: "Р’С‹РїРѕР»РЅСЏСЋС‚ Р·Р°РґР°С‡Сѓ" },
-  { key: "offline", label: "РћС„С„Р»Р°Р№РЅ" },
+  { key: "online", label: "Онлайн" },
+  { key: "running", label: "Выполняют задачу" },
+  { key: "offline", label: "Оффлайн" },
 ] as const;
 
 const taskStatusSections = [
-  { key: "completed", label: "Р—Р°РІРµСЂС€РµРЅРЅС‹Рµ" },
-  { key: "in_progress", label: "Р’ РїСЂРѕС†РµСЃСЃРµ" },
-  { key: "error", label: "РћС€РёР±РєРё" },
+  { key: "completed", label: "Завершенные" },
+  { key: "in_progress", label: "В процессе" },
+  { key: "error", label: "Ошибки" },
 ] as const;
 
 const machineDetailTabs: Array<{ key: MachineDetailTab; label: string }> = [
-  { key: "dashboard", label: "Р”Р°С€Р±РѕСЂРґ" },
-  { key: "logs", label: "Р›РѕРіРё" },
-  { key: "tasks", label: "Р—Р°РґР°С‡Рё" },
-  { key: "results", label: "Р РµР·СѓР»СЊС‚Р°С‚С‹" },
+  { key: "dashboard", label: "Дашборд" },
+  { key: "logs", label: "Логи" },
+  { key: "tasks", label: "Задачи" },
+  { key: "results", label: "Результаты" },
 ];
 
 const machineStatusLabelByStatus: Record<MachineCardStatus, string> = {
-  online: "РћРЅР»Р°Р№РЅ",
-  running: "Р’С‹РїРѕР»РЅСЏРµС‚ Р·Р°РґР°С‡Сѓ",
-  offline: "РћС„С„Р»Р°Р№РЅ",
+  online: "Онлайн",
+  running: "Выполняет задачу",
+  offline: "Оффлайн",
 };
 
 function getMachineDisplayName(card: MachineDashboardCard): string {
@@ -240,7 +240,7 @@ function getMachineDisplayName(card: MachineDashboardCard): string {
 
 function formatDurationLong(durationMs?: number): string {
   if (!durationMs || durationMs <= 0) {
-    return "0 СЃ";
+    return "0 с";
   }
 
   const totalSeconds = Math.round(durationMs / 1000);
@@ -248,26 +248,26 @@ function formatDurationLong(durationMs?: number): string {
   const seconds = totalSeconds % 60;
 
   if (!minutes) {
-    return `${totalSeconds} СЃ`;
+    return `${totalSeconds} с`;
   }
 
-  return `${minutes} РјРёРЅ ${seconds} СЃ`;
+  return `${minutes} мин ${seconds} с`;
 }
 
 function formatDurationCompact(durationMs?: number): string {
   if (!durationMs || durationMs <= 0) {
-    return "вЂ”";
+    return "—";
   }
 
   if (durationMs >= 60_000) {
-    return `${(durationMs / 60_000).toFixed(1)} РјРёРЅ`;
+    return `${(durationMs / 60_000).toFixed(1)} мин`;
   }
 
   if (durationMs >= 1_000) {
-    return `${(durationMs / 1_000).toFixed(1)} СЃ`;
+    return `${(durationMs / 1_000).toFixed(1)} с`;
   }
 
-  return `${Math.round(durationMs)} РјСЃ`;
+  return `${Math.round(durationMs)} мс`;
 }
 
 function getReportTemplateIcon(templateTitle: string): string {
@@ -277,13 +277,13 @@ function getReportTemplateIcon(templateTitle: string): string {
 }
 
 const menuItems: MenuItem[] = [
-  { label: "Р“Р»Р°РІРЅР°СЏ", iconSrc: "/main.png", tab: "home" },
-  { label: "РњР°С€РёРЅС‹", iconSrc: "/machines.png", tab: "machines" },
-  { label: "Р—Р°РґР°С‡Рё", iconSrc: "/zadachi.png", tab: "tasks" },
-  { label: "Р РµР·СѓР»СЊС‚Р°С‚С‹", iconSrc: "/res.png", tab: "results" },
-  { label: "Р›РѕРіРё", iconSrc: "/logs.png", tab: "logs" },
-  { label: "Р”РѕСЃС‚СѓРї", iconSrc: "/access.png", tab: "access" },
-  { label: "РћС‚С‡РµС‚С‹", iconSrc: "/otch.png", tab: "reports" },
+  { label: "Главная", iconSrc: "/main.png", tab: "home" },
+  { label: "Машины", iconSrc: "/machines.png", tab: "machines" },
+  { label: "Задачи", iconSrc: "/zadachi.png", tab: "tasks" },
+  { label: "Результаты", iconSrc: "/res.png", tab: "results" },
+  { label: "Логи", iconSrc: "/logs.png", tab: "logs" },
+  { label: "Доступ", iconSrc: "/access.png", tab: "access" },
+  { label: "Отчеты", iconSrc: "/otch.png", tab: "reports" },
 ];
 
 const WINDOWS_DAEMON_INSTALL_URL =
@@ -293,7 +293,7 @@ const LINUX_ARCHIVE_INSTALL_URL =
 
 const linuxInstallGuideSteps: Array<{ title: string; commands: string[] }> = [
   {
-    title: "РЈСЃС‚Р°РЅРѕРІРєР°",
+    title: "Установка",
     commands: [
       "curl -fsSL https://nerior.store/downloads/linux/install.sh -o install.sh",
       "chmod +x install.sh",
@@ -301,14 +301,14 @@ const linuxInstallGuideSteps: Array<{ title: string; commands: string[] }> = [
     ],
   },
   {
-    title: "РџСЂРѕРІРµСЂРєР° СѓСЃС‚Р°РЅРѕРІРєРё Рё СЃРІСЏР·РєР° Р°РіРµРЅС‚Р°",
+    title: "Проверка установки и связка агента",
     commands: [
       "sudo /usr/local/bin/predict version",
       "sudo /usr/local/bin/predict pair --backend-url https://nerior.store",
     ],
   },
   {
-    title: "РџСЂРѕРІРµСЂРєР° СЃРІСЏР·РєРё Рё РёРЅС„РѕСЂРјР°С†РёСЏ РѕР± Р°РіРµРЅС‚Рµ",
+    title: "Проверка связки и информация об агенте",
     commands: ["sudo /usr/local/bin/predict status"],
   },
 ];
@@ -360,10 +360,10 @@ const SIDEBAR_ACTIVE_TOP_BY_TAB: Record<WorkspaceTab, number> = {
 };
 
 const profileSections: Array<{ key: ProfileSection; label: string }> = [
-  { key: "general", label: "РћСЃРЅРѕРІРЅР°СЏ РёРЅС„РѕСЂРјР°С†РёСЏ" },
-  { key: "security", label: "Р‘РµР·РѕРїР°СЃРЅРѕСЃС‚СЊ" },
-  { key: "sessions", label: "РђРєС‚РёРІРЅС‹Рµ СЃРµСЃСЃРёРё" },
-  { key: "notifications", label: "РќР°СЃС‚СЂРѕР№РєРё СѓРІРµРґРѕРјР»РµРЅРёР№" },
+  { key: "general", label: "Основная информация" },
+  { key: "security", label: "Безопасность" },
+  { key: "sessions", label: "Активные сессии" },
+  { key: "notifications", label: "Настройки уведомлений" },
 ];
 
 function getInstallActionUrl(
@@ -447,7 +447,7 @@ function renderLinuxInstallCommandTokens(commandLine: string) {
 }
 
 function mapSessionKindLabel(sessionKind: "web" | "desktop" | "cli"): string {
-  if (sessionKind === "web") return "Р‘СЂР°СѓР·РµСЂ";
+  if (sessionKind === "web") return "Браузер";
   if (sessionKind === "desktop") return "Desktop";
   return "CLI";
 }
@@ -543,9 +543,9 @@ export function App() {
   });
 
   const profileDisplayName = useMemo(() => {
-    if (!profileDashboard) return "РРјСЏ Р¤Р°РјРёР»РёСЏ";
+    if (!profileDashboard) return "Рмя Фамилия";
     const trimmed = profileDashboard.fullName.trim();
-    return trimmed || "РРјСЏ Р¤Р°РјРёР»РёСЏ";
+    return trimmed || "Рмя Фамилия";
   }, [profileDashboard]);
 
   const profileSessions = useMemo(() => {
@@ -813,7 +813,7 @@ export function App() {
               ? value.durationTotalMs / value.durationCount
               : undefined,
           actionLabel:
-            value.errorCount > 0 ? "РЎРјРѕС‚СЂРµС‚СЊ Р»РѕРіРё" : "РџРµСЂРµР№С‚Рё Рє Р·Р°РґР°С‡Р°Рј",
+            value.errorCount > 0 ? "Смотреть логи" : "Перейти к задачам",
         }),
       )
       .filter((row) => matchesSearchQuery(workspaceSearchQuery, [row.title]))
@@ -867,18 +867,18 @@ export function App() {
   const reportTrend = useMemo(() => {
     const periodLabel =
       reportPeriod === "day"
-        ? "Р·Р° СЃСѓС‚РєРё"
+        ? "за сутки"
         : reportPeriod === "week"
-          ? "Р·Р° РЅРµРґРµР»СЋ"
+          ? "за неделю"
           : reportPeriod === "month"
-            ? "Р·Р° РјРµСЃСЏС†"
-            : "Р·Р° РїРµСЂРёРѕРґ";
+            ? "за месяц"
+            : "за период";
 
     const fallback = {
-      duration: `Р”РёРЅР°РјРёРєР° ${periodLabel}`,
-      machines: "РћС‚СЃР»РµР¶РёРІР°РЅРёРµ РїРѕ РІС‹Р±СЂР°РЅРЅРѕР№ РІС‹Р±РѕСЂРєРµ",
-      errors: "РЎСЂР°РІРЅРµРЅРёРµ СЃ РїСЂРµРґС‹РґСѓС‰РёРј РїРµСЂРёРѕРґРѕРј",
-      success: "РЎСЂР°РІРЅРµРЅРёРµ СЃ РїСЂРµРґС‹РґСѓС‰РёРј РїРµСЂРёРѕРґРѕРј",
+      duration: `Динамика ${periodLabel}`,
+      machines: "Отслеживание по выбранной выборке",
+      errors: "Сравнение с предыдущим периодом",
+      success: "Сравнение с предыдущим периодом",
     };
 
     if (!reportComparison) {
@@ -902,20 +902,20 @@ export function App() {
 
     const durationText =
       durationDiffSec === 0
-        ? `Р‘РµР· РёР·РјРµРЅРµРЅРёР№ ${periodLabel}`
-        : `${durationDiffSec > 0 ? "Р’С‹С€Рµ" : "РќРёР¶Рµ"} РЅР° ${Math.abs(durationDiffSec)} СЃ ${periodLabel}`;
+        ? `Без изменений ${periodLabel}`
+        : `${durationDiffSec > 0 ? "Выше" : "Ниже"} на ${Math.abs(durationDiffSec)} с ${periodLabel}`;
     const machinesText =
       machinesDiff === 0
-        ? "РљРѕР»РёС‡РµСЃС‚РІРѕ Р°РєС‚РёРІРЅС‹С… РјР°С€РёРЅ Р±РµР· РёР·РјРµРЅРµРЅРёР№"
-        : `РќР° ${Math.abs(machinesDiff)} ${machinesDiff > 0 ? "Р±РѕР»СЊС€Рµ" : "РјРµРЅСЊС€Рµ"} Р°РєС‚РёРІРЅС‹С… РјР°С€РёРЅ, С‡РµРј РІ РїСЂРѕС€Р»РѕРј РїРµСЂРёРѕРґРµ`;
+        ? "Количество активных машин без изменений"
+        : `На ${Math.abs(machinesDiff)} ${machinesDiff > 0 ? "больше" : "меньше"} активных машин, чем в прошлом периоде`;
     const errorsText =
       errorsDiff === 0
-        ? "РћС€РёР±РєРё Р±РµР· РёР·РјРµРЅРµРЅРёР№"
-        : `РќР° ${Math.abs(errorsDiff)} ${errorsDiff > 0 ? "Р±РѕР»СЊС€Рµ" : "РјРµРЅСЊС€Рµ"} РѕС€РёР±РѕРє, С‡РµРј СЂР°РЅСЊС€Рµ`;
+        ? "Ошибки без изменений"
+        : `На ${Math.abs(errorsDiff)} ${errorsDiff > 0 ? "больше" : "меньше"} ошибок, чем раньше`;
     const successText =
       Math.abs(successDiff) < 0.05
-        ? "РџСЂРѕС†РµРЅС‚ СѓСЃРїРµС…Р° СЃС‚Р°Р±РёР»РµРЅ"
-        : `${successDiff > 0 ? "Р’С‹С€Рµ" : "РќРёР¶Рµ"} РЅР° ${Math.abs(successDiff).toFixed(1)}% РѕС‚РЅРѕСЃРёС‚РµР»СЊРЅРѕ РїСЂРѕС€Р»РѕРіРѕ РїРµСЂРёРѕРґР°`;
+        ? "Процент успеха стабилен"
+        : `${successDiff > 0 ? "Выше" : "Ниже"} на ${Math.abs(successDiff).toFixed(1)}% относительно прошлого периода`;
 
     return {
       duration: durationText,
@@ -1242,26 +1242,26 @@ export function App() {
   const handleHomeActionClick = (label: string) => {
     const normalized = label.trim().toLowerCase();
 
-    if (normalized.includes("СЃРѕР·РґР°С‚СЊ Р·Р°РґР°С‡Сѓ")) {
+    if (normalized.includes("создать задачу")) {
       openCreateTaskModal();
       return;
     }
 
-    if (normalized.includes("РѕС‚РєСЂС‹С‚СЊ Р»РѕРіРё")) {
+    if (normalized.includes("открыть логи")) {
       setWorkspaceTab("logs");
       setSelectedMachineId(null);
       setMachineDetailTab("dashboard");
       return;
     }
 
-    if (normalized.includes("РґРѕР±Р°РІРёС‚СЊ Р°РіРµРЅС‚Р°")) {
+    if (normalized.includes("добавить агента")) {
       setWorkspaceTab("machines");
       setSelectedMachineId(null);
       setMachineDetailTab("dashboard");
       return;
     }
 
-    if (normalized.includes("СѓРїСЂР°РІР»РµРЅРёРµ")) {
+    if (normalized.includes("управление")) {
       setWorkspaceTab("access");
       setSelectedMachineId(null);
       setMachineDetailTab("dashboard");
@@ -1410,24 +1410,24 @@ export function App() {
   };
 
   const workspaceSearchPlaceholder = selectedMachine
-    ? `РџРѕРёСЃРє РїРѕ ${getMachineDisplayName(selectedMachine)}`
+    ? `Поиск по ${getMachineDisplayName(selectedMachine)}`
     : workspaceTab === "home"
-      ? "РџРѕРёСЃРє РїРѕ РіР»Р°РІРЅРѕР№"
+      ? "Поиск по главной"
       : workspaceTab === "machines"
-        ? "РџРѕРёСЃРє РїРѕ РјР°С€РёРЅР°Рј"
+        ? "Поиск по машинам"
         : workspaceTab === "tasks"
-          ? "РџРѕРёСЃРє РїРѕ Р·Р°РґР°С‡Р°Рј"
+          ? "Поиск по задачам"
           : workspaceTab === "results"
-            ? "РџРѕРёСЃРє РїРѕ СЂРµР·СѓР»СЊС‚Р°С‚Р°Рј"
+            ? "Поиск по результатам"
             : workspaceTab === "logs"
-              ? "РџРѕРёСЃРє РїРѕ Р»РѕРіР°Рј"
+              ? "Поиск по логам"
               : workspaceTab === "access"
-                ? "РџРѕРёСЃРє РїРѕ РґРѕСЃС‚СѓРїР°Рј"
+                ? "Поиск по доступам"
                 : workspaceTab === "reports"
-                  ? "РџРѕРёСЃРє РїРѕ РѕС‚С‡РµС‚Р°Рј"
+                  ? "Поиск по отчетам"
                   : workspaceTab === "install"
-                    ? "РџРѕРёСЃРє РїРѕ СѓСЃС‚Р°РЅРѕРІРєРµ"
-                    : "РџРѕРёСЃРє РїРѕ РїСЂРѕС„РёР»СЋ";
+                    ? "Поиск по установке"
+                    : "Поиск по профилю";
 
   const sidebarActiveTop = SIDEBAR_ACTIVE_TOP_BY_TAB[workspaceTab];
 
@@ -1462,22 +1462,22 @@ export function App() {
         className="machines-page"
         aria-label={
           workspaceTab === "home"
-            ? "РЎС‚СЂР°РЅРёС†Р° РіР»Р°РІРЅР°СЏ"
+            ? "Страница главная"
             : workspaceTab === "tasks"
-              ? "РЎС‚СЂР°РЅРёС†Р° Р·Р°РґР°С‡"
+              ? "Страница задач"
               : workspaceTab === "results"
-                ? "РЎС‚СЂР°РЅРёС†Р° СЂРµР·СѓР»СЊС‚Р°С‚РѕРІ"
+                ? "Страница результатов"
                 : workspaceTab === "logs"
-                  ? "РЎС‚СЂР°РЅРёС†Р° Р»РѕРіРѕРІ"
+                  ? "Страница логов"
                   : workspaceTab === "access"
-                    ? "РЎС‚СЂР°РЅРёС†Р° РґРѕСЃС‚СѓРїР°"
+                    ? "Страница доступа"
                     : workspaceTab === "reports"
-                      ? "РЎС‚СЂР°РЅРёС†Р° РѕС‚С‡РµС‚РѕРІ"
+                      ? "Страница отчетов"
                       : workspaceTab === "install"
-                        ? "РЎС‚СЂР°РЅРёС†Р° СѓСЃС‚Р°РЅРѕРІРєРё"
+                        ? "Страница установки"
                         : workspaceTab === "profile"
-                          ? "РЎС‚СЂР°РЅРёС†Р° РїСЂРѕС„РёР»СЏ"
-                          : "РЎС‚СЂР°РЅРёС†Р° РјР°С€РёРЅ"
+                          ? "Страница профиля"
+                          : "Страница машин"
         }
       >
         <aside className="machines-sidebar">
@@ -1495,7 +1495,7 @@ export function App() {
             <strong>PREDICT MV</strong>
           </div>
 
-          <nav className="machines-nav" aria-label="РќР°РІРёРіР°С†РёСЏ">
+          <nav className="machines-nav" aria-label="Навигация">
             {menuItems.map((item) => {
               const isActive = item.tab === workspaceTab;
 
@@ -1560,7 +1560,7 @@ export function App() {
             }}
           >
             <img src="/download.png" alt="" aria-hidden="true" />
-            <span>РЈСЃС‚Р°РЅРѕРІРєР°</span>
+            <span>Установка</span>
           </button>
         </aside>
 
@@ -1580,7 +1580,7 @@ export function App() {
           }
         >
           {workspaceTab === "home" ? (
-            <section className="home-dashboard" aria-label="Р“Р»Р°РІРЅР°СЏ">
+            <section className="home-dashboard" aria-label="Главная">
               {renderWorkspaceTopbar()}
 
               <div className="home-body">
@@ -1641,7 +1641,7 @@ export function App() {
                   <div className="home-main-column">
                     <section className="home-quick-actions">
                       <header className="home-block-title">
-                        <h2>Р‘С‹СЃС‚СЂС‹Рµ РґРµР№СЃС‚РІРёСЏ</h2>
+                        <h2>Быстрые действия</h2>
                       </header>
 
                       <div className="home-quick-actions__grid">
@@ -1661,18 +1661,18 @@ export function App() {
 
                     <section className="home-tasks">
                       <header className="home-tasks__header">
-                        <h2>РђРєС‚РёРІРЅС‹Рµ Р·Р°РґР°С‡Рё</h2>
-                        <button type="button">РџРѕСЃРјРѕС‚СЂРµС‚СЊ РІСЃРµ</button>
+                        <h2>Активные задачи</h2>
+                        <button type="button">Посмотреть все</button>
                       </header>
 
                       <table className="home-tasks__table">
                         <thead>
                           <tr>
-                            <th>ID Р—Р°РґР°С‡Рё</th>
-                            <th>РњР°С€РёРЅР°</th>
-                            <th>РЎС‚Р°С‚СѓСЃ</th>
-                            <th>Р’СЂРµРјСЏ РѕС‚РїСЂР°РІРєРё</th>
-                            <th>РћС‚РїСЂР°РІРёС‚РµР»СЊ</th>
+                            <th>ID Задачи</th>
+                            <th>Машина</th>
+                            <th>Статус</th>
+                            <th>Время отправки</th>
+                            <th>Отправитель</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -1693,7 +1693,7 @@ export function App() {
                   <aside className="home-errors">
                     <header className="home-errors__title">
                       <img src="/error.png" alt="" aria-hidden="true" />
-                      <h3>РџРѕСЃР»РµРґРЅРёРµ РѕС€РёР±РєРё</h3>
+                      <h3>Последние ошибки</h3>
                     </header>
 
                     <div className="home-errors__list">
@@ -1714,15 +1714,15 @@ export function App() {
               </div>
             </section>
           ) : workspaceTab === "tasks" ? (
-            <section className="tasks-dashboard" aria-label="Р—Р°РґР°С‡Рё">
+            <section className="tasks-dashboard" aria-label="Задачи">
               {renderWorkspaceTopbar()}
 
               <div className="tasks-body">
 
                 <header className="tasks-dashboard__header">
                   <div className="tasks-dashboard__title-box">
-                    <h1>Р—Р°РґР°С‡Рё</h1>
-                    <p>Р’СЃРµРіРѕ {taskCards.length}</p>
+                    <h1>Задачи</h1>
+                    <p>Всего {taskCards.length}</p>
                   </div>
                 </header>
 
@@ -1732,28 +1732,28 @@ export function App() {
                     className={`tasks-dashboard__chip ${taskFilterStatus === "all" ? "tasks-dashboard__chip--active" : ""}`}
                     onClick={() => setTaskFilterStatus("all")}
                   >
-                    Р’СЃРµ
+                    Все
                   </button>
                   <button
                     type="button"
                     className={`tasks-dashboard__chip ${taskFilterStatus === "completed" ? "tasks-dashboard__chip--active" : ""}`}
                     onClick={() => setTaskFilterStatus("completed")}
                   >
-                    Р—Р°РІРµСЂС€РµРЅРЅС‹Рµ
+                    Завершенные
                   </button>
                   <button
                     type="button"
                     className={`tasks-dashboard__chip ${taskFilterStatus === "in_progress" ? "tasks-dashboard__chip--active" : ""}`}
                     onClick={() => setTaskFilterStatus("in_progress")}
                   >
-                    Р’ РїСЂРѕС†РµСЃСЃРµ
+                    В процессе
                   </button>
                   <button
                     type="button"
                     className={`tasks-dashboard__chip ${taskFilterStatus === "error" ? "tasks-dashboard__chip--active" : ""}`}
                     onClick={() => setTaskFilterStatus("error")}
                   >
-                    РћС€РёР±РєРё
+                    Ошибки
                   </button>
                 </div>
 
@@ -1777,14 +1777,14 @@ export function App() {
                         {section.cards.map((task, index) => {
                           const secondaryActionLabel =
                             task.status === "in_progress"
-                              ? "РЈР±РёС‚СЊ"
-                              : "РџРѕРІС‚РѕСЂРёС‚СЊ";
+                              ? "Убить"
+                              : "Повторить";
                           const primaryActionLabel =
                             task.status === "in_progress"
-                              ? "Р”РµС‚Р°Р»Рё"
-                              : "РџРѕСЃРјРѕС‚СЂРµС‚СЊ Р»РѕРіРё";
+                              ? "Детали"
+                              : "Посмотреть логи";
                           const completedLabel =
-                            task.status === "error" ? "РџСЂРµСЂРІР°РЅР°" : "Р—Р°РІРµСЂС€РµРЅР°";
+                            task.status === "error" ? "Прервана" : "Завершена";
 
                           return (
                             <article
@@ -1794,7 +1794,7 @@ export function App() {
                               <div className="task-card__header">
                                 <div className="task-card__title-box">
                                   <p className="task-card__number">
-                                    Р—Р°РґР°С‡Р° в„–{task.taskNumber}
+                                    Задача №{task.taskNumber}
                                   </p>
                                   <h3 className="task-card__title">
                                     {task.title}
@@ -1802,7 +1802,7 @@ export function App() {
                                 </div>
 
                                 <div className="task-card__timeline">
-                                  <p>Р—Р°РїСѓС‰РµРЅР°: {task.startedAt}</p>
+                                  <p>Запущена: {task.startedAt}</p>
                                   {task.completedAt ? (
                                     <p>{`${completedLabel}: ${task.completedAt}`}</p>
                                   ) : null}
@@ -1818,7 +1818,7 @@ export function App() {
                                     alt=""
                                     aria-hidden="true"
                                   />
-                                  <span>РЎРµСЂРІРµСЂ в„–{task.serverNumber}</span>
+                                  <span>Сервер №{task.serverNumber}</span>
                                 </div>
                                 <div
                                   className={`task-card__result task-card__result--${task.resultColor}`}
@@ -1862,12 +1862,12 @@ export function App() {
               </div>
             </section>
           ) : workspaceTab === "results" ? (
-            <section className="results-dashboard" aria-label="Р РµР·СѓР»СЊС‚Р°С‚С‹">
+            <section className="results-dashboard" aria-label="Результаты">
               {renderWorkspaceTopbar()}
 
               <div className="results-dashboard__body">
                 <header className="results-dashboard__header">
-                  <h1>Р РµР·СѓР»СЊС‚Р°С‚С‹</h1>
+                  <h1>Результаты</h1>
                 </header>
 
                 <div className="results-dashboard__filters">
@@ -1880,10 +1880,10 @@ export function App() {
                         )
                       }
                     >
-                      <option value="all">РЎС‚Р°С‚СѓСЃ</option>
-                      <option value="success">Р’С‹РїРѕР»РЅРµРЅРѕ</option>
-                      <option value="error">РћС€РёР±РєР°</option>
-                      <option value="cancelled">РћС‚РјРµРЅРµРЅРѕ</option>
+                      <option value="all">Статус</option>
+                      <option value="success">Выполнено</option>
+                      <option value="error">Ошибка</option>
+                      <option value="cancelled">Отменено</option>
                     </select>
                   </label>
 
@@ -1894,7 +1894,7 @@ export function App() {
                         setResultsMachineFilter(event.target.value)
                       }
                     >
-                      <option value="all">РњР°С€РёРЅР°</option>
+                      <option value="all">Машина</option>
                       {resultsMachineOptions.map((machine) => (
                         <option key={machine} value={machine}>
                           {machine}
@@ -1910,7 +1910,7 @@ export function App() {
                         setResultsCommandFilter(event.target.value)
                       }
                     >
-                      <option value="all">РљРѕРјР°РЅРґР°</option>
+                      <option value="all">Команда</option>
                       {resultsCommandOptions.map((command) => (
                         <option key={command} value={command}>
                           {command}
@@ -1926,8 +1926,8 @@ export function App() {
                         setResultsDateFilter(event.target.value)
                       }
                     >
-                      <option value="all">Р”Р°С‚Р° СЂРµР·СѓР»СЊС‚Р°С‚Р°</option>
-                      <option value="today">РЎРµРіРѕРґРЅСЏ</option>
+                      <option value="all">Дата результата</option>
+                      <option value="today">Сегодня</option>
                     </select>
                   </label>
                 </div>
@@ -1940,14 +1940,14 @@ export function App() {
                       onClick={() => setResultsMachineFilter("all")}
                     >
                       <span>{resultsMachineFilter}</span>
-                      <span aria-hidden="true">Г—</span>
+                      <span aria-hidden="true">×</span>
                     </button>
                   </div>
                 ) : null}
 
                 <section className="results-table-card">
                   <header className="results-table-card__header">
-                    <h2>РСЃС‚РѕСЂРёСЏ Р·Р°РїСѓСЃРєРѕРІ</h2>
+                    <h2>Рстория запусков</h2>
 
                     <span className="results-table-card__caption">Поиск выполняется через верхнюю панель</span>
                   </header>
@@ -1955,12 +1955,12 @@ export function App() {
                   <table className="results-table-card__grid">
                     <thead>
                       <tr>
-                        <th>РќР°Р·РІР°РЅРёРµ</th>
-                        <th>РЎС‚Р°С‚СѓСЃ</th>
-                        <th>РњР°С€РёРЅР°</th>
-                        <th>РљРѕРјР°РЅРґР°</th>
-                        <th>Р”Р°С‚Р° СЂРµР·СѓР»СЊС‚Р°С‚Р°</th>
-                        <th>Р”РµР№СЃС‚РІРёСЏ</th>
+                        <th>Название</th>
+                        <th>Статус</th>
+                        <th>Машина</th>
+                        <th>Команда</th>
+                        <th>Дата результата</th>
+                        <th>Действия</th>
                       </tr>
                     </thead>
 
@@ -1994,7 +1994,7 @@ export function App() {
                                     setMachineDetailTab("dashboard");
                                   }}
                                 >
-                                  РЎРјРѕС‚СЂРµС‚СЊ Р»РѕРіРё
+                                  Смотреть логи
                                 </button>
                               </div>
                             </td>
@@ -2003,7 +2003,7 @@ export function App() {
                       ) : (
                         <tr>
                           <td colSpan={6}>
-                            РќРµС‚ СЂРµР·СѓР»СЊС‚Р°С‚РѕРІ РґР»СЏ РІС‹Р±СЂР°РЅРЅС‹С… С„РёР»СЊС‚СЂРѕРІ
+                            Нет результатов для выбранных фильтров
                           </td>
                         </tr>
                       )}
@@ -2013,14 +2013,14 @@ export function App() {
               </div>
             </section>
           ) : workspaceTab === "logs" ? (
-            <section className="logs-dashboard" aria-label="Р›РѕРіРё">
+            <section className="logs-dashboard" aria-label="Логи">
               {renderWorkspaceTopbar()}
 
               <div className="logs-dashboard__body">
                 <header className="logs-dashboard__header">
                   <div>
-                    <h1>Р›РѕРіРё</h1>
-                    <p>РСЃС‚РѕСЂРёСЏ СЃРёСЃС‚РµРјРЅС‹С… СЃРѕР±С‹С‚РёР№ РїРѕ Р·Р°РґР°С‡Р°Рј Рё РјР°С€РёРЅР°Рј</p>
+                    <h1>Логи</h1>
+                    <p>Рстория системных событий по задачам и машинам</p>
                   </div>
                 </header>
 
@@ -2031,28 +2031,28 @@ export function App() {
                       className={`logs-dashboard__chip ${logFilterTone === "all" ? "logs-dashboard__chip--active" : ""}`}
                       onClick={() => setLogFilterTone("all")}
                     >
-                      Р’СЃРµ ({logEntries.length})
+                      Все ({logEntries.length})
                     </button>
                     <button
                       type="button"
                       className={`logs-dashboard__chip ${logFilterTone === "success" ? "logs-dashboard__chip--active" : ""}`}
                       onClick={() => setLogFilterTone("success")}
                     >
-                      Р—Р°РІРµСЂС€РµРЅРѕ ({logStatusStats.success})
+                      Завершено ({logStatusStats.success})
                     </button>
                     <button
                       type="button"
                       className={`logs-dashboard__chip ${logFilterTone === "warning" ? "logs-dashboard__chip--active" : ""}`}
                       onClick={() => setLogFilterTone("warning")}
                     >
-                      РўСЂРµР±СѓРµС‚ РІРЅРёРјР°РЅРёСЏ ({logStatusStats.warning})
+                      Требует внимания ({logStatusStats.warning})
                     </button>
                     <button
                       type="button"
                       className={`logs-dashboard__chip ${logFilterTone === "critical" ? "logs-dashboard__chip--active" : ""}`}
                       onClick={() => setLogFilterTone("critical")}
                     >
-                      РљСЂРёС‚РёС‡РЅРѕ ({logStatusStats.critical})
+                      Критично ({logStatusStats.critical})
                     </button>
                   </div>
 
@@ -2060,16 +2060,16 @@ export function App() {
                 </div>
 
                 <div className="logs-dashboard__content">
-                  <section className="logs-table" aria-label="РўР°Р±Р»РёС†Р° Р»РѕРіРѕРІ">
+                  <section className="logs-table" aria-label="Таблица логов">
                     <table className="logs-table__grid">
                       <thead>
                         <tr>
-                          <th>ID СЃРѕР±С‹С‚РёСЏ</th>
-                          <th>РњР°С€РёРЅР°</th>
-                          <th>Р”РµР№СЃС‚РІРёРµ</th>
-                          <th>РџРѕР»СЊР·РѕРІР°С‚РµР»СЊ</th>
-                          <th>РЎС‚Р°С‚СѓСЃ</th>
-                          <th>Р”Р°С‚Р°</th>
+                          <th>ID события</th>
+                          <th>Машина</th>
+                          <th>Действие</th>
+                          <th>Пользователь</th>
+                          <th>Статус</th>
+                          <th>Дата</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -2094,14 +2094,14 @@ export function App() {
 
                     <footer className="logs-table__footer">
                       <span>
-                        РџРѕРєР°Р·Р°РЅРѕ {visibleLogEntries.length} РёР·{" "}
+                        Показано {visibleLogEntries.length} из{" "}
                         {logEntries.length}
                       </span>
-                      <span>РЎРѕР±С‹С‚РёР№ РІ РїРѕС‚РѕРєРµ: {logStreamLines.length}</span>
+                      <span>Событий в потоке: {logStreamLines.length}</span>
                     </footer>
                   </section>
 
-                  <aside className="logs-stream" aria-label="РџРѕС‚РѕРє Р»РѕРіРѕРІ">
+                  <aside className="logs-stream" aria-label="Поток логов">
                     <header className="logs-stream__header">
                       <h2>Live stream</h2>
                       <button
@@ -2135,14 +2135,14 @@ export function App() {
               </div>
             </section>
           ) : workspaceTab === "access" ? (
-            <section className="access-dashboard" aria-label="Р”РѕСЃС‚СѓРї">
+            <section className="access-dashboard" aria-label="Доступ">
               {renderWorkspaceTopbar()}
 
               <div className="access-dashboard__body">
                 <header className="access-dashboard__header">
-                  <h1>РЈРїСЂР°РІР»РµРЅРёРµ РґРѕСЃС‚СѓРїРѕРј</h1>
+                  <h1>Управление доступом</h1>
                   <button type="button" className="access-dashboard__invite">
-                    <span>РћС‚РїСЂР°РІРёС‚СЊ РїСЂРёРіР»Р°С€РµРЅРёРµ</span>
+                    <span>Отправить приглашение</span>
                     <img src="/plus.png" alt="" aria-hidden="true" />
                   </button>
                 </header>
@@ -2165,7 +2165,7 @@ export function App() {
                   <section className="access-users">
                     <div className="access-users__toolbar">
                       <button type="button" className="access-users__template">
-                        <span>РЁР°Р±Р»РѕРЅ DV-Sync</span>
+                        <span>Шаблон DV-Sync</span>
                         <img src="/arrow.png" alt="" aria-hidden="true" />
                       </button>
 
@@ -2173,7 +2173,7 @@ export function App() {
                         <Search size={20} />
                         <input
                           type="text"
-                          placeholder="РџРѕРёСЃРє РїРѕ РїРѕР»СЊР·РѕРІР°С‚РµР»СЏРј..."
+                          placeholder="Поиск по пользователям..."
                         />
                       </label>
                     </div>
@@ -2182,11 +2182,11 @@ export function App() {
                       <table className="access-users__table">
                         <thead>
                           <tr>
-                            <th>РџРѕР»СЊР·РѕРІР°С‚РµР»СЊ</th>
-                            <th>Р РѕР»СЊ</th>
-                            <th>Р РµСЃСѓСЂСЃ</th>
-                            <th>РЎС‚Р°С‚СѓСЃ</th>
-                            <th>Р”РµР№СЃС‚РІРёСЏ</th>
+                            <th>Пользователь</th>
+                            <th>Роль</th>
+                            <th>Ресурс</th>
+                            <th>Статус</th>
+                            <th>Действия</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -2231,7 +2231,7 @@ export function App() {
                             ))
                           ) : (
                             <tr>
-                              <td colSpan={5}>РќРµС‚ РґР°РЅРЅС‹С… РїРѕ РґРѕСЃС‚СѓРїР°Рј</td>
+                              <td colSpan={5}>Нет данных по доступам</td>
                             </tr>
                           )}
                         </tbody>
@@ -2240,15 +2240,15 @@ export function App() {
 
                     <footer className="access-users__footer">
                       <span>
-                        РџРѕРєР°Р·Р°РЅРѕ {visibleAccessRows.length} РёР·{" "}
+                        Показано {visibleAccessRows.length} из{" "}
                         {accessUserRows.length}
                       </span>
-                      <button type="button">РџРѕРєР°Р·Р°С‚СЊ РІСЃРµ</button>
+                      <button type="button">Показать все</button>
                     </footer>
                   </section>
 
                   <aside className="access-activity">
-                    <h2>Р–СѓСЂРЅР°Р» РёР·РјРµРЅРµРЅРёР№</h2>
+                    <h2>Журнал изменений</h2>
 
                     <div className="access-activity__list">
                       {accessActivityItems.length ? (
@@ -2276,7 +2276,7 @@ export function App() {
                           </article>
                         ))
                       ) : (
-                        <p>РќРµС‚ СЃРѕР±С‹С‚РёР№ РґРѕСЃС‚СѓРїР°</p>
+                        <p>Нет событий доступа</p>
                       )}
                     </div>
                   </aside>
@@ -2284,12 +2284,12 @@ export function App() {
               </div>
             </section>
           ) : workspaceTab === "reports" ? (
-            <section className="reports-dashboard" aria-label="РћС‚С‡РµС‚С‹">
+            <section className="reports-dashboard" aria-label="Отчеты">
               {renderWorkspaceTopbar()}
 
               <div className="reports-dashboard__body">
                 <header className="reports-dashboard__header">
-                  <h1>РћС‚С‡РµС‚С‹ Рё СЃС‚Р°С‚РёСЃС‚РёРєР°</h1>
+                  <h1>Отчеты и статистика</h1>
 
                   <button
                     type="button"
@@ -2299,8 +2299,8 @@ export function App() {
                   >
                     <span>
                       {isReportsRefreshing
-                        ? "РћР±РЅРѕРІР»РµРЅРёРµ..."
-                        : "РћР±РЅРѕРІРёС‚СЊ РґР°РЅРЅС‹Рµ"}
+                        ? "Обновление..."
+                        : "Обновить данные"}
                     </span>
                     <RefreshCw size={16} />
                   </button>
@@ -2314,10 +2314,10 @@ export function App() {
                         setReportPeriod(event.target.value as ReportPeriod)
                       }
                     >
-                      <option value="day">РџРµСЂРёРѕРґ</option>
-                      <option value="week">РќРµРґРµР»СЏ</option>
-                      <option value="month">РњРµСЃСЏС†</option>
-                      <option value="all">Р’СЃРµ РІСЂРµРјСЏ</option>
+                      <option value="day">Период</option>
+                      <option value="week">Неделя</option>
+                      <option value="month">Месяц</option>
+                      <option value="all">Все время</option>
                     </select>
                   </label>
 
@@ -2326,7 +2326,7 @@ export function App() {
                       value={reportMachine}
                       onChange={(event) => setReportMachine(event.target.value)}
                     >
-                      <option value="all">Р’СЃРµ РјР°С€РёРЅС‹</option>
+                      <option value="all">Все машины</option>
                       {reportMachineOptions.map((machine) => (
                         <option key={machine.id} value={machine.id}>
                           {machine.label}
@@ -2342,7 +2342,7 @@ export function App() {
                         setReportTemplate(event.target.value)
                       }
                     >
-                      <option value="all">Р’СЃРµ С€Р°Р±Р»РѕРЅС‹</option>
+                      <option value="all">Все шаблоны</option>
                       {reportTemplateOptions.map((template) => (
                         <option key={template} value={template}>
                           {template}
@@ -2356,7 +2356,7 @@ export function App() {
                       value={reportTeam}
                       onChange={(event) => setReportTeam(event.target.value)}
                     >
-                      <option value="all">Р’СЃРµ РєРѕРјР°РЅРґС‹</option>
+                      <option value="all">Все команды</option>
                       {reportTeamOptions.map((team) => (
                         <option key={team} value={team}>
                           {team}
@@ -2369,7 +2369,7 @@ export function App() {
                 <div className="reports-dashboard__stats">
                   <article className="reports-stat-card">
                     <header>
-                      <p>РЎСЂРµРґРЅСЏСЏ РґР»РёС‚РµР»СЊРЅРѕСЃС‚СЊ</p>
+                      <p>Средняя длительность</p>
                       <Clock3 size={24} />
                     </header>
                     <strong>
@@ -2383,7 +2383,7 @@ export function App() {
 
                   <article className="reports-stat-card">
                     <header>
-                      <p>РђРєС‚РёРІРЅС‹Рµ РјР°С€РёРЅС‹</p>
+                      <p>Активные машины</p>
                       <Monitor size={24} />
                     </header>
                     <strong>{`${reportStats.activeMachines}/${reportStats.totalMachines}`}</strong>
@@ -2395,7 +2395,7 @@ export function App() {
 
                   <article className="reports-stat-card">
                     <header>
-                      <p>Р§РёСЃР»Рѕ РѕС€РёР±РѕРє</p>
+                      <p>Число ошибок</p>
                       <AlertTriangle size={24} />
                     </header>
                     <strong>{`${reportStats.errorTasks}/${reportStats.totalTasks}`}</strong>
@@ -2407,7 +2407,7 @@ export function App() {
 
                   <article className="reports-stat-card">
                     <header>
-                      <p>РџСЂРѕС†РµРЅС‚ СѓСЃРїРµС…Р°</p>
+                      <p>Процент успеха</p>
                       <Percent size={24} />
                     </header>
                     <strong>{`${reportStats.successRate.toFixed(1)}%`}</strong>
@@ -2420,7 +2420,7 @@ export function App() {
 
                 <section className="reports-table-card">
                   <header className="reports-table-card__header">
-                    <h2>РЎРІРѕРґРєР° РїРѕ С€Р°Р±Р»РѕРЅР°Рј Рё РјР°С€РёРЅР°Рј СЃ drill-down</h2>
+                    <h2>Сводка по шаблонам и машинам с drill-down</h2>
 
                     <span className="reports-table-card__caption">Поиск выполняется через верхнюю панель</span>
                   </header>
@@ -2428,12 +2428,12 @@ export function App() {
                   <table className="reports-table-card__grid">
                     <thead>
                       <tr>
-                        <th>РЁР°Р±Р»РѕРЅ РёР»Рё Р·Р°РґР°С‡Р°</th>
-                        <th>Р’СЃРµРіРѕ Р·Р°РґР°С‡</th>
-                        <th>РЈСЃРїРµС€РЅРѕ</th>
-                        <th>РћС€РёР±РєРё</th>
-                        <th>РЎСЂ. РґР»РёС‚РµР»СЊРЅРѕСЃС‚СЊ</th>
-                        <th>Р”РµР№СЃС‚РІРёСЏ</th>
+                        <th>Шаблон или задача</th>
+                        <th>Всего задач</th>
+                        <th>Успешно</th>
+                        <th>Ошибки</th>
+                        <th>Ср. длительность</th>
+                        <th>Действия</th>
                       </tr>
                     </thead>
 
@@ -2470,7 +2470,7 @@ export function App() {
                                 className="reports-table-card__action"
                                 onClick={() => {
                                   setWorkspaceTab(
-                                    row.actionLabel === "РЎРјРѕС‚СЂРµС‚СЊ Р»РѕРіРё"
+                                    row.actionLabel === "Смотреть логи"
                                       ? "logs"
                                       : "tasks",
                                   );
@@ -2485,7 +2485,7 @@ export function App() {
                         ))
                       ) : (
                         <tr>
-                          <td colSpan={6}>РќРµС‚ РґР°РЅРЅС‹С… РґР»СЏ РІС‹Р±СЂР°РЅРЅС‹С… С„РёР»СЊС‚СЂРѕРІ</td>
+                          <td colSpan={6}>Нет данных для выбранных фильтров</td>
                         </tr>
                       )}
                     </tbody>
@@ -2498,12 +2498,12 @@ export function App() {
               </div>
             </section>
           ) : workspaceTab === "install" ? (
-            <section className="install-dashboard" aria-label="РЈСЃС‚Р°РЅРѕРІРєР°">
+            <section className="install-dashboard" aria-label="Установка">
               {renderWorkspaceTopbar()}
 
               <div className="install-dashboard__body">
                 <header className="install-dashboard__header">
-                  <h1>РЈСЃС‚Р°РЅРѕРІРєР°</h1>
+                  <h1>Установка</h1>
                 </header>
 
                 <div className="install-dashboard__grid">
@@ -2581,12 +2581,12 @@ export function App() {
               </div>
             </section>
           ) : workspaceTab === "profile" ? (
-            <section className="profile-dashboard" aria-label="РџСЂРѕС„РёР»СЊ">
+            <section className="profile-dashboard" aria-label="Профиль">
               {renderWorkspaceTopbar()}
 
               <div className="profile-dashboard__body">
-                <aside className="profile-nav" aria-label="Р Р°Р·РґРµР»С‹ РїСЂРѕС„РёР»СЏ">
-                  <h2>РџСЂРѕС„РёР»СЊ</h2>
+                <aside className="profile-nav" aria-label="Разделы профиля">
+                  <h2>Профиль</h2>
                   <div className="profile-nav__items">
                     {profileSections.map((section) => (
                       <button
@@ -2609,8 +2609,8 @@ export function App() {
                   {profileSection === "general" ? (
                     <section className="profile-card profile-card--general">
                       <header className="profile-card__header">
-                        <h3>РћСЃРЅРѕРІРЅР°СЏ РёРЅС„РѕСЂРјР°С†РёСЏ</h3>
-                        <p>РЈРїСЂР°РІР»РµРЅРёРµ Р»РёС‡РЅС‹РјРё РґР°РЅРЅС‹РјРё Рё РЅР°СЃС‚СЂРѕР№РєР°РјРё РїСЂРѕС„РёР»СЏ</p>
+                        <h3>Основная информация</h3>
+                        <p>Управление личными данными и настройками профиля</p>
                       </header>
 
                       <div className="profile-main-info">
@@ -2631,7 +2631,7 @@ export function App() {
                               profileAvatarInputRef.current?.click()
                             }
                           >
-                            Р”РѕР±Р°РІРёС‚СЊ +
+                            Добавить +
                           </button>
                           <input
                             ref={profileAvatarInputRef}
@@ -2641,39 +2641,39 @@ export function App() {
                             onChange={handleProfileAvatarChange}
                           />
                           <span className="profile-main-info__hint">
-                            Р¤РѕСЂРјР°С‚ JPG, PNG
+                            Формат JPG, PNG
                           </span>
                         </div>
                       </div>
 
                       <div className="profile-fields profile-fields--two">
                         <label className="profile-field">
-                          <span>РРјСЏ</span>
+                          <span>Рмя</span>
                           <input
                             type="text"
                             value={profileFirstName}
                             onChange={(event) =>
                               setProfileFirstName(event.target.value)
                             }
-                            placeholder="РРјСЏ"
+                            placeholder="Рмя"
                           />
                         </label>
 
                         <label className="profile-field">
-                          <span>Р¤Р°РјРёР»РёСЏ</span>
+                          <span>Фамилия</span>
                           <input
                             type="text"
                             value={profileLastName}
                             onChange={(event) =>
                               setProfileLastName(event.target.value)
                             }
-                            placeholder="Р¤Р°РјРёР»РёСЏ"
+                            placeholder="Фамилия"
                           />
                         </label>
                       </div>
 
                       <label className="profile-field">
-                        <span>Р­Р»РµРєС‚СЂРѕРЅРЅР°СЏ РїРѕС‡С‚Р°</span>
+                        <span>Электронная почта</span>
                         <input
                           type="email"
                           value={profileDashboard?.email ?? ""}
@@ -2686,29 +2686,29 @@ export function App() {
                   {profileSection === "security" ? (
                     <section className="profile-card profile-card--security">
                       <header className="profile-card__header">
-                        <h3>Р‘РµР·РѕРїР°СЃРЅРѕСЃС‚СЊ</h3>
-                        <p>РџР°СЂРѕР»СЊ Рё РґРІСѓС…С„Р°РєС‚РѕСЂРЅР°СЏ Р°СѓС‚РµРЅС‚РёС„РёРєР°С†РёСЏ</p>
+                        <h3>Безопасность</h3>
+                        <p>Пароль и двухфакторная аутентификация</p>
                       </header>
 
                       <label className="profile-field">
-                        <span>РўРµРєСѓС‰РёР№ РїР°СЂРѕР»СЊ</span>
+                        <span>Текущий пароль</span>
                         <input type="password" value="********" readOnly />
                       </label>
 
                       <div className="profile-security-row">
                         <div>
                           <div className="profile-security-row__title-line">
-                            <strong>Р”РІСѓС…С„Р°РєС‚РѕСЂРЅР°СЏ Р°СѓС‚РµРЅС‚РёС„РёРєР°С†РёСЏ</strong>
+                            <strong>Двухфакторная аутентификация</strong>
                             {profileDashboard?.twoFactorEnabled ? (
                               <span className="profile-security-row__badge">
-                                РџРѕРґРєР»СЋС‡РµРЅР°
+                                Подключена
                               </span>
                             ) : null}
                           </div>
                           <p>
                             {profileDashboard?.twoFactorEnabled
-                              ? `РџРѕРґРєР»СЋС‡РµРЅР° (${profileDashboard.enabledTwoFactorMethods.join(", ") || "РјРµС‚РѕРґ РЅРµ СѓРєР°Р·Р°РЅ"})`
-                              : "РќРµ РїРѕРґРєР»СЋС‡РµРЅР°"}
+                              ? `Подключена (${profileDashboard.enabledTwoFactorMethods.join(", ") || "метод не указан"})`
+                              : "Не подключена"}
                           </p>
                         </div>
 
@@ -2721,8 +2721,8 @@ export function App() {
                           }
                         >
                           {profileDashboard?.twoFactorEnabled
-                            ? "РћС‚РєР»СЋС‡РёС‚СЊ"
-                            : "РџРѕРґРєР»СЋС‡РёС‚СЊ"}
+                            ? "Отключить"
+                            : "Подключить"}
                         </button>
                       </div>
                     </section>
@@ -2731,10 +2731,10 @@ export function App() {
                   {profileSection === "sessions" ? (
                     <section className="profile-card profile-card--sessions">
                       <header className="profile-card__header">
-                        <h3>РђРєС‚РёРІРЅС‹Рµ СЃРµСЃСЃРёРё</h3>
+                        <h3>Активные сессии</h3>
                         <p>
-                          РџРѕРєР°Р·Р°РЅС‹ СѓСЃС‚СЂРѕР№СЃС‚РІР°, РЅР° РєРѕС‚РѕСЂС‹С… РІС‹РїРѕР»РЅРµРЅ РІС…РѕРґ РІ Р’Р°С€
-                          Р°РєРєР°СѓРЅС‚.
+                          Показаны устройства, на которых выполнен вход в Ваш
+                          аккаунт.
                         </p>
                       </header>
 
@@ -2750,7 +2750,7 @@ export function App() {
                                   className="profile-session-row__icon profile-session-row__icon--current"
                                   aria-hidden="true"
                                 >
-                                  {session.deviceLabel === "Р‘СЂР°СѓР·РµСЂ" ? (
+                                  {session.deviceLabel === "Браузер" ? (
                                     <Smartphone size={20} />
                                   ) : (
                                     <Laptop size={20} />
@@ -2761,7 +2761,7 @@ export function App() {
                                     <strong>{session.deviceLabel}</strong>
                                     {session.isCurrent ? (
                                       <span className="profile-session-row__current">
-                                        РќР° СЌС‚РѕРј СѓСЃС‚СЂРѕР№СЃС‚РІРµ
+                                        На этом устройстве
                                       </span>
                                     ) : null}
                                   </div>
@@ -2774,13 +2774,13 @@ export function App() {
                                 className="profile-session-row__terminate"
                                 onClick={handleTerminateProfileSession}
                               >
-                                Р—Р°РІРµСЂС€РёС‚СЊ
+                                Завершить
                               </button>
                             </article>
                           ))
                         ) : (
                           <p className="profile-sessions-list__empty">
-                            РќРµС‚ Р°РєС‚РёРІРЅС‹С… СЃРµСЃСЃРёР№
+                            Нет активных сессий
                           </p>
                         )}
                       </div>
@@ -2790,13 +2790,13 @@ export function App() {
                   {profileSection === "notifications" ? (
                     <section className="profile-card profile-card--notifications">
                       <header className="profile-card__header">
-                        <h3>РќР°СЃС‚СЂРѕР№РєРё СѓРІРµРґРѕРјР»РµРЅРёР№</h3>
-                        <p>РЈРєР°Р¶РёС‚Рµ СѓРІРµРґРѕРјР»РµРЅРёСЏ, РєРѕС‚РѕСЂС‹Рµ РЅСѓР¶РЅРѕ РѕС‚РїСЂР°РІР»СЏС‚СЊ</p>
+                        <h3>Настройки уведомлений</h3>
+                        <p>Укажите уведомления, которые нужно отправлять</p>
                       </header>
 
                       <div className="profile-notifications">
                         <label>
-                          <span>Р’С‹РїРѕР»РЅРµРЅРёРµ Р·Р°РґР°С‡Рё</span>
+                          <span>Выполнение задачи</span>
                           <input
                             type="checkbox"
                             checked={profileNotifications.taskCompleted}
@@ -2810,7 +2810,7 @@ export function App() {
                         </label>
 
                         <label>
-                          <span>РџСЂРµРґСѓРїСЂРµР¶РґРµРЅРёРµ</span>
+                          <span>Предупреждение</span>
                           <input
                             type="checkbox"
                             checked={profileNotifications.warnings}
@@ -2824,7 +2824,7 @@ export function App() {
                         </label>
 
                         <label>
-                          <span>РћС‚С‡РµС‚</span>
+                          <span>Отчет</span>
                           <input
                             type="checkbox"
                             checked={profileNotifications.reports}
@@ -2842,10 +2842,10 @@ export function App() {
 
                   <footer className="profile-actions">
                     <button type="button" className="profile-actions__cancel">
-                      РћС‚РјРµРЅР°
+                      Отмена
                     </button>
                     <button type="button" className="profile-actions__save">
-                      РЎРѕС…СЂР°РЅРёС‚СЊ
+                      Сохранить
                     </button>
                   </footer>
                 </div>
@@ -3243,13 +3243,13 @@ export function App() {
               </div>
             </section>
           ) : (
-            <section className="machines-dashboard" aria-label="РњР°С€РёРЅС‹">
+            <section className="machines-dashboard" aria-label="Машины">
               {renderWorkspaceTopbar()}
 
               <header className="machines-dashboard__header">
                 <div className="machines-dashboard__title-box">
-                  <h1>РњР°С€РёРЅС‹</h1>
-                  <p>Р’СЃРµРіРѕ {machineDashboardCards.length}</p>
+                  <h1>Машины</h1>
+                  <p>Всего {machineDashboardCards.length}</p>
                 </div>
               </header>
 
@@ -3366,7 +3366,7 @@ export function App() {
                       <button
                         type="button"
                         className="install-guide-modal__copy"
-                        aria-label="РЎРєРѕРїРёСЂРѕРІР°С‚СЊ РєРѕРјР°РЅРґС‹"
+                        aria-label="Скопировать команды"
                         onClick={() => copyLinuxGuideCommands(step.commands)}
                       >
                         <img src="/copy.png" alt="" aria-hidden="true" />
@@ -3393,7 +3393,7 @@ export function App() {
                   className="install-guide-modal__btn install-guide-modal__btn--secondary"
                   onClick={closeLinuxInstallGuide}
                 >
-                  РЎРєСЂС‹С‚СЊ
+                  Скрыть
                 </button>
 
                 <button
@@ -3402,20 +3402,20 @@ export function App() {
                   onClick={() => {
                     const url = getInstallActionUrl(
                       "linux",
-                      "РЈСЃС‚Р°РЅРѕРІРёС‚СЊ Р°СЂС…РёРІ",
+                      "Установить архив",
                     );
                     if (url) {
                       window.location.assign(url);
                     }
                   }}
                 >
-                  РЈСЃС‚Р°РЅРѕРІРёС‚СЊ Р°СЂС…РёРІ
+                  Установить архив
                 </button>
               </div>
 
               <p className="install-guide-modal__hint">
-                РќР° linux РґРѕСЃС‚СѓРїРµРЅ С‚РѕР»СЊРєРѕ systemd СЃРµСЂРІРёСЃ Р±РµР· РіСЂР°С„РёС‡РµСЃРєРѕРіРѕ
-                РёРЅС‚РµСЂС„РµР№СЃР°
+                На linux доступен только systemd сервис без графического
+                интерфейса
               </p>
             </section>
           </div>
@@ -3437,7 +3437,7 @@ export function App() {
               <button
                 type="button"
                 className="task-create-modal__close"
-                aria-label="Р—Р°РєСЂС‹С‚СЊ"
+                aria-label="Закрыть"
                 onClick={closeCreateTaskModal}
               >
                 <X size={20} />
@@ -3528,10 +3528,10 @@ export function App() {
         className="auth-card"
         aria-label={
           authMode === "login"
-            ? "РЎС‚СЂР°РЅРёС†Р° РІС…РѕРґР°"
+            ? "Страница входа"
             : authMode === "register"
-              ? "РЎС‚СЂР°РЅРёС†Р° СЂРµРіРёСЃС‚СЂР°С†РёРё"
-              : "РџРѕРґС‚РІРµСЂР¶РґРµРЅРёРµ РІС…РѕРґР°"
+              ? "Страница регистрации"
+              : "Подтверждение входа"
         }
       >
         <div className="auth-card__preview">
@@ -3552,33 +3552,33 @@ export function App() {
         <div className="auth-card__content">
           <header className="brand-block">
             <p className="brand-block__name">PREDICT MV</p>
-            <p className="brand-block__tagline">Р›СЋР±Р°СЏ РІР°Р»СЋС‚Р° РїРѕРґ СЂСѓРєРѕР№</p>
+            <p className="brand-block__tagline">Любая валюта под рукой</p>
           </header>
 
           {authMode === "confirm" ? (
-            <section className="confirm-panel" aria-label="РџРѕРґС‚РІРµСЂР¶РґРµРЅРёРµ РІС…РѕРґР°">
+            <section className="confirm-panel" aria-label="Подтверждение входа">
               <div className="confirm-panel__icon" aria-hidden="true">
                 <Shield size={34} />
               </div>
 
               <div className="confirm-panel__heading">
-                <h1>РџРѕРґС‚РІРµСЂР¶РґРµРЅРёРµ РІС…РѕРґР°</h1>
+                <h1>Подтверждение входа</h1>
                 <p>
-                  РњС‹ РѕС‚РїСЂР°РІРёР»Рё РєРѕРґ РїРѕРґС‚РІРµСЂР¶РґРµРЅРёСЏ РІ{" "}
+                  Мы отправили код подтверждения в{" "}
                   <a href="#telegram">Telegram</a>
                 </p>
               </div>
 
               <form className="confirm-form" onSubmit={handleConfirmSubmit}>
                 <label className="field">
-                  <span>РљРѕРґ РїРѕРґС‚РІРµСЂР¶РґРµРЅРёСЏ</span>
+                  <span>Код подтверждения</span>
                   <div className="field__control field__control--centered">
                     <input
                       value={verificationCode}
                       onChange={(event) =>
                         setVerificationCode(event.target.value)
                       }
-                      placeholder="Р’РІРµРґРёС‚Рµ 6-Р·РЅР°С‡РЅС‹Р№ РєРѕРґ"
+                      placeholder="Введите 6-значный код"
                       inputMode="numeric"
                       autoComplete="one-time-code"
                     />
@@ -3586,13 +3586,13 @@ export function App() {
                 </label>
 
                 <button className="submit-button" type="submit">
-                  <span>РџРѕРґС‚РІРµСЂРґРёС‚СЊ РІС…РѕРґ</span>
+                  <span>Подтвердить вход</span>
                 </button>
               </form>
 
               <p className="confirm-panel__resend">
-                <span>РќРµ РїСЂРёС…РѕРґРёС‚ РєРѕРґ?</span>{" "}
-                <button type="button">РћС‚РїСЂР°РІРёС‚СЊ РµС‰Рµ СЂР°Р·</button>
+                <span>Не приходит код?</span>{" "}
+                <button type="button">Отправить еще раз</button>
               </p>
 
               <button
@@ -3603,26 +3603,26 @@ export function App() {
                   setAuthMode("login");
                 }}
               >
-                РќР°Р·Р°Рґ
+                Назад
               </button>
 
               <p className="confirm-panel__legal">
-                РќР°Р¶РёРјР°СЏ РєРЅРѕРїРєСѓ "РџРѕРґС‚РІРµСЂРґРёС‚СЊ РІС…РѕРґ" РІС‹С€Рµ, РІС‹ РїРѕРґС‚РІРµСЂР¶РґР°РµС‚Рµ, С‡С‚Рѕ
-                РѕР·РЅР°РєРѕРјРёР»РёСЃСЊ Рё СЃРѕРіР»Р°СЃРЅС‹ СЃ{" "}
-                <a href="#terms">РЈСЃР»РѕРІРёСЏРјРё РџРѕР»СЊР·РѕРІР°РЅРёСЏ</a> Рё{" "}
-                <a href="#privacy">РџРѕР»РёС‚РёРєРѕР№ РљРѕРЅС„РёРґРµРЅС†РёР°Р»СЊРЅРѕСЃС‚Рё</a>
+                Нажимая кнопку "Подтвердить вход" выше, вы подтверждаете, что
+                ознакомились и согласны с{" "}
+                <a href="#terms">Условиями Пользования</a> и{" "}
+                <a href="#privacy">Политикой Конфиденциальности</a>
               </p>
             </section>
           ) : (
             <section className="auth-panel">
               <div className="auth-panel__heading">
                 <h1>
-                  {authMode === "login" ? "Р’С…РѕРґ РІ Р°РєРєР°СѓРЅС‚" : "Р РµРіРёСЃС‚СЂР°С†РёСЏ"}
+                  {authMode === "login" ? "Вход в аккаунт" : "Регистрация"}
                 </h1>
                 <p>
                   {authMode === "login"
-                    ? "РђРІС‚РѕСЂРёР·СѓР№С‚РµСЃСЊ, С‡С‚РѕР±С‹ РїСЂРѕРґРѕР»Р¶РёС‚СЊ"
-                    : "Р—Р°СЂРµРіРёСЃС‚СЂРёСЂСѓР№С‚РµСЃСЊ, С‡С‚РѕР±С‹ РїСЂРѕРґРѕР»Р¶РёС‚СЊ"}
+                    ? "Авторизуйтесь, чтобы продолжить"
+                    : "Зарегистрируйтесь, чтобы продолжить"}
                 </p>
               </div>
 
@@ -3642,14 +3642,14 @@ export function App() {
                 </label>
 
                 <label className="field">
-                  <span>РџР°СЂРѕР»СЊ</span>
+                  <span>Пароль</span>
                   <div className="field__control field__control--password">
                     <Lock size={16} />
                     <input
                       type={showPassword ? "text" : "password"}
                       value={password}
                       onChange={(event) => setPassword(event.target.value)}
-                      placeholder="вЂўвЂўвЂўвЂўвЂўвЂўвЂўвЂў"
+                      placeholder="••••••••"
                       autoComplete={
                         authMode === "login"
                           ? "current-password"
@@ -3661,7 +3661,7 @@ export function App() {
                       className="field__toggle"
                       onClick={() => setShowPassword((current) => !current)}
                       aria-label={
-                        showPassword ? "РЎРєСЂС‹С‚СЊ РїР°СЂРѕР»СЊ" : "РџРѕРєР°Р·Р°С‚СЊ РїР°СЂРѕР»СЊ"
+                        showPassword ? "Скрыть пароль" : "Показать пароль"
                       }
                     >
                       {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
@@ -3672,7 +3672,7 @@ export function App() {
                 {authMode === "register" && (
                   <>
                     <label className="field">
-                      <span>РџРѕРІС‚РѕСЂРёС‚Рµ РїР°СЂРѕР»СЊ</span>
+                      <span>Повторите пароль</span>
                       <div className="field__control field__control--password">
                         <Lock size={16} />
                         <input
@@ -3681,7 +3681,7 @@ export function App() {
                           onChange={(event) =>
                             setConfirmPassword(event.target.value)
                           }
-                          placeholder="вЂўвЂўвЂўвЂўвЂўвЂўвЂўвЂў"
+                          placeholder="••••••••"
                           autoComplete="new-password"
                         />
                         <button
@@ -3692,8 +3692,8 @@ export function App() {
                           }
                           aria-label={
                             showConfirmPassword
-                              ? "РЎРєСЂС‹С‚СЊ РїР°СЂРѕР»СЊ"
-                              : "РџРѕРєР°Р·Р°С‚СЊ РїР°СЂРѕР»СЊ"
+                              ? "Скрыть пароль"
+                              : "Показать пароль"
                           }
                         >
                           {showConfirmPassword ? (
@@ -3714,7 +3714,7 @@ export function App() {
                         }
                       />
                       <span>
-                        РЇ РґР°СЋ СЃРѕРіР»Р°СЃРёРµ РЅР° РѕР±СЂР°Р±РѕС‚РєСѓ РїРµСЂСЃРѕРЅР°Р»СЊРЅС‹С… РґР°РЅРЅС‹С…
+                        Я даю согласие на обработку персональных данных
                       </span>
                     </label>
                   </>
@@ -3722,7 +3722,7 @@ export function App() {
 
                 <button className="submit-button" type="submit">
                   <span>
-                    {authMode === "login" ? "Р’РѕР№С‚Рё" : "Р—Р°СЂРµРіРёСЃС‚СЂРёСЂРѕРІР°С‚СЊСЃСЏ"}
+                    {authMode === "login" ? "Войти" : "Зарегистрироваться"}
                   </span>
                 </button>
               </form>
@@ -3730,7 +3730,7 @@ export function App() {
               <p className="auth-panel__footer">
                 {authMode === "login" ? (
                   <>
-                    РќРµС‚ Р°РєРєР°СѓРЅС‚Р°?{" "}
+                    Нет аккаунта?{" "}
                     <button
                       type="button"
                       onClick={() => {
@@ -3738,12 +3738,12 @@ export function App() {
                         setAuthMode("register");
                       }}
                     >
-                      Р—Р°СЂРµРіРёСЃС‚СЂРёСЂРѕРІР°С‚СЊСЃСЏ
+                      Зарегистрироваться
                     </button>
                   </>
                 ) : (
                   <>
-                    Р•СЃС‚СЊ Р°РєРєР°СѓРЅС‚?{" "}
+                    Есть аккаунт?{" "}
                     <button
                       type="button"
                       onClick={() => {
@@ -3751,7 +3751,7 @@ export function App() {
                         setAuthMode("login");
                       }}
                     >
-                      Р’РѕР№С‚Рё
+                      Войти
                     </button>
                   </>
                 )}
