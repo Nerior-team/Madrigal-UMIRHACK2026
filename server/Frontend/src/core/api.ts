@@ -5,6 +5,7 @@ import {
 } from "./ui";
 import { formatLogStreamLine } from "./logs";
 import { apiFetch } from "./http";
+import { getTaskPresentation, type BackendTaskLifecycle } from "./operations";
 
 export interface AuthResponse {
   token?: string;
@@ -63,14 +64,18 @@ export interface TaskCardResponse {
   machineId: string;
   machine: string;
   templateKey: string;
+  resultId?: string;
+  renderedCommand: string;
+  requestedBy: string;
   taskNumber: string;
   title: string;
   startedAt: string;
   completedAt?: string;
   serverNumber: string;
   resultText: string;
-  resultColor: "green" | "yellow" | "red";
-  status: "completed" | "in_progress" | "error";
+  resultColor: "green" | "yellow" | "red" | "gray";
+  statusLabel: string;
+  status: "queued" | "completed" | "in_progress" | "error";
 }
 
 export interface AccessDashboardResponse {
@@ -106,6 +111,7 @@ export interface LogsDashboardResponse {
     taskId: string;
     machineId: string;
     taskTitle: string;
+    renderedCommand: string;
     machine: string;
     action: string;
     email: string;
@@ -144,15 +150,57 @@ export interface ReportsDashboardResponse {
 export interface ResultsDashboardResponse {
   rows: Array<{
     id: string;
+    taskId: string;
     machineId: string;
     title: string;
     statusLabel: string;
-    statusTone: "success" | "error" | "cancelled";
+    statusTone: "success" | "error" | "cancelled" | "pending";
     machine: string;
     command: string;
     resultAt: string;
     resultAtIso: string;
   }>;
+}
+
+export interface TaskDetailResponse {
+  id: string;
+  machineId: string;
+  machine: string;
+  title: string;
+  templateKey: string;
+  renderedCommand: string;
+  requestedBy: string;
+  status: TaskCardResponse["status"];
+  statusLabel: string;
+  resultText: string;
+  startedAt: string;
+  completedAt?: string;
+}
+
+export interface TaskLogLineResponse {
+  id: string;
+  attemptId: string;
+  stream: "stdout" | "stderr" | "system";
+  sequence: number;
+  text: string;
+  createdAt: string;
+  createdAtIso: string;
+}
+
+export interface ResultDetailResponse {
+  id: string;
+  taskId: string;
+  parserKind: string;
+  summary?: string | null;
+  parsedPayload?: Record<string, unknown> | null;
+  createdAt: string;
+  shell: {
+    command: string;
+    stdout: string;
+    stderr: string;
+    exitCode: number;
+    durationMs: number;
+  };
 }
 
 export interface ProfileDashboardResponse {
@@ -222,6 +270,10 @@ type BackendMachineSummary = {
   my_role: BackendMachineRole;
 };
 
+type BackendMachineDetail = BackendMachineSummary & {
+  creator_user_id: string;
+};
+
 type BackendCommandTemplateRead = {
   id?: string | null;
   template_key: string;
@@ -237,19 +289,16 @@ type BackendCommandTemplateRead = {
   parser_kind: string;
 };
 
-type BackendTaskStatus =
-  | "queued"
-  | "dispatched"
-  | "accepted"
-  | "running"
-  | "succeeded"
-  | "failed"
-  | "cancelled";
-
 type BackendTaskAttempt = {
+  id: string;
+  status: BackendTaskLifecycle;
   queued_at?: string;
+  dispatched_at?: string | null;
+  accepted_at?: string | null;
   started_at?: string | null;
   finished_at?: string | null;
+  cancel_requested_at?: string | null;
+  result_id?: string | null;
 };
 
 type BackendTaskRead = {
@@ -258,10 +307,41 @@ type BackendTaskRead = {
   template_key: string;
   template_name: string;
   rendered_command?: string | null;
-  status: BackendTaskStatus;
+  status: BackendTaskLifecycle;
   requested_by_user_id: string;
   created_at: string;
   attempts: BackendTaskAttempt[];
+};
+
+type BackendResultHistoryEntryRead = {
+  id: string;
+  task_id: string;
+  attempt_id: string;
+  machine_id: string;
+  template_key: string;
+  template_name: string;
+  parser_kind: string;
+  summary?: string | null;
+  exit_code: number;
+  duration_ms: number;
+  created_at: string;
+};
+
+type BackendResultRead = {
+  id: string;
+  task_id: string;
+  attempt_id: string;
+  parser_kind: string;
+  summary?: string | null;
+  parsed_payload?: Record<string, unknown> | null;
+  shell: {
+    command: string;
+    stdout: string;
+    stderr: string;
+    exit_code: number;
+    duration_ms: number;
+  };
+  created_at: string;
 };
 
 type BackendTaskLogStream = "stdout" | "stderr" | "system";
@@ -383,48 +463,21 @@ function mapMachineSummary(
   };
 }
 
-function mapTaskStatus(status: BackendTaskStatus): TaskCardResponse["status"] {
-  if (status === "succeeded") return "completed";
-  if (status === "failed" || status === "cancelled") return "error";
-  return "in_progress";
-}
-
-function mapTaskResultColor(
-  status: TaskCardResponse["status"],
+function mapPresentationToResultColor(
+  tone: ReturnType<typeof getTaskPresentation>["resultTone"],
 ): TaskCardResponse["resultColor"] {
-  if (status === "completed") return "green";
-  if (status === "error") return "red";
-  return "yellow";
-}
-
-function mapTaskResultText(status: TaskCardResponse["status"]): string {
-  if (status === "completed") return "Задача завершена";
-  if (status === "error") return "Задача завершилась ошибкой";
-  return "Задача выполняется";
-}
-
-function mapResultStatus(
-  status: BackendTaskStatus,
-): ResultsDashboardResponse["rows"][number]["statusTone"] {
-  if (status === "succeeded") return "success";
-  if (status === "failed") return "error";
-  return "cancelled";
-}
-
-function mapResultStatusLabel(status: BackendTaskStatus): string {
-  if (status === "succeeded") return "Выполнено";
-  if (status === "failed") return "Ошибка";
-  if (status === "cancelled") return "Отменено";
-  return "В процессе";
+  if (tone === "success") return "green";
+  if (tone === "warning") return "yellow";
+  if (tone === "danger") return "red";
+  return "gray";
 }
 
 function mapTask(
   task: BackendTaskRead,
   machineMap: Map<string, BackendMachineSummary>,
+  userEmailMap: Map<string, string>,
 ): TaskCardResponse {
-  const mappedStatus = mapTaskStatus(task.status);
-  const resultColor = mapTaskResultColor(mappedStatus);
-  const resultText = mapTaskResultText(mappedStatus);
+  const presentation = getTaskPresentation(task.status);
   const lastAttempt = task.attempts[task.attempts.length - 1];
 
   const machineDigits = extractDigits(task.machine_id);
@@ -439,7 +492,7 @@ function mapTask(
     lastAttempt?.started_at ?? lastAttempt?.queued_at ?? task.created_at,
   );
   const completedAt =
-    mappedStatus === "in_progress"
+    presentation.group === "in_progress" || presentation.group === "queued"
       ? undefined
       : formatDateTime(lastAttempt?.finished_at ?? task.created_at);
 
@@ -449,15 +502,20 @@ function mapTask(
     machine: normalizeMachineTitle(
       machine?.display_name || machine?.hostname || task.machine_id,
     ),
+    resultId: lastAttempt?.result_id ?? undefined,
     templateKey: task.template_key,
+    renderedCommand: getTaskRenderedCommand(task),
+    requestedBy:
+      userEmailMap.get(task.requested_by_user_id) ?? task.requested_by_user_id,
     taskNumber,
     title: taskTitle,
     startedAt,
     completedAt,
     serverNumber,
-    resultText,
-    resultColor,
-    status: mappedStatus,
+    resultText: presentation.resultLabel,
+    resultColor: mapPresentationToResultColor(presentation.resultTone),
+    statusLabel: presentation.taskStatusLabel,
+    status: presentation.group,
   };
 }
 
@@ -489,17 +547,13 @@ function mapAccessStatus(entry: BackendMachineAccessEntry): {
 }
 
 function mapLogTone(
-  status: TaskCardResponse["status"],
+  status: BackendTaskLifecycle,
 ): LogsDashboardResponse["entries"][number]["tone"] {
-  if (status === "completed") return "success";
-  if (status === "error") return "critical";
-  return "warning";
+  return getTaskPresentation(status).logTone;
 }
 
-function mapLogStatusLabel(status: TaskCardResponse["status"]): string {
-  if (status === "completed") return "Завершено";
-  if (status === "error") return "Критично";
-  return "Требует внимания";
+function mapLogStatusLabel(status: BackendTaskLifecycle): string {
+  return getTaskPresentation(status).taskStatusLabel;
 }
 
 function shortenText(text: string, maxLength = 96): string {
@@ -642,6 +696,32 @@ async function loadTaskLogs(
   return logsByTask;
 }
 
+async function loadMachineResults(
+  machineIds: string[],
+): Promise<BackendResultHistoryEntryRead[]> {
+  if (!machineIds.length) return [];
+
+  const settled = await Promise.allSettled(
+    machineIds.map((machineId) =>
+      request<BackendResultHistoryEntryRead[]>(
+        `/machines/${encodeURIComponent(machineId)}/results`,
+      ),
+    ),
+  );
+
+  const results = settled
+    .filter(
+      (result): result is PromiseFulfilledResult<BackendResultHistoryEntryRead[]> =>
+        result.status === "fulfilled",
+    )
+    .flatMap((result) => result.value);
+
+  return results.sort(
+    (a, b) =>
+      new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+  );
+}
+
 function getTaskRenderedCommand(task: BackendTaskRead): string {
   return task.rendered_command?.trim() || task.template_name;
 }
@@ -764,6 +844,24 @@ export const api = {
     return machines.map(mapMachineSummary);
   },
 
+  async confirmMachineRegistration(input: {
+    deviceCode: string;
+    displayName?: string;
+  }): Promise<MachineCardResponse> {
+    const response = await request<{ machine: BackendMachineDetail }>(
+      "/machines/registrations/confirm",
+      {
+        method: "POST",
+        body: JSON.stringify({
+          device_code: input.deviceCode.trim().toUpperCase(),
+          display_name: input.displayName?.trim() || undefined,
+        }),
+      },
+    );
+
+    return mapMachineSummary(response.machine);
+  },
+
   async getMachineCommandTemplates(
     machineId: string,
   ): Promise<CommandTemplateOption[]> {
@@ -771,17 +869,17 @@ export const api = {
       `/machines/${encodeURIComponent(machineId)}/commands/templates`,
     );
 
-      return templates.map((template) => ({
-        id: template.id,
-        templateKey: template.template_key,
-        name: template.name,
-        description: template.description,
-        runner: template.runner,
-        commandPattern: template.command_pattern,
-        parserKind: template.parser_kind,
-        parameters: template.parameters.map((parameter) => ({
-          key: parameter.key,
-          label: parameter.label,
+    return templates.map((template) => ({
+      id: template.id,
+      templateKey: template.template_key,
+      name: template.name,
+      description: template.description,
+      runner: template.runner,
+      commandPattern: template.command_pattern,
+      parserKind: template.parser_kind,
+      parameters: template.parameters.map((parameter) => ({
+        key: parameter.key,
+        label: parameter.label,
         allowedValues: parameter.allowed_values,
       })),
     }));
@@ -824,7 +922,9 @@ export const api = {
     const userEmailMap = await loadUserEmailMap(
       machines.map((machine) => machine.id),
     );
-    const taskCards = tasks.map((task) => mapTask(task, machineMap));
+    const taskCards = tasks.map((task) =>
+      mapTask(task, machineMap, userEmailMap),
+    );
 
     const onlineCount = machineCards.filter(
       (machine) => machine.status === "online",
@@ -900,23 +1000,21 @@ export const api = {
           ago: "Недавно",
         })),
       tasks: tasks.slice(0, 8).map((task) => {
-        const mappedStatus = mapTaskStatus(task.status);
+        const presentation = getTaskPresentation(task.status);
         const machineDigits = extractDigits(task.machine_id);
         const serverNumber = machineDigits || task.machine_id.slice(0, 6);
         const lastAttempt = task.attempts[task.attempts.length - 1];
         const createdAt = formatDateTime(
           lastAttempt?.started_at ?? lastAttempt?.queued_at ?? task.created_at,
         );
+        const machine = machineMap.get(task.machine_id);
 
         return {
           id: extractDigits(task.id) || task.id.slice(0, 6),
-          machine: `Сервер №${serverNumber}`,
-          status:
-            mappedStatus === "completed"
-              ? "Завершено"
-              : mappedStatus === "error"
-                ? "Ошибка"
-                : "В процессе",
+          machine: normalizeMachineTitle(
+            machine?.display_name || machine?.hostname || `Сервер №${serverNumber}`,
+          ),
+          status: presentation.taskStatusLabel,
           createdAt,
           sender:
             userEmailMap.get(task.requested_by_user_id) ??
@@ -932,8 +1030,65 @@ export const api = {
       machines.map((machine) => [machine.id, machine]),
     );
     const tasks = await loadMachineTasks(machines.map((machine) => machine.id));
+    const userEmailMap = await loadUserEmailMap(
+      machines.map((machine) => machine.id),
+    );
 
-    return tasks.map((task) => mapTask(task, machineMap));
+    return tasks.map((task) => mapTask(task, machineMap, userEmailMap));
+  },
+
+  async getTask(taskId: string): Promise<TaskDetailResponse> {
+    const task = await request<BackendTaskRead>(
+      `/tasks/${encodeURIComponent(taskId)}`,
+    );
+    const [machines, userEmailMap] = await Promise.all([
+      request<BackendMachineSummary[]>("/machines"),
+      loadUserEmailMap([task.machine_id]),
+    ]);
+    const machine = machines.find((item) => item.id === task.machine_id);
+    const presentation = getTaskPresentation(task.status);
+    const lastAttempt = task.attempts[task.attempts.length - 1];
+
+    return {
+      id: task.id,
+      machineId: task.machine_id,
+      machine: normalizeMachineTitle(
+        machine?.display_name || machine?.hostname || task.machine_id,
+      ),
+      title: task.template_name,
+      templateKey: task.template_key,
+      renderedCommand: getTaskRenderedCommand(task),
+      requestedBy:
+        userEmailMap.get(task.requested_by_user_id) ?? task.requested_by_user_id,
+      status: presentation.group,
+      statusLabel: presentation.taskStatusLabel,
+      resultText: presentation.resultLabel,
+      startedAt: formatDateTime(
+        lastAttempt?.started_at ?? lastAttempt?.queued_at ?? task.created_at,
+      ),
+      completedAt:
+        lastAttempt?.finished_at != null
+          ? formatDateTime(lastAttempt.finished_at)
+          : undefined,
+    };
+  },
+
+  async getTaskLogs(taskId: string): Promise<TaskLogLineResponse[]> {
+    const logs = await request<BackendTaskLogEntry[]>(
+      `/tasks/${encodeURIComponent(taskId)}/logs`,
+    );
+
+    return [...logs]
+      .sort((left, right) => left.sequence - right.sequence)
+      .map((entry) => ({
+        id: entry.id,
+        attemptId: entry.attempt_id,
+        stream: entry.stream,
+        sequence: entry.sequence,
+        text: entry.chunk,
+        createdAt: formatDateTime(entry.created_at),
+        createdAtIso: entry.created_at,
+      }));
   },
 
   async getLogsDashboard(): Promise<LogsDashboardResponse> {
@@ -951,9 +1106,8 @@ export const api = {
 
     const entries = recentTasks
       .map((task) => {
-        const mappedStatus = mapTaskStatus(task.status);
-        const tone = mapLogTone(mappedStatus);
-        const status = mapLogStatusLabel(mappedStatus);
+        const tone = mapLogTone(task.status);
+        const status = mapLogStatusLabel(task.status);
         const machine = machineMap.get(task.machine_id);
         const taskLogs = logsByTask.get(task.id) ?? [];
         const latestLog = taskLogs[taskLogs.length - 1];
@@ -1040,7 +1194,7 @@ export const api = {
       );
 
     return {
-      entries: entries.map(({ createdAtIso, renderedCommand, ...entry }) => entry),
+      entries: entries.map(({ createdAtIso, ...entry }) => entry),
       streamItems,
       streamLines,
     };
@@ -1070,7 +1224,7 @@ export const api = {
           requestedBy:
             userEmailMap.get(task.requested_by_user_id) ??
             task.requested_by_user_id,
-          status: mapTaskStatus(task.status),
+          status: getTaskPresentation(task.status).group,
           createdAtIso: pickTaskCreatedAtIso(task),
           durationMs: pickTaskDurationMs(task),
         };
@@ -1090,29 +1244,29 @@ export const api = {
       machines.map((machine) => [machine.id, machine]),
     );
     const tasks = await loadMachineTasks(machines.map((machine) => machine.id));
+    const taskMap = new Map(tasks.map((task) => [task.id, task]));
+    const results = await loadMachineResults(machines.map((machine) => machine.id));
 
-    const rows = tasks
-      .map((task) => {
-        const machine = machineMap.get(task.machine_id);
-        const latestAttempt = task.attempts[task.attempts.length - 1];
-        const resultAtIso =
-          latestAttempt?.finished_at ??
-          latestAttempt?.started_at ??
-          latestAttempt?.queued_at ??
-          task.created_at;
+    const rows = results
+      .map((result) => {
+        const machine = machineMap.get(result.machine_id);
+        const task = taskMap.get(result.task_id);
+        const statusTone: ResultsDashboardResponse["rows"][number]["statusTone"] =
+          result.exit_code === 0 ? "success" : "error";
 
         return {
-          id: task.id,
-          machineId: task.machine_id,
-          title: task.template_name,
-          statusLabel: mapResultStatusLabel(task.status),
-          statusTone: mapResultStatus(task.status),
+          id: result.id,
+          taskId: result.task_id,
+          machineId: result.machine_id,
+          title: result.template_name,
+          statusLabel: statusTone === "success" ? "Выполнено" : "Ошибка",
+          statusTone,
           machine: normalizeMachineTitle(
-            machine?.display_name || machine?.hostname || task.machine_id,
+            machine?.display_name || machine?.hostname || result.machine_id,
           ),
-          command: getTaskRenderedCommand(task),
-          resultAt: formatResultDateTime(resultAtIso),
-          resultAtIso,
+          command: task ? getTaskRenderedCommand(task) : result.template_name,
+          resultAt: formatResultDateTime(result.created_at),
+          resultAtIso: result.created_at,
         };
       })
       .sort(
@@ -1121,6 +1275,28 @@ export const api = {
       );
 
     return { rows };
+  },
+
+  async getResult(resultId: string): Promise<ResultDetailResponse> {
+    const result = await request<BackendResultRead>(
+      `/results/${encodeURIComponent(resultId)}`,
+    );
+
+    return {
+      id: result.id,
+      taskId: result.task_id,
+      parserKind: result.parser_kind,
+      summary: result.summary,
+      parsedPayload: result.parsed_payload ?? null,
+      createdAt: formatDateTime(result.created_at),
+      shell: {
+        command: result.shell.command,
+        stdout: result.shell.stdout,
+        stderr: result.shell.stderr,
+        exitCode: result.shell.exit_code,
+        durationMs: result.shell.duration_ms,
+      },
+    };
   },
 
   async getAccessDashboard(): Promise<AccessDashboardResponse> {

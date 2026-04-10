@@ -31,10 +31,14 @@ import {
   normalizeMachineTitle,
 } from "./core/ui";
 import {
+  addMachinePath,
   logsPath,
+  machineResultPath,
+  machineTaskLogsPath,
   machinePath,
   resolveAppRoute,
   resultPath,
+  taskLogsPath,
   taskPath,
   workspacePath,
 } from "./core/routes";
@@ -53,6 +57,8 @@ import {
   type SearchMatch,
   type SearchTarget,
 } from "./core/search";
+import { ConsoleModal } from "./components/operations/ConsoleModal";
+import { ResultDetailModal } from "./components/operations/ResultDetailModal";
 
 const apiClient = api;
 
@@ -137,8 +143,8 @@ type TaskCard = {
   completedAt?: string;
   serverNumber: string;
   resultText: string;
-  resultColor: "green" | "yellow" | "red";
-  status: "completed" | "in_progress" | "error";
+  resultColor: "green" | "yellow" | "red" | "gray";
+  status: "queued" | "completed" | "in_progress" | "error";
 };
 
 type TaskFilterStatus = "all" | TaskCard["status"];
@@ -492,6 +498,10 @@ export function App() {
       : "login";
   const workspaceTab: WorkspaceTab =
     route.section === "workspace" ? route.workspaceTab : "machines";
+  const isAddMachineRoute =
+    route.section === "workspace" && route.workspaceTab === "machines"
+      ? Boolean(route.isAddMachine)
+      : false;
   const selectedMachineId = route.section === "workspace" ? route.machineId ?? null : null;
   const machineDetailTab: MachineDetailTab =
     route.section === "workspace" && route.machineId
@@ -507,6 +517,13 @@ export function App() {
         : { machineId: null, taskId: null },
     [route],
   );
+  const modalReturnTo =
+    typeof location.state === "object" &&
+    location.state !== null &&
+    "returnTo" in location.state &&
+    typeof (location.state as { returnTo?: unknown }).returnTo === "string"
+      ? ((location.state as { returnTo: string }).returnTo)
+      : null;
   const [sessionReady, setSessionReady] = useState(false);
 
   const [email, setEmail] = useState("");
@@ -579,6 +596,8 @@ export function App() {
     {},
   );
   const [taskUseSudo, setTaskUseSudo] = useState(false);
+  const [addMachineCode, setAddMachineCode] = useState("");
+  const [addMachineDisplayName, setAddMachineDisplayName] = useState("");
   const profileAvatarInputRef = useRef<HTMLInputElement | null>(null);
   const [registeredEmail, setRegisteredEmail] = useState(() => {
     try {
@@ -627,7 +646,57 @@ export function App() {
   };
 
   const openTaskLogs = (taskId: string, machineId: string) => {
-    navigate(logsPath({ machineId, taskId }));
+    if (workspaceTab === "machines" && selectedMachineId === machineId) {
+      navigate(machineTaskLogsPath(machineId, taskId), {
+        state: { returnTo: machinePath(machineId) },
+      });
+      return;
+    }
+
+    navigate(taskLogsPath(taskId), {
+      state: { returnTo: `${location.pathname}${location.search}` },
+    });
+  };
+
+  const openResultDetail = (resultId: string, machineId: string) => {
+    if (workspaceTab === "machines" && selectedMachineId === machineId) {
+      navigate(machineResultPath(machineId, resultId), {
+        state: { returnTo: machinePath(machineId) },
+      });
+      return;
+    }
+
+    navigate(resultPath(resultId), {
+      state: { returnTo: `${location.pathname}${location.search}` },
+    });
+  };
+
+  const closeRouteModal = () => {
+    if (route.section !== "workspace" || !route.modal) {
+      return;
+    }
+
+    if (modalReturnTo) {
+      navigate(modalReturnTo);
+      return;
+    }
+
+    if (
+      route.modal.kind === "machine-task-logs" ||
+      route.modal.kind === "machine-result"
+    ) {
+      navigate(
+        route.machineId ? machinePath(route.machineId) : workspacePath("machines"),
+      );
+      return;
+    }
+
+    if (route.modal.kind === "task-logs") {
+      navigate(workspacePath("tasks"));
+      return;
+    }
+
+    navigate(workspacePath("results"));
   };
 
   const profileDisplayName = useMemo(() => {
@@ -1537,6 +1606,30 @@ export function App() {
     }
   };
 
+  const handleAddMachineSubmit = async (
+    event: React.FormEvent<HTMLFormElement>,
+  ) => {
+    event.preventDefault();
+
+    if (!addMachineCode.trim()) {
+      return;
+    }
+
+    try {
+      const machine = await apiClient.confirmMachineRegistration({
+        deviceCode: addMachineCode,
+        displayName: addMachineDisplayName,
+      });
+      setAddMachineCode("");
+      setAddMachineDisplayName("");
+      const machines = await apiClient.getMachines();
+      setMachineDashboardCards(machines);
+      navigate(machinePath(machine.id));
+    } catch {
+      return;
+    }
+  };
+
   const refreshTaskLinkedViews = async () => {
     const [tasks, resultsDashboard, logsDashboard] = await Promise.all([
       apiClient.getTasks(),
@@ -2206,7 +2299,17 @@ export function App() {
                       {visibleResultRows.length ? (
                         visibleResultRows.map((row) => (
                           <tr key={row.id}>
-                            <td>{row.title}</td>
+                            <td>
+                              <button
+                                type="button"
+                                className="results-actions__details"
+                                onClick={() =>
+                                  openResultDetail(row.id, row.machineId)
+                                }
+                              >
+                                {row.title}
+                              </button>
+                            </td>
                             <td>
                               <span
                                 className={`results-status results-status--${row.statusTone}`}
@@ -2227,7 +2330,7 @@ export function App() {
                                   type="button"
                                   className="results-actions__logs"
                                   onClick={() =>
-                                    openTaskLogs(row.id, row.machineId)
+                                    openTaskLogs(row.taskId, row.machineId)
                                   }
                                 >
                                   Смотреть логи
@@ -3177,26 +3280,10 @@ export function App() {
                   </div>
                 </section>
 
-                <div className="machine-details__tabs-row">
-                  <div className="machine-details__tabs">
-                    {machineDetailTabs.map((tab) => (
-                      <button
-                        key={tab.key}
-                        type="button"
-                        className={
-                          tab.key === machineDetailTab
-                            ? "machine-details__tab machine-details__tab--active"
-                            : "machine-details__tab"
-                        }
-                        onClick={() => openMachine(selectedMachine.id, tab.key)}
-                      >
-                        {tab.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {machineDetailTab === "dashboard" ? (
+                {machineDetailTab === "dashboard" ||
+                machineDetailTab === "tasks" ||
+                machineDetailTab === "results" ||
+                machineDetailTab === "logs" ? (
                   <>
                     <div className="machine-details__dashboard-grid">
                       <section className="machine-details__panel machine-details__panel--task-create">
@@ -3407,7 +3494,17 @@ export function App() {
                             {selectedMachineResultRows.length ? (
                               selectedMachineResultRows.slice(0, 4).map((row) => (
                                 <tr key={row.id}>
-                                  <td>{row.title}</td>
+                                  <td>
+                                    <button
+                                      type="button"
+                                      className="results-actions__details"
+                                      onClick={() =>
+                                        openResultDetail(row.id, row.machineId)
+                                      }
+                                    >
+                                      {row.title}
+                                    </button>
+                                  </td>
                                   <td>
                                     <span
                                       className={`results-status results-status--${row.statusTone}`}
@@ -3426,7 +3523,7 @@ export function App() {
                                       type="button"
                                       className="results-actions__logs"
                                       onClick={() =>
-                                        openTaskLogs(row.id, row.machineId)
+                                        openTaskLogs(row.taskId, row.machineId)
                                       }
                                     >
                                       Смотреть логи
@@ -3655,7 +3752,72 @@ export function App() {
                   <h1>Машины</h1>
                   <p>Всего {machineDashboardCards.length}</p>
                 </div>
+
+                <button
+                  type="button"
+                  className="machines-dashboard__add-button"
+                  onClick={() =>
+                    navigate(
+                      isAddMachineRoute ? workspacePath("machines") : addMachinePath(),
+                    )
+                  }
+                >
+                  {isAddMachineRoute ? "Скрыть форму" : "Добавить машину"}
+                </button>
               </header>
+
+              {isAddMachineRoute ? (
+                <section className="machine-pairing-card" aria-label="Добавление машины">
+                  <div className="machine-pairing-card__copy">
+                    <h2>Добавление машины</h2>
+                    <p>
+                      Выполните на целевой машине команду <code>predict pair --backend-url https://nerior.store</code>,
+                      затем подтвердите появившийся device code здесь.
+                    </p>
+                  </div>
+
+                  <form className="machine-pairing-card__form" onSubmit={handleAddMachineSubmit}>
+                    <label className="machine-pairing-card__field">
+                      <span>Device code</span>
+                      <input
+                        type="text"
+                        value={addMachineCode}
+                        onChange={(event) => setAddMachineCode(event.target.value)}
+                        placeholder="Например, 761861"
+                        autoComplete="one-time-code"
+                      />
+                    </label>
+
+                    <label className="machine-pairing-card__field">
+                      <span>Имя машины</span>
+                      <input
+                        type="text"
+                        value={addMachineDisplayName}
+                        onChange={(event) =>
+                          setAddMachineDisplayName(event.target.value)
+                        }
+                        placeholder="Необязательно"
+                      />
+                    </label>
+
+                    <div className="machine-pairing-card__actions">
+                      <button
+                        type="button"
+                        className="machine-pairing-card__secondary"
+                        onClick={() => {
+                          setAddMachineCode("");
+                          setAddMachineDisplayName("");
+                        }}
+                      >
+                        Сбросить
+                      </button>
+                      <button type="submit" className="machine-pairing-card__primary">
+                        Подтвердить
+                      </button>
+                    </div>
+                  </form>
+                </section>
+              ) : null}
 
               <div className="machines-dashboard__statuses">
                 {machineStatusGroups.map((section) => {
@@ -3735,6 +3897,28 @@ export function App() {
             </section>
           )}
         </section>
+
+        {route.section === "workspace" && route.modal?.kind === "task-logs" ? (
+          <ConsoleModal taskId={route.modal.taskId} onClose={closeRouteModal} />
+        ) : null}
+
+        {route.section === "workspace" && route.modal?.kind === "machine-task-logs" ? (
+          <ConsoleModal taskId={route.modal.taskId} onClose={closeRouteModal} />
+        ) : null}
+
+        {route.section === "workspace" && route.modal?.kind === "result-detail" ? (
+          <ResultDetailModal
+            resultId={route.modal.resultId}
+            onClose={closeRouteModal}
+          />
+        ) : null}
+
+        {route.section === "workspace" && route.modal?.kind === "machine-result" ? (
+          <ResultDetailModal
+            resultId={route.modal.resultId}
+            onClose={closeRouteModal}
+          />
+        ) : null}
 
         {isLinuxInstallGuideOpen ? (
           <div
