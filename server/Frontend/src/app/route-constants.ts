@@ -1,0 +1,32 @@
+export const AUTH_ROUTE_PATHS = [
+  "/login",
+  "/register",
+  "/confirm",
+  "/forgot-password",
+  "/reset-password",
+] as const;
+
+export const WORKSPACE_ROUTE_PATHS = [
+  "/",
+  "/home",
+  "/dashboard",
+  "/machines",
+  "/machines/add",
+  "/machines/:machineId",
+  "/machines/:machineId/tasks",
+  "/machines/:machineId/results",
+  "/machines/:machineId/logs",
+  "/machines/:machineId/logs/:taskId",
+  "/machines/:machineId/results/:resultId",
+  "/tasks",
+  "/tasks/:taskId",
+  "/tasks/:taskId/logs",
+  "/results",
+  "/results/:resultId",
+  "/logs",
+  "/access",
+  "/reports",
+  "/install",
+  "/profile",
+  "/profile/api-keys",
+] as const;

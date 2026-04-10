@@ -1,16 +1,17 @@
 import { describe, expect, it } from "vitest";
+import { join } from "node:path";
 
 declare function require(name: string): {
-  readFileSync(path: URL, encoding: string): string;
+  readFileSync(path: string, encoding: string): string;
 };
 
 const { readFileSync } = require("node:fs");
 
 describe("main bootstrap", () => {
-  it("wraps App with BrowserRouter", () => {
-    const source = readFileSync(new URL("./main.tsx", import.meta.url), "utf8");
+  it("wraps AppRouter with BrowserRouter", () => {
+    const source = readFileSync(join(process.cwd(), "src", "main.tsx"), "utf8");
 
     expect(source).toContain("BrowserRouter");
-    expect(source).toMatch(/<BrowserRouter>[\s\S]*<App \/>[\s\S]*<\/BrowserRouter>/);
+    expect(source).toMatch(/<BrowserRouter>[\s\S]*<AppRouter \/>[\s\S]*<\/BrowserRouter>/);
   });
 });
