@@ -29,6 +29,7 @@ class Settings(BaseSettings):
     public_web_base_url: str
 
     auth_access_token_ttl_minutes: int = 30
+    auth_web_session_ttl_days: int = 3
     auth_refresh_token_ttl_days: int = 30
     auth_email_code_ttl_minutes: int = 10
     auth_password_reset_ttl_minutes: int = 60

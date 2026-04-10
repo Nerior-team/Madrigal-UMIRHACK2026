@@ -1,6 +1,12 @@
 from dataclasses import dataclass
 
-from app.core.security import access_token_ttl, generate_session_token, hash_token, refresh_token_ttl
+from app.core.security import (
+    access_token_ttl,
+    generate_session_token,
+    hash_token,
+    refresh_token_ttl,
+    web_session_ttl,
+)
 from app.domains.auth.repository import AuthRepository
 from app.domains.auth.schemas import AuthSessionResponse, SessionTokens, UserRead
 from app.domains.users.models import User
@@ -35,7 +41,9 @@ def issue_session(
     now = utc_now()
     access_token = generate_session_token()
     refresh_token = None if session_kind == SessionKind.WEB else generate_session_token()
-    access_expires_at = now + access_token_ttl()
+    access_expires_at = now + (
+        web_session_ttl() if session_kind == SessionKind.WEB else access_token_ttl()
+    )
     refresh_expires_at = None if refresh_token is None else now + refresh_token_ttl()
 
     repository.create_session(

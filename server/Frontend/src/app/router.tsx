@@ -9,7 +9,11 @@ type AppRouterProps = {
   renderApp?: () => ReactNode;
 };
 
-function AuthRouteElement({ renderApp }: AppRouterProps) {
+type RoutedLayoutProps = {
+  renderApp: () => ReactNode;
+};
+
+function AuthRouteElement({ renderApp }: RoutedLayoutProps) {
   return (
     <AuthLayout>
       {renderApp()}
@@ -17,7 +21,7 @@ function AuthRouteElement({ renderApp }: AppRouterProps) {
   );
 }
 
-function WorkspaceRouteElement({ renderApp }: AppRouterProps) {
+function WorkspaceRouteElement({ renderApp }: RoutedLayoutProps) {
   return (
     <AppShell>
       {renderApp()}

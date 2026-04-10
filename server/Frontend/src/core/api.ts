@@ -4,6 +4,7 @@ import {
   normalizeMachineTitle,
 } from "./ui";
 import { formatLogStreamLine } from "./logs";
+import { apiFetch } from "./http";
 
 export interface AuthResponse {
   token?: string;
@@ -285,40 +286,14 @@ type BackendMachineAccessEntry = {
   is_creator_owner: boolean;
 };
 
-const API_BASE_URL = (
-  import.meta.env.VITE_API_BASE_URL ?? "/api/v1"
-).replace(/\/$/, "");
-const AUTH_CLIENT_KIND: BackendSessionKind = "desktop";
-
-const AUTH_TOKEN_KEY = "umirhack-auth-token";
-
-function readAuthToken(): string {
-  try {
-    return window.localStorage.getItem(AUTH_TOKEN_KEY) ?? "";
-  } catch {
-    return "";
-  }
-}
-
-function persistAuthToken(token?: string): void {
-  if (!token) return;
-  try {
-    window.localStorage.setItem(AUTH_TOKEN_KEY, token);
-  } catch {
-    // Ignore storage failures and continue with in-memory session.
-  }
-}
+const AUTH_CLIENT_KIND: BackendSessionKind = "web";
 
 function clearPersistedAuthToken(): void {
-  try {
-    window.localStorage.removeItem(AUTH_TOKEN_KEY);
-  } catch {
-    // Ignore storage failures and continue with in-memory session.
-  }
+  // Cookie sessions are owned by the backend and cleared through /auth/logout.
 }
 
 function hasPersistedAuthToken(): boolean {
-  return Boolean(readAuthToken());
+  return true;
 }
 
 function formatDateTime(value?: string | null): string {
@@ -608,27 +583,7 @@ function deriveNameFromEmail(email: string): {
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const token = readAuthToken();
-
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    ...init,
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(init?.headers ?? {}),
-    },
-  });
-
-  if (!response.ok) {
-    const message = await response.text();
-    throw new Error(message || `API request failed: ${response.status}`);
-  }
-
-  if (response.status === 204) {
-    return undefined as T;
-  }
-
-  return (await response.json()) as T;
+  return apiFetch<T>(path, init);
 }
 
 async function loadMachineTasks(
@@ -758,9 +713,7 @@ export const api = {
       };
     }
 
-    const token = response.tokens?.access_token;
-    persistAuthToken(token);
-    return { token };
+    return {};
   },
 
   register(email: string, password: string): Promise<AuthResponse> {
@@ -797,9 +750,13 @@ export const api = {
           }),
         });
 
-    const token = response.tokens?.access_token;
-    persistAuthToken(token);
-    return { token };
+    return {};
+  },
+
+  logout(): Promise<void> {
+    return request("/auth/logout", {
+      method: "POST",
+    });
   },
 
   async getMachines(): Promise<MachineCardResponse[]> {

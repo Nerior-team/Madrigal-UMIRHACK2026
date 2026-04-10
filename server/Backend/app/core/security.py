@@ -77,6 +77,10 @@ def access_token_ttl() -> timedelta:
     return timedelta(minutes=get_settings().auth_access_token_ttl_minutes)
 
 
+def web_session_ttl() -> timedelta:
+    return timedelta(days=get_settings().auth_web_session_ttl_days)
+
+
 def refresh_token_ttl() -> timedelta:
     return timedelta(days=get_settings().auth_refresh_token_ttl_days)
 

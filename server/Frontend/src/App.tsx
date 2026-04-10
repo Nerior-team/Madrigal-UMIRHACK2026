@@ -11,7 +11,6 @@ import {
   Mail,
   Monitor,
   Percent,
-  Plus,
   RefreshCw,
   Search,
   Shield,
@@ -35,12 +34,25 @@ import {
   logsPath,
   machinePath,
   resolveAppRoute,
+  resultPath,
+  taskPath,
   workspacePath,
 } from "./core/routes";
 import {
   buildTaskPreview,
   getTaskPreviewShellLabel,
 } from "./core/task-preview";
+import {
+  bootstrapAuthSession,
+  terminateAuthSession,
+} from "./app/auth-session";
+import { Sidebar } from "./components/layout/Sidebar";
+import { Topbar } from "./components/layout/Topbar";
+import {
+  getSearchMatches,
+  type SearchMatch,
+  type SearchTarget,
+} from "./core/search";
 
 const apiClient = api;
 
@@ -473,7 +485,11 @@ export function App() {
   );
   const screen: AppScreen = route.section === "auth" ? "auth" : "machines";
   const authMode: AuthMode =
-    route.section === "auth" ? route.authMode : "login";
+    route.section === "auth"
+      ? route.authMode === "register" || route.authMode === "confirm"
+        ? route.authMode
+        : "login"
+      : "login";
   const workspaceTab: WorkspaceTab =
     route.section === "workspace" ? route.workspaceTab : "machines";
   const selectedMachineId = route.section === "workspace" ? route.machineId ?? null : null;
@@ -624,28 +640,22 @@ export function App() {
     let cancelled = false;
 
     const bootstrapSession = async () => {
-      if (!apiClient.hasPersistedAuthToken()) {
-        if (cancelled) return;
-        setProfileDashboard(null);
-        setSessionReady(true);
-        if (route.section === "workspace") {
-          navigate("/login", { replace: true });
-        }
-        return;
-      }
-
       try {
-        const profile = await apiClient.getProfileDashboard();
+        const profile = await bootstrapAuthSession();
         if (cancelled) return;
 
         setProfileDashboard(profile);
         setSessionReady(true);
 
-        if (route.section === "auth" && route.authMode !== "confirm") {
+        if (profile && route.section === "auth" && route.authMode !== "confirm") {
           navigate(workspacePath("machines"), { replace: true });
+          return;
+        }
+
+        if (!profile && route.section === "workspace") {
+          navigate("/login", { replace: true });
         }
       } catch {
-        apiClient.clearPersistedAuthToken();
         if (cancelled) return;
         setProfileDashboard(null);
         setSessionReady(true);
@@ -1490,11 +1500,16 @@ export function App() {
     event.target.value = "";
   };
 
-  const handleTerminateProfileSession = () => {
+  const handleTerminateProfileSession = async () => {
     setIsCreateTaskOpen(false);
     setIsLinuxInstallGuideOpen(false);
     setAuthChallengeId(null);
-    apiClient.clearPersistedAuthToken();
+    try {
+      await terminateAuthSession();
+    } catch {
+      // Ignore logout cleanup failures and continue clearing local screen state.
+    }
+    setProfileDashboard(null);
     setAuthMode("login");
     setScreen("auth");
   };
@@ -1630,29 +1645,105 @@ export function App() {
 
   const sidebarActiveTop = SIDEBAR_ACTIVE_TOP_BY_TAB[workspaceTab];
 
-  const renderWorkspaceTopbar = () => (
-    <header className="home-topbar">
-      <label className="home-search home-search--workspace" aria-label="Поиск">
-        <Search aria-hidden="true" />
-        <input
-          type="search"
-          value={workspaceSearchQuery}
-          onChange={(event) => setWorkspaceSearchQuery(event.target.value)}
-          placeholder={workspaceSearchPlaceholder}
-        />
-      </label>
+  const sidebarItems = useMemo(
+    () =>
+      menuItems.map((item) => ({
+        key: item.tab ?? item.label,
+        label: item.label,
+        iconSrc: item.iconSrc,
+        isActive: item.tab === workspaceTab,
+        onClick: () => {
+          if (item.tab) {
+            navigate(workspacePath(item.tab));
+          }
+        },
+      })),
+    [navigate, workspaceTab],
+  );
 
-      <div className="home-topbar__actions">
-        <button
-          type="button"
-          className="home-new-task"
-          onClick={openCreateTaskModal}
-        >
-          <Plus aria-hidden="true" />
-          <span>Создать задачу</span>
-        </button>
-      </div>
-    </header>
+  const globalSearchTargets = useMemo<SearchTarget[]>(() => {
+    const targets: SearchTarget[] = menuItems.map((item) => ({
+      id: `menu:${item.tab ?? item.label}`,
+      kind: "menu",
+      title: item.label,
+      subtitle: "Раздел платформы",
+      href: item.tab ? workspacePath(item.tab) : workspacePath("machines"),
+      keywords: [item.tab ?? "workspace", "navigation"],
+    }));
+
+    for (const machine of machineDashboardCards) {
+      targets.push({
+        id: `machine:${machine.id}`,
+        kind: "machine",
+        title: getMachineDisplayName(machine),
+        subtitle: `${machine.os} • ${machine.owner}`,
+        href: machinePath(machine.id),
+        keywords: [machine.hostname, machine.myRole, machine.status],
+      });
+    }
+
+    for (const task of taskCards) {
+      targets.push({
+        id: `task:${task.id}`,
+        kind: "task",
+        title: task.title,
+        subtitle: `${task.machine} • ${task.resultText}`,
+        href: taskPath(task.id),
+        keywords: [task.templateKey, task.taskNumber, task.serverNumber],
+      });
+    }
+
+    for (const row of resultHistoryRows) {
+      targets.push({
+        id: `result:${row.id}`,
+        kind: "result",
+        title: row.title,
+        subtitle: `${row.machine} • ${row.statusLabel}`,
+        href: resultPath(row.id),
+        keywords: [row.command, row.resultAt],
+      });
+    }
+
+    targets.push({
+      id: "menu:profile",
+      kind: "menu",
+      title: "Профиль",
+      subtitle: profileDisplayName,
+      href: workspacePath("profile"),
+      keywords: ["security", "sessions", "notifications"],
+    });
+
+    targets.push({
+      id: "menu:install",
+      kind: "menu",
+      title: "Установка",
+      subtitle: "Команды и загрузки для агентов",
+      href: workspacePath("install"),
+      keywords: ["linux", "windows", "predict pair"],
+    });
+
+    return targets;
+  }, [machineDashboardCards, profileDisplayName, resultHistoryRows, taskCards]);
+
+  const globalSearchResults = useMemo(
+    () => getSearchMatches(workspaceSearchQuery, globalSearchTargets),
+    [globalSearchTargets, workspaceSearchQuery],
+  );
+
+  const handleSelectGlobalSearchResult = (result: SearchMatch) => {
+    setWorkspaceSearchQuery("");
+    navigate(result.href);
+  };
+
+  const renderWorkspaceTopbar = () => (
+    <Topbar
+      searchQuery={workspaceSearchQuery}
+      searchPlaceholder={workspaceSearchPlaceholder}
+      searchResults={globalSearchResults}
+      onSearchChange={setWorkspaceSearchQuery}
+      onSelectSearchResult={handleSelectGlobalSearchResult}
+      onCreateTask={openCreateTaskModal}
+    />
   );
 
   if (!sessionReady) {
@@ -1694,83 +1785,20 @@ export function App() {
                           : "Страница машин"
         }
       >
-        <aside className="machines-sidebar">
-          <span
-            className="machines-sidebar__active-strip"
-            aria-hidden="true"
-            style={{ transform: `translateY(${sidebarActiveTop}px)` }}
-          />
-          <div className="machines-logo">
-            <img
-              src="/logo.png"
-              alt="Predict MV logo"
-              className="machines-logo__mark"
-            />
-            <strong>PREDICT MV</strong>
-          </div>
-
-          <nav className="machines-nav" aria-label="Навигация">
-            {menuItems.map((item) => {
-              const isActive = item.tab === workspaceTab;
-
-              return (
-                <button
-                  key={item.label}
-                  type="button"
-                  className={
-                    isActive
-                      ? "machines-nav__item active"
-                      : "machines-nav__item"
-                  }
-                  onClick={() => {
-                    if (item.tab) {
-                      navigate(workspacePath(item.tab));
-                    }
-                  }}
-                >
-                  <img
-                    src={item.iconSrc}
-                    alt=""
-                    aria-hidden="true"
-                    className="machines-nav__icon"
-                  />
-                  <span>{item.label}</span>
-                </button>
-              );
-            })}
-          </nav>
-
-          <button
-            type="button"
-            className={
-              workspaceTab === "profile"
-                ? "machines-profile machines-profile--active"
-                : "machines-profile"
-            }
-            onClick={() => {
-              navigate(workspacePath("profile"));
-              setProfileSection("general");
-            }}
-          >
-            <img src="/imya.png" alt="" aria-hidden="true" />
-            <span>{profileDisplayName}</span>
-          </button>
-
-          <button
-            type="button"
-            className={
-              workspaceTab === "install"
-                ? "machines-profile machines-install machines-profile--active"
-                : "machines-profile machines-install"
-            }
-            onClick={() => {
-              navigate(workspacePath("install"));
-            }}
-          >
-            <img src="/download.png" alt="" aria-hidden="true" />
-            <span>Установка</span>
-          </button>
-        </aside>
+        <Sidebar
+          activeStripTop={sidebarActiveTop}
+          items={sidebarItems}
+          profileLabel={profileDisplayName}
+          isProfileActive={workspaceTab === "profile"}
+          isInstallActive={workspaceTab === "install"}
+          onProfileClick={() => {
+            navigate(workspacePath("profile"));
+            setProfileSection("general");
+          }}
+          onInstallClick={() => {
+            navigate(workspacePath("install"));
+          }}
+        />
 
         <section
           className={

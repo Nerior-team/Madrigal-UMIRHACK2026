@@ -10,7 +10,7 @@ from app.api.deps import (
     get_repository,
 )
 from app.core.config import get_settings
-from app.core.security import access_token_ttl, generate_signed_csrf_token
+from app.core.security import generate_signed_csrf_token, web_session_ttl
 from app.domains.auth.repository import AuthRepository
 from app.domains.auth.schemas import (
     AuthSessionResponse,
@@ -49,7 +49,7 @@ def _set_web_cookie(response: Response, access_token: str) -> None:
         secure=settings.backend_cookie_secure,
         samesite="strict",
         path="/",
-        max_age=int(access_token_ttl().total_seconds()),
+        max_age=int(web_session_ttl().total_seconds()),
     )
 
 
@@ -62,7 +62,7 @@ def _set_csrf_cookie(response: Response) -> None:
         secure=settings.backend_cookie_secure,
         samesite="strict",
         path="/",
-        max_age=int(access_token_ttl().total_seconds()),
+        max_age=int(web_session_ttl().total_seconds()),
     )
 
 
