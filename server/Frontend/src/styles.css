@@ -7636,3 +7636,206 @@ button:disabled {
     align-items: flex-start;
   }
 }
+
+.results-filter {
+  min-width: 160px;
+  flex: 1 1 160px;
+}
+
+.results-filter .custom-select__control {
+  width: 100%;
+  min-height: 44px;
+}
+
+.results-filter--status {
+  max-width: 180px;
+}
+
+.results-filter--machine {
+  max-width: 220px;
+}
+
+.results-filter--command {
+  max-width: 260px;
+}
+
+.results-date-filter {
+  position: relative;
+  min-width: 210px;
+  flex: 1 1 210px;
+}
+
+.results-date-filter__trigger {
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid #ccc;
+  border-radius: 12px;
+  background: #fff;
+  padding: 10px 16px;
+  font-family: "Ubuntu", sans-serif;
+  font-size: 16px;
+  line-height: 24px;
+  color: #000;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.18s ease,
+    border-color 0.18s ease;
+}
+
+.results-date-filter__trigger:hover {
+  border-color: #999;
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.08);
+  transform: translateY(-1px);
+}
+
+.results-date-filter__trigger:active {
+  transform: translateY(0);
+}
+
+.results-date-filter__panel {
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 0;
+  z-index: 8;
+  width: min(320px, calc(100vw - 48px));
+  border: 1px solid #d9d9d9;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 24px 48px rgba(15, 23, 42, 0.14);
+  padding: 16px;
+  display: grid;
+  gap: 12px;
+}
+
+.results-date-filter__field {
+  display: grid;
+  gap: 6px;
+  font-family: "Ubuntu", sans-serif;
+  font-size: 14px;
+  line-height: 20px;
+  color: #555;
+}
+
+.results-date-filter__field input {
+  min-height: 42px;
+  border: 1px solid #d0d0d0;
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-family: "Ubuntu", sans-serif;
+  font-size: 15px;
+  line-height: 22px;
+}
+
+.results-date-filter__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.results-date-filter__button {
+  min-height: 40px;
+  border-radius: 10px;
+  padding: 0 14px;
+  font-family: "Albert Sans", sans-serif;
+  font-size: 14px;
+  line-height: 20px;
+  cursor: pointer;
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.18s ease,
+    opacity 0.18s ease;
+}
+
+.results-date-filter__button:hover {
+  transform: translateY(-1px);
+}
+
+.results-date-filter__button:active {
+  transform: translateY(0);
+}
+
+.results-date-filter__button--secondary {
+  border: 1px solid #dadada;
+  background: #fff;
+  color: #444;
+}
+
+.results-date-filter__button--primary {
+  border: 1px solid #101010;
+  background: #111;
+  color: #fff;
+}
+
+.results-dashboard__title-box {
+  display: grid;
+  gap: 4px;
+}
+
+.results-dashboard__title-box p {
+  margin: 0;
+  font-family: "Ubuntu", sans-serif;
+  font-size: 16px;
+  line-height: 24px;
+  color: #8b8b8b;
+}
+
+.results-table-card__caption {
+  display: inline-flex;
+  margin-top: 6px;
+  font-family: "Ubuntu", sans-serif;
+  font-size: 14px;
+  line-height: 20px;
+  color: #777;
+}
+
+.results-table-card__grid td {
+  min-width: 0;
+}
+
+.results-table-card__grid td:nth-child(1),
+.results-table-card__grid td:nth-child(3),
+.results-table-card__grid td:nth-child(4) {
+  word-break: break-word;
+}
+
+.results-table-card__footer {
+  padding: 16px 24px 24px;
+  display: flex;
+  justify-content: flex-end;
+  border-top: 1px solid #efefef;
+}
+
+.results-table-card__empty {
+  padding: 24px;
+}
+
+.tasks-dashboard__statuses {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.tasks-dashboard__columns {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.tasks-status-column {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.tasks-status-column__cards {
+  gap: 20px;
+}
+
+.tasks-status-column__footer {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.tasks-status-column__empty .empty-state {
+  min-height: 100%;
+}

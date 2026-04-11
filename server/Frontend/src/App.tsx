@@ -26,6 +26,7 @@ import {
   type ProfileDashboardResponse,
   type ResultsDashboardResponse,
   type ReportsDashboardResponse,
+  type TaskCardResponse,
 } from "./core";
 import { ApiError } from "./core/http";
 import {
@@ -51,6 +52,12 @@ import {
 import { buildTaskSections } from "./core/operations";
 import { buildLogsScopeSummary } from "./core/logs";
 import {
+  buildResultsFilterOptions,
+  filterResultRows,
+  type ResultDateRange,
+  type ResultStatusTone,
+} from "./core/results";
+import {
   bootstrapAuthSession,
   terminateAuthSession,
 } from "./app/auth-session";
@@ -67,6 +74,8 @@ import { ResultDetailModal } from "./components/operations/ResultDetailModal";
 import { MachineWorkspace } from "./components/operations/machine/MachineWorkspace";
 import { InviteAccessModal } from "./components/access/InviteAccessModal";
 import { ManageAccessModal } from "./components/access/ManageAccessModal";
+import { ResultsWorkspace } from "./components/operations/results/ResultsWorkspace";
+import { TasksWorkspace } from "./components/operations/tasks/TasksWorkspace";
 
 const apiClient = api;
 
@@ -139,20 +148,7 @@ type HomeTaskRow = {
   sender: string;
 };
 
-type TaskCard = {
-  id: string;
-  machineId: string;
-  machine: string;
-  templateKey: string;
-  taskNumber: string;
-  title: string;
-  startedAt: string;
-  completedAt?: string;
-  serverNumber: string;
-  resultText: string;
-  resultColor: "green" | "yellow" | "red" | "gray";
-  status: "queued" | "completed" | "in_progress" | "error";
-};
+type TaskCard = TaskCardResponse;
 
 type TaskFilterStatus = "all" | TaskCard["status"];
 
@@ -185,8 +181,6 @@ type ReportComparisonStats = {
   errorTasks: number;
   successRate: number;
 };
-
-type ResultStatusTone = "success" | "error" | "cancelled";
 
 type ResultHistoryRow = ResultsDashboardResponse["rows"][number];
 
@@ -545,7 +539,10 @@ export function App() {
   >("all");
   const [resultsMachineFilter, setResultsMachineFilter] = useState("all");
   const [resultsCommandFilter, setResultsCommandFilter] = useState("all");
-  const [resultsDateFilter, setResultsDateFilter] = useState("all");
+  const [resultsDateRange, setResultsDateRange] = useState<ResultDateRange>({
+    from: "",
+    to: "",
+  });
   const [resultHistoryRows, setResultHistoryRows] = useState<
     ResultHistoryRow[]
   >([]);
@@ -1401,61 +1398,38 @@ export function App() {
     [selectedManageRow],
   );
 
+  const resultsFilterOptions = useMemo(
+    () => buildResultsFilterOptions(resultHistoryRows),
+    [resultHistoryRows],
+  );
   const resultsMachineOptions = useMemo(
     () =>
-      [...new Set(resultHistoryRows.map((row) => row.machine))].sort((a, b) =>
-        a.localeCompare(b, "ru"),
-      ),
-    [resultHistoryRows],
+      resultsFilterOptions.machineOptions
+        .filter((option) => option.value !== "all")
+        .map((option) => option.value),
+    [resultsFilterOptions],
   );
-
   const resultsCommandOptions = useMemo(
     () =>
-      [...new Set(resultHistoryRows.map((row) => row.command))].sort((a, b) =>
-        a.localeCompare(b, "ru"),
-      ),
-    [resultHistoryRows],
+      resultsFilterOptions.commandOptions
+        .filter((option) => option.value !== "all")
+        .map((option) => option.value),
+    [resultsFilterOptions],
   );
+  const resultsDateFilter = "all";
+  const setResultsDateFilter = (_value: string) => {};
 
   const visibleResultRows = useMemo(() => {
-    const now = new Date();
-    const todayY = now.getFullYear();
-    const todayM = now.getMonth();
-    const todayD = now.getDate();
-
-    return resultHistoryRows.filter((row) => {
-      const byStatus =
-        resultsStatusFilter === "all" || row.statusTone === resultsStatusFilter;
-      const byMachine =
-        resultsMachineFilter === "all" || row.machine === resultsMachineFilter;
-      const byCommand =
-        resultsCommandFilter === "all" || row.command === resultsCommandFilter;
-      const byDate =
-        resultsDateFilter === "all" ||
-        (resultsDateFilter === "today" &&
-          (() => {
-            const resultDate = new Date(row.resultAtIso);
-            return (
-              !Number.isNaN(resultDate.getTime()) &&
-              resultDate.getFullYear() === todayY &&
-              resultDate.getMonth() === todayM &&
-              resultDate.getDate() === todayD
-            );
-          })());
-      const bySearch =
-        matchesSearchQuery(workspaceSearchQuery, [
-          row.title,
-          row.machine,
-          row.command,
-          row.resultAt,
-          row.statusLabel,
-        ]);
-
-      return byStatus && byMachine && byCommand && byDate && bySearch;
+    return filterResultRows(resultHistoryRows, {
+      status: resultsStatusFilter,
+      machine: resultsMachineFilter,
+      command: resultsCommandFilter,
+      searchQuery: workspaceSearchQuery,
+      dateRange: resultsDateRange,
     });
   }, [
     resultsCommandFilter,
-    resultsDateFilter,
+    resultsDateRange,
     resultsMachineFilter,
     resultHistoryRows,
     resultsStatusFilter,
@@ -2307,7 +2281,15 @@ export function App() {
             <section className="tasks-dashboard" aria-label="Задачи">
               {renderWorkspaceTopbar()}
 
-              <div className="tasks-body">
+              <TasksWorkspace
+                totalItems={taskCards.length}
+                activeFilter={taskFilterStatus}
+                sections={visibleTaskStatusGroups}
+                onFilterChange={setTaskFilterStatus}
+                onOpenLogs={openTaskLogs}
+                onSecondaryAction={handleTaskSecondaryAction}
+              />
+              {false ? <div className="tasks-body">
 
                 <header className="tasks-dashboard__header">
                   <div className="tasks-dashboard__title-box">
@@ -2458,13 +2440,29 @@ export function App() {
                     </section>
                   ))}
                 </div>
-              </div>
+              </div> : null}
             </section>
           ) : workspaceTab === "results" ? (
             <section className="results-dashboard" aria-label="Результаты">
               {renderWorkspaceTopbar()}
 
-              <div className="results-dashboard__body">
+              <ResultsWorkspace
+                rows={visibleResultRows}
+                totalItems={resultHistoryRows.length}
+                statusValue={resultsStatusFilter}
+                machineValue={resultsMachineFilter}
+                commandValue={resultsCommandFilter}
+                dateRange={resultsDateRange}
+                machineOptions={resultsFilterOptions.machineOptions}
+                commandOptions={resultsFilterOptions.commandOptions}
+                onStatusChange={setResultsStatusFilter}
+                onMachineChange={setResultsMachineFilter}
+                onCommandChange={setResultsCommandFilter}
+                onDateRangeChange={setResultsDateRange}
+                onOpenLogs={openTaskLogs}
+                onOpenResultDetail={openResultDetail}
+              />
+              {false ? <div className="results-dashboard__body">
                 <header className="results-dashboard__header">
                   <h1>Результаты</h1>
                 </header>
@@ -2617,7 +2615,7 @@ export function App() {
                     </tbody>
                   </table>
                 </section>
-              </div>
+              </div> : null}
             </section>
           ) : workspaceTab === "logs" ? (
             <>
