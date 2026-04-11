@@ -119,6 +119,23 @@ class AccessService:
             for access, email, creator_user_id in rows
         ]
 
+    def list_invites(self, *, machine_id: str, actor_user_id: str) -> list[MachineInviteRead]:
+        context = self._get_context(machine_id=machine_id, actor_user_id=actor_user_id)
+        ensure_can_view_machine(context.actor_access.role)
+        invites = self.access_repository.list_machine_invites(machine_id)
+        return [
+            MachineInviteRead(
+                id=invite.id,
+                email=invite.email,
+                role=invite.role,
+                status=invite.status,
+                created_at=invite.created_at,
+                expires_at=invite.expires_at,
+                invited_by_user_id=invite.invited_by_user_id,
+            )
+            for invite in invites
+        ]
+
     def create_invite(
         self,
         *,
@@ -180,6 +197,7 @@ class AccessService:
             email=invite.email,
             role=invite.role,
             status=invite.status,
+            created_at=invite.created_at,
             expires_at=invite.expires_at,
             invited_by_user_id=invite.invited_by_user_id,
         )

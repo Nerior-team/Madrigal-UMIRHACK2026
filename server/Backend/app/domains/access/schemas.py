@@ -27,6 +27,7 @@ class MachineInviteRead(BaseModel):
     email: EmailStr
     role: MachineAccessRole
     status: MachineInviteStatus
+    created_at: datetime
     expires_at: datetime
     invited_by_user_id: str
 

@@ -135,3 +135,11 @@ class AccessRepository:
 
     def get_invite_by_hash(self, invite_token_hash: str) -> MachineInvite | None:
         return self.db.scalar(select(MachineInvite).where(MachineInvite.invite_token_hash == invite_token_hash))
+
+    def list_machine_invites(self, machine_id: str) -> list[MachineInvite]:
+        statement = (
+            select(MachineInvite)
+            .where(MachineInvite.machine_id == machine_id)
+            .order_by(MachineInvite.created_at.desc())
+        )
+        return list(self.db.scalars(statement).all())

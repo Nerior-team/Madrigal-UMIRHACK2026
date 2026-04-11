@@ -6,6 +6,16 @@ import {
 import { formatLogStreamLine } from "./logs";
 import { apiFetch } from "./http";
 import { getTaskPresentation, type BackendTaskLifecycle } from "./operations";
+import {
+  buildAccessMetrics,
+  getAccessRowCapabilities,
+  getAssignableRoles,
+  getInviteStatusPresentation,
+  sortAccessEntries,
+  type AccessActorRole,
+  type AccessEntryLike,
+  type InviteLike,
+} from "./access";
 
 export interface AuthResponse {
   token?: string;
@@ -85,15 +95,43 @@ export interface AccessDashboardResponse {
     value: string;
     tone?: "default" | "highlight";
   }>;
+  machines: Array<{
+    id: string;
+    resource: string;
+    role: string;
+    roleValue: "viewer" | "admin" | "operator" | "owner";
+    canInvite: boolean;
+    availableRoleValues: Array<"viewer" | "admin" | "operator">;
+  }>;
   users: Array<{
     id: string;
+    accessId: string;
+    machineId: string;
     email: string;
     role: string;
+    roleValue: "viewer" | "admin" | "operator" | "owner";
     roleTone: "viewer" | "admin" | "operator" | "owner";
     resource: string;
     status: string;
     statusTone: "active" | "pending";
     action: string;
+    canManage: boolean;
+    canRevoke: boolean;
+    isCreatorOwner: boolean;
+    availableRoleValues: Array<"viewer" | "admin" | "operator">;
+  }>;
+  invites: Array<{
+    id: string;
+    inviteId: string;
+    machineId: string;
+    email: string;
+    role: string;
+    roleValue: "viewer" | "admin" | "operator" | "owner";
+    resource: string;
+    status: string;
+    statusTone: "active" | "pending" | "muted";
+    createdAt: string;
+    expiresAt: string;
   }>;
   activity: Array<{
     id: string;
@@ -255,6 +293,11 @@ type BackendMeResponse = {
   enabled_two_factor_methods: string[];
 };
 
+type BackendReauthResponse = {
+  reauth_token: string;
+  expires_at: string;
+};
+
 type BackendMachineStatus = "pending" | "online" | "offline";
 type BackendMachineRole = "owner" | "admin" | "operator" | "viewer";
 
@@ -365,6 +408,24 @@ type BackendMachineAccessEntry = {
   revoked_at?: string | null;
   is_creator_owner: boolean;
 };
+
+type BackendMachineInviteStatus =
+  | "pending"
+  | "accepted"
+  | "expired"
+  | "invalidated";
+
+type BackendMachineInviteRead = {
+  id: string;
+  email: string;
+  role: BackendMachineRole;
+  status: BackendMachineInviteStatus;
+  created_at: string;
+  expires_at: string;
+  invited_by_user_id: string;
+};
+
+type AssignableAccessRole = "viewer" | "admin" | "operator";
 
 const AUTH_CLIENT_KIND: BackendSessionKind = "web";
 
@@ -546,6 +607,18 @@ function mapAccessStatus(entry: BackendMachineAccessEntry): {
   return { status: "Активен", statusTone: "active" };
 }
 
+function getMachineResource(machine: BackendMachineSummary): string {
+  return normalizeMachineTitle(machine.display_name || machine.hostname);
+}
+
+function mapAssignableAccessRoles(
+  actorRole: BackendMachineRole,
+): AssignableAccessRole[] {
+  return getAssignableRoles(actorRole as AccessActorRole).filter(
+    (role): role is AssignableAccessRole => role !== "owner",
+  );
+}
+
 function mapLogTone(
   status: BackendTaskLifecycle,
 ): LogsDashboardResponse["entries"][number]["tone"] {
@@ -722,6 +795,30 @@ async function loadMachineResults(
   );
 }
 
+async function loadMachineInvites(
+  machineIds: string[],
+): Promise<Map<string, BackendMachineInviteRead[]>> {
+  if (!machineIds.length) return new Map();
+
+  const settled = await Promise.allSettled(
+    machineIds.map((machineId) =>
+      request<BackendMachineInviteRead[]>(
+        `/machines/${encodeURIComponent(machineId)}/invites`,
+      ).then((invites) => [machineId, invites] as const),
+    ),
+  );
+
+  const invitesByMachine = new Map<string, BackendMachineInviteRead[]>();
+  for (const result of settled) {
+    if (result.status !== "fulfilled") continue;
+
+    const [machineId, invites] = result.value;
+    invitesByMachine.set(machineId, invites);
+  }
+
+  return invitesByMachine;
+}
+
 function getTaskRenderedCommand(task: BackendTaskRead): string {
   return task.rendered_command?.trim() || task.template_name;
 }
@@ -751,6 +848,237 @@ async function loadUserEmailMap(
   }
 
   return emailMap;
+}
+
+async function buildAccessDashboard(): Promise<AccessDashboardResponse> {
+  const [machines, me] = await Promise.all([
+    request<BackendMachineSummary[]>("/machines"),
+    request<BackendMeResponse>("/auth/me"),
+  ]);
+  const machineIds = machines.map((machine) => machine.id);
+  const machineMap = new Map(machines.map((machine) => [machine.id, machine]));
+
+  const [accessSettled, invitesByMachine] = await Promise.all([
+    Promise.allSettled(
+      machines.map((machine) =>
+        request<BackendMachineAccessEntry[]>(
+          `/machines/${encodeURIComponent(machine.id)}/access`,
+        ).then((entries) => ({ machine, entries })),
+      ),
+    ),
+    loadMachineInvites(machineIds),
+  ]);
+
+  const accessEntries = accessSettled
+    .filter(
+      (
+        result,
+      ): result is PromiseFulfilledResult<{
+        machine: BackendMachineSummary;
+        entries: BackendMachineAccessEntry[];
+      }> => result.status === "fulfilled",
+    )
+    .flatMap((result) =>
+      result.value.entries.map((entry) => ({
+        id: entry.id,
+        machineId: result.value.machine.id,
+        machineName: getMachineResource(result.value.machine),
+        userId: entry.user_id,
+        email: entry.email,
+        role: entry.role as AccessActorRole,
+        createdAt: entry.created_at,
+        revokedAt: entry.revoked_at ?? null,
+        isCreatorOwner: entry.is_creator_owner,
+      })),
+    );
+
+  const inviteEntries = [...invitesByMachine.entries()].flatMap(
+    ([machineId, machineInvites]) => {
+      const machine = machineMap.get(machineId);
+      if (!machine) return [];
+
+      return machineInvites.map((invite) => ({
+        id: invite.id,
+        machineId,
+        machineName: getMachineResource(machine),
+        email: invite.email,
+        role: invite.role as AccessActorRole,
+        status: invite.status,
+        expiresAt: invite.expires_at,
+      })) satisfies InviteLike[];
+    },
+  );
+
+  const knownUserEmails = new Map<string, string>([[me.user.id, me.user.email]]);
+  const accessById = new Map<string, BackendMachineAccessEntry>();
+  for (const result of accessSettled) {
+    if (result.status !== "fulfilled") continue;
+
+    for (const entry of result.value.entries) {
+      knownUserEmails.set(entry.user_id, entry.email);
+      accessById.set(entry.id, entry);
+    }
+  }
+
+  const activeEntries = accessEntries.filter((entry) => !entry.revokedAt);
+  const uniqueAdmins = new Set(
+    activeEntries
+      .filter((entry) => entry.role === "admin")
+      .map((entry) => entry.userId),
+  );
+  const baseMetrics = buildAccessMetrics(accessEntries, inviteEntries);
+
+  const users = sortAccessEntries(accessEntries).map((entry) => {
+    const machine = machineMap.get(entry.machineId);
+    const rawEntry = accessById.get(entry.id);
+    if (!machine || !rawEntry) {
+      throw new Error(`Access row ${entry.id} is missing machine context.`);
+    }
+
+    const capabilities = getAccessRowCapabilities({
+      actorRole: machine.my_role as AccessActorRole,
+      actorUserId: me.user.id,
+      entry,
+    });
+    const status = mapAccessStatus(rawEntry);
+
+    return {
+      id: `${entry.machineId}_${entry.id}`,
+      accessId: entry.id,
+      machineId: entry.machineId,
+      email: entry.email,
+      role: mapAccessRoleLabel(entry.role),
+      roleValue: entry.role,
+      roleTone: mapAccessRoleTone(entry.role),
+      resource: entry.machineName,
+      status: status.status,
+      statusTone: status.statusTone,
+      action: capabilities.canManage ? "Управлять" : "-",
+      canManage: capabilities.canManage,
+      canRevoke: capabilities.canRevoke,
+      isCreatorOwner: entry.isCreatorOwner,
+      availableRoleValues: capabilities.assignableRoles.filter(
+        (role): role is AssignableAccessRole => role !== "owner",
+      ),
+    };
+  });
+
+  const invites = [...invitesByMachine.entries()]
+    .flatMap(([machineId, machineInvites]) => {
+      const machine = machineMap.get(machineId);
+      if (!machine) return [];
+
+      return machineInvites.map((invite) => {
+        const presentation = getInviteStatusPresentation(invite.status);
+        return {
+          id: `${machineId}_${invite.id}`,
+          inviteId: invite.id,
+          machineId,
+          email: invite.email,
+          role: mapAccessRoleLabel(invite.role),
+          roleValue: invite.role,
+          resource: getMachineResource(machine),
+          status: presentation.label,
+          statusTone: presentation.tone,
+          createdAt: formatDateTime(invite.created_at),
+          expiresAt: formatDateTime(invite.expires_at),
+          createdAtIso: invite.created_at,
+        };
+      });
+    })
+    .sort(
+      (left, right) =>
+        new Date(right.createdAtIso).getTime() -
+        new Date(left.createdAtIso).getTime(),
+    )
+    .map(({ createdAtIso: _createdAtIso, ...invite }) => invite);
+
+  const activity = [
+    ...accessEntries.map((entry) => {
+      const rawEntry = accessById.get(entry.id);
+      const grantedByUserId = rawEntry?.granted_by_user_id ?? null;
+      return {
+        id: `access_${entry.machineId}_${entry.id}`,
+        actor: grantedByUserId
+          ? knownUserEmails.get(grantedByUserId) ?? "Система"
+          : "Система",
+        email: entry.email,
+        role: `${mapAccessRoleLabel(entry.role)} (${entry.machineName})`,
+        time: formatDateTime(entry.createdAt),
+        actionText: entry.revokedAt
+          ? "потерял доступ для пользователя"
+          : "выдал доступ пользователю",
+        sortValue: entry.createdAt,
+      };
+    }),
+    ...[...invitesByMachine.entries()].flatMap(([machineId, machineInvites]) => {
+      const machine = machineMap.get(machineId);
+      if (!machine) return [];
+
+      return machineInvites.map((invite) => ({
+        id: `invite_${machineId}_${invite.id}`,
+        actor: knownUserEmails.get(invite.invited_by_user_id) ?? "Система",
+        email: invite.email,
+        role: `${mapAccessRoleLabel(invite.role)} (${getMachineResource(machine)})`,
+        time: formatDateTime(invite.created_at),
+        actionText:
+          invite.status === "pending"
+            ? "отправил приглашение пользователю"
+            : "обновил статус приглашения для",
+        sortValue: invite.created_at,
+      }));
+    }),
+  ]
+    .sort(
+      (left, right) =>
+        new Date(right.sortValue).getTime() - new Date(left.sortValue).getTime(),
+    )
+    .slice(0, 8)
+    .map(({ sortValue: _sortValue, ...item }) => item);
+
+  const machinesForInvites = machines
+    .map((machine) => ({
+      id: machine.id,
+      resource: getMachineResource(machine),
+      role: mapAccessRoleLabel(machine.my_role),
+      roleValue: machine.my_role,
+      canInvite: machine.my_role === "owner" || machine.my_role === "admin",
+      availableRoleValues: mapAssignableAccessRoles(machine.my_role),
+    }))
+    .filter((machine) => machine.canInvite);
+
+  return {
+    metrics: [
+      baseMetrics.find((metric) => metric.id === "users_total") ?? {
+        id: "users_total",
+        title: "Всего пользователей",
+        value: "0",
+        tone: "highlight",
+      },
+      {
+        id: "admins_total",
+        title: "Администраторов",
+        value: String(uniqueAdmins.size),
+        tone: "default",
+      },
+      {
+        id: "agents_total",
+        title: "Всего машин",
+        value: String(machines.length),
+        tone: "default",
+      },
+      baseMetrics.find((metric) => metric.id === "invites_pending") ?? {
+        id: "invites_pending",
+        title: "Ожидают приглашение",
+        value: "0",
+        tone: "default",
+      },
+    ],
+    machines: machinesForInvites,
+    users,
+    invites,
+    activity,
+  };
 }
 
 export const api = {
@@ -1300,6 +1628,9 @@ export const api = {
   },
 
   async getAccessDashboard(): Promise<AccessDashboardResponse> {
+    return buildAccessDashboard();
+
+    /*
     const machines = await request<BackendMachineSummary[]>("/machines");
 
     const accessSettled = await Promise.allSettled(
@@ -1413,5 +1744,65 @@ export const api = {
       users,
       activity,
     };
+    */
+  },
+
+  async reauth(password: string): Promise<string> {
+    const response = await request<BackendReauthResponse>("/auth/re-auth", {
+      method: "POST",
+      body: JSON.stringify({ password }),
+    });
+
+    return response.reauth_token;
+  },
+
+  async createMachineInvite(input: {
+    machineId: string;
+    email: string;
+    role: AssignableAccessRole;
+    reauthToken: string;
+  }): Promise<void> {
+    await request(`/machines/${encodeURIComponent(input.machineId)}/invites`, {
+      method: "POST",
+      body: JSON.stringify({
+        email: input.email,
+        role: input.role,
+        reauth_token: input.reauthToken,
+      }),
+    });
+  },
+
+  async updateMachineAccessRole(input: {
+    machineId: string;
+    accessId: string;
+    role: AssignableAccessRole;
+    reauthToken: string;
+  }): Promise<void> {
+    await request(
+      `/machines/${encodeURIComponent(input.machineId)}/access/${encodeURIComponent(input.accessId)}/role`,
+      {
+        method: "POST",
+        body: JSON.stringify({
+          role: input.role,
+          reauth_token: input.reauthToken,
+        }),
+      },
+    );
+  },
+
+  async revokeMachineAccess(input: {
+    machineId: string;
+    accessId: string;
+    reauthToken: string;
+  }): Promise<void> {
+    await request(
+      `/machines/${encodeURIComponent(input.machineId)}/access/${encodeURIComponent(input.accessId)}/revoke`,
+      {
+        method: "POST",
+        body: JSON.stringify({
+          reauth_token: input.reauthToken,
+        }),
+      },
+    );
   },
 };

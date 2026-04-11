@@ -20,12 +20,14 @@ import {
 } from "lucide-react";
 import {
   api,
+  type AccessDashboardResponse,
   type CommandTemplateOption,
   type LogsDashboardResponse,
   type ProfileDashboardResponse,
   type ResultsDashboardResponse,
   type ReportsDashboardResponse,
 } from "./core";
+import { ApiError } from "./core/http";
 import {
   matchesSearchQuery,
   normalizeMachineTitle,
@@ -59,6 +61,8 @@ import {
 } from "./core/search";
 import { ConsoleModal } from "./components/operations/ConsoleModal";
 import { ResultDetailModal } from "./components/operations/ResultDetailModal";
+import { InviteAccessModal } from "./components/access/InviteAccessModal";
+import { ManageAccessModal } from "./components/access/ManageAccessModal";
 
 const apiClient = api;
 
@@ -149,35 +153,11 @@ type TaskCard = {
 
 type TaskFilterStatus = "all" | TaskCard["status"];
 
-type AccessRoleTone = "viewer" | "admin" | "operator" | "owner";
-type AccessStatusTone = "active" | "pending";
-
-type AccessSummaryCard = {
-  id: string;
-  title: string;
-  value: string;
-  tone?: "default" | "highlight";
-};
-
-type AccessUserRow = {
-  id: string;
-  email: string;
-  role: string;
-  roleTone: AccessRoleTone;
-  resource: string;
-  status: string;
-  statusTone: AccessStatusTone;
-  action: string;
-};
-
-type AccessActivityItem = {
-  id: string;
-  actor: string;
-  email: string;
-  role: string;
-  time: string;
-  actionText: string;
-};
+type AccessSummaryCard = AccessDashboardResponse["metrics"][number];
+type AccessUserRow = AccessDashboardResponse["users"][number];
+type AccessInviteRow = AccessDashboardResponse["invites"][number];
+type AccessActivityItem = AccessDashboardResponse["activity"][number];
+type AccessManageableMachine = AccessDashboardResponse["machines"][number];
 
 type LogStatusTone = "success" | "warning" | "critical";
 type LogEntry = LogsDashboardResponse["entries"][number];
@@ -545,10 +525,32 @@ export function App() {
   const [accessSummaryCards, setAccessSummaryCards] = useState<
     AccessSummaryCard[]
   >([]);
+  const [accessMachines, setAccessMachines] = useState<AccessManageableMachine[]>(
+    [],
+  );
   const [accessUserRows, setAccessUserRows] = useState<AccessUserRow[]>([]);
+  const [accessInviteRows, setAccessInviteRows] = useState<AccessInviteRow[]>(
+    [],
+  );
   const [accessActivityItems, setAccessActivityItems] = useState<
     AccessActivityItem[]
   >([]);
+  const [accessNotice, setAccessNotice] = useState<string | null>(null);
+  const [accessError, setAccessError] = useState<string | null>(null);
+  const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
+  const [inviteMachineId, setInviteMachineId] = useState("");
+  const [inviteRole, setInviteRole] = useState<"viewer" | "admin" | "operator">(
+    "viewer",
+  );
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [invitePassword, setInvitePassword] = useState("");
+  const [isInviteSubmitting, setIsInviteSubmitting] = useState(false);
+  const [manageAccessRowId, setManageAccessRowId] = useState<string | null>(null);
+  const [manageRole, setManageRole] = useState<"viewer" | "admin" | "operator">(
+    "viewer",
+  );
+  const [managePassword, setManagePassword] = useState("");
+  const [isManageSubmitting, setIsManageSubmitting] = useState(false);
   const [logEntries, setLogEntries] = useState<LogEntry[]>([]);
   const [logStreamItems, setLogStreamItems] = useState<LogStreamItem[]>([]);
   const [workspaceSearchQuery, setWorkspaceSearchQuery] = useState("");
@@ -1324,6 +1326,72 @@ export function App() {
     [accessUserRows, workspaceSearchQuery],
   );
 
+  const visibleAccessInvites = useMemo(
+    () =>
+      accessInviteRows
+        .filter((row) =>
+          matchesSearchQuery(workspaceSearchQuery, [
+            row.email,
+            row.role,
+            row.resource,
+            row.status,
+          ]),
+        )
+        .slice(0, ACCESS_ROWS_LIMIT),
+    [accessInviteRows, workspaceSearchQuery],
+  );
+
+  const selectedInviteMachine = useMemo(
+    () =>
+      accessMachines.find((machine) => machine.id === inviteMachineId) ??
+      accessMachines[0] ??
+      null,
+    [accessMachines, inviteMachineId],
+  );
+
+  const inviteMachineOptions = useMemo(
+    () =>
+      accessMachines.map((machine) => ({
+        value: machine.id,
+        label: `${machine.resource} • ${machine.role}`,
+      })),
+    [accessMachines],
+  );
+
+  const inviteRoleOptions = useMemo(
+    () =>
+      (selectedInviteMachine?.availableRoleValues ?? []).map((role) => ({
+        value: role,
+        label:
+          role === "admin"
+            ? "Администратор"
+            : role === "operator"
+              ? "Оператор"
+              : "Наблюдатель",
+      })),
+    [selectedInviteMachine],
+  );
+
+  const selectedManageRow = useMemo(
+    () =>
+      accessUserRows.find((row) => row.id === manageAccessRowId) ?? null,
+    [accessUserRows, manageAccessRowId],
+  );
+
+  const manageRoleOptions = useMemo(
+    () =>
+      (selectedManageRow?.availableRoleValues ?? []).map((role) => ({
+        value: role,
+        label:
+          role === "admin"
+            ? "Администратор"
+            : role === "operator"
+              ? "Оператор"
+              : "Наблюдатель",
+      })),
+    [selectedManageRow],
+  );
+
   const resultsMachineOptions = useMemo(
     () =>
       [...new Set(resultHistoryRows.map((row) => row.machine))].sort((a, b) =>
@@ -1411,10 +1479,7 @@ export function App() {
     const loadAccessDashboard = async () => {
       if (workspaceTab !== "access") return;
 
-      const accessDashboard = await apiClient.getAccessDashboard();
-      setAccessSummaryCards(accessDashboard.metrics);
-      setAccessUserRows(accessDashboard.users);
-      setAccessActivityItems(accessDashboard.activity);
+      await refreshAccessDashboard();
     };
 
     const loadLogsDashboard = async () => {
@@ -1449,7 +1514,9 @@ export function App() {
     loadTasks().catch(() => setTaskCards([]));
     loadAccessDashboard().catch(() => {
       setAccessSummaryCards([]);
+      setAccessMachines([]);
       setAccessUserRows([]);
+      setAccessInviteRows([]);
       setAccessActivityItems([]);
     });
     loadLogsDashboard().catch(() => {
@@ -1476,6 +1543,14 @@ export function App() {
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [isCreateTaskOpen]);
+
+  useEffect(() => {
+    if (!accessMachines.length) return;
+    if (accessMachines.some((machine) => machine.id === inviteMachineId)) return;
+
+    setInviteMachineId(accessMachines[0].id);
+    setInviteRole(accessMachines[0].availableRoleValues[0] ?? "viewer");
+  }, [accessMachines, inviteMachineId]);
 
   const openCreateTaskModal = () => {
     if (selectedMachineId) {
@@ -1641,6 +1716,183 @@ export function App() {
     setResultHistoryRows(resultsDashboard.rows);
     setLogEntries(logsDashboard.entries);
     setLogStreamItems(logsDashboard.streamItems);
+  };
+
+  const extractApiErrorMessage = (
+    error: unknown,
+    fallback: string,
+  ): string => {
+    if (!(error instanceof ApiError)) {
+      return fallback;
+    }
+
+    try {
+      const parsed = JSON.parse(error.body) as {
+        detail?: { message?: string } | string;
+      };
+      if (typeof parsed.detail === "string" && parsed.detail.trim()) {
+        return parsed.detail;
+      }
+      if (
+        parsed.detail &&
+        typeof parsed.detail === "object" &&
+        typeof parsed.detail.message === "string" &&
+        parsed.detail.message.trim()
+      ) {
+        return parsed.detail.message;
+      }
+    } catch {
+      if (error.body.trim()) {
+        return error.body;
+      }
+    }
+
+    return fallback;
+  };
+
+  const refreshAccessDashboard = async () => {
+    const dashboard = await apiClient.getAccessDashboard();
+    setAccessSummaryCards(dashboard.metrics);
+    setAccessMachines(dashboard.machines);
+    setAccessUserRows(dashboard.users);
+    setAccessInviteRows(dashboard.invites);
+    setAccessActivityItems(dashboard.activity);
+  };
+
+  const closeInviteModal = () => {
+    setIsInviteModalOpen(false);
+    setInviteEmail("");
+    setInvitePassword("");
+    setAccessError(null);
+  };
+
+  const openInviteModal = () => {
+    const initialMachine =
+      selectedInviteMachine ?? accessMachines[0] ?? null;
+    if (!initialMachine) return;
+
+    setInviteMachineId(initialMachine.id);
+    setInviteRole(initialMachine.availableRoleValues[0] ?? "viewer");
+    setInviteEmail("");
+    setInvitePassword("");
+    setAccessError(null);
+    setIsInviteModalOpen(true);
+  };
+
+  const openManageAccessModal = (row: AccessUserRow) => {
+    if (!row.canManage || row.availableRoleValues.length === 0) return;
+
+    const nextRole =
+      row.availableRoleValues.find((role) => role === row.roleValue) ??
+      row.availableRoleValues[0];
+    setManageAccessRowId(row.id);
+    setManageRole(nextRole);
+    setManagePassword("");
+    setAccessError(null);
+  };
+
+  const closeManageAccessModal = () => {
+    setManageAccessRowId(null);
+    setManagePassword("");
+    setAccessError(null);
+  };
+
+  const handleInviteMachineChange = (value: string) => {
+    setInviteMachineId(value);
+    const machine = accessMachines.find((item) => item.id === value);
+    if (machine?.availableRoleValues.length) {
+      setInviteRole(machine.availableRoleValues[0]);
+    }
+  };
+
+  const handleCreateInviteSubmit = async (
+    event: React.FormEvent<HTMLFormElement>,
+  ) => {
+    event.preventDefault();
+
+    if (!inviteMachineId || !inviteEmail.trim() || !invitePassword) {
+      return;
+    }
+
+    setIsInviteSubmitting(true);
+    setAccessError(null);
+    setAccessNotice(null);
+    try {
+      const reauthToken = await apiClient.reauth(invitePassword);
+      await apiClient.createMachineInvite({
+        machineId: inviteMachineId,
+        email: inviteEmail.trim(),
+        role: inviteRole,
+        reauthToken,
+      });
+      await refreshAccessDashboard();
+      closeInviteModal();
+      setAccessNotice("Приглашение отправлено.");
+    } catch (error) {
+      setAccessError(
+        extractApiErrorMessage(error, "Не удалось отправить приглашение."),
+      );
+    } finally {
+      setIsInviteSubmitting(false);
+    }
+  };
+
+  const handleManageAccessSubmit = async (
+    event: React.FormEvent<HTMLFormElement>,
+  ) => {
+    event.preventDefault();
+    if (!selectedManageRow || !managePassword) {
+      return;
+    }
+
+    setIsManageSubmitting(true);
+    setAccessError(null);
+    setAccessNotice(null);
+    try {
+      const reauthToken = await apiClient.reauth(managePassword);
+      await apiClient.updateMachineAccessRole({
+        machineId: selectedManageRow.machineId,
+        accessId: selectedManageRow.accessId,
+        role: manageRole,
+        reauthToken,
+      });
+      await refreshAccessDashboard();
+      closeManageAccessModal();
+      setAccessNotice("Роль пользователя обновлена.");
+    } catch (error) {
+      setAccessError(
+        extractApiErrorMessage(error, "Не удалось изменить роль доступа."),
+      );
+    } finally {
+      setIsManageSubmitting(false);
+    }
+  };
+
+  const handleRevokeAccess = async () => {
+    if (!selectedManageRow || !managePassword) {
+      return;
+    }
+
+    setIsManageSubmitting(true);
+    setAccessError(null);
+    setAccessNotice(null);
+    try {
+      const reauthToken = await apiClient.reauth(managePassword);
+      await apiClient.revokeMachineAccess({
+        machineId: selectedManageRow.machineId,
+        accessId: selectedManageRow.accessId,
+        reauthToken,
+      });
+      await refreshAccessDashboard();
+      closeManageAccessModal();
+      setAccessNotice("Доступ пользователя отозван.");
+    } catch (error) {
+      setAccessError(
+        extractApiErrorMessage(error, "Не удалось отозвать доступ."),
+      );
+    } finally {
+      setIsManageSubmitting(false);
+    }
   };
 
   const handleTaskSecondaryAction = async (task: TaskCard) => {
@@ -2508,11 +2760,28 @@ export function App() {
               <div className="access-dashboard__body">
                 <header className="access-dashboard__header">
                   <h1>Управление доступом</h1>
-                  <button type="button" className="access-dashboard__invite">
+                  <button
+                    type="button"
+                    className="access-dashboard__invite"
+                    onClick={openInviteModal}
+                    disabled={!accessMachines.length}
+                  >
                     <span>Отправить приглашение</span>
                     <img src="/plus.png" alt="" aria-hidden="true" />
                   </button>
                 </header>
+
+                {accessNotice ? (
+                  <p className="access-dashboard__notice" role="status">
+                    {accessNotice}
+                  </p>
+                ) : null}
+
+                {accessError && !isInviteModalOpen && !selectedManageRow ? (
+                  <p className="access-dashboard__error" role="alert">
+                    {accessError}
+                  </p>
+                ) : null}
 
                 <div className="access-dashboard__stats">
                   {accessSummaryCards.map((card) => (
@@ -2541,6 +2810,10 @@ export function App() {
                         <input
                           type="text"
                           placeholder="Поиск по пользователям..."
+                          value={workspaceSearchQuery}
+                          onChange={(event) =>
+                            setWorkspaceSearchQuery(event.target.value)
+                          }
                         />
                       </label>
                     </div>
@@ -2589,7 +2862,8 @@ export function App() {
                                   <button
                                     type="button"
                                     className="access-users__action"
-                                    disabled={row.action === "-"}
+                                    disabled={!row.canManage}
+                                    onClick={() => openManageAccessModal(row)}
                                   >
                                     {row.action}
                                   </button>
@@ -2610,8 +2884,68 @@ export function App() {
                         Показано {visibleAccessRows.length} из{" "}
                         {accessUserRows.length}
                       </span>
-                      <button type="button">Показать все</button>
+                      <button
+                        type="button"
+                        onClick={() => setWorkspaceSearchQuery("")}
+                      >
+                        Сбросить поиск
+                      </button>
                     </footer>
+
+                    <section className="access-invites">
+                      <header className="access-invites__header">
+                        <h2>Приглашения</h2>
+                        <span>
+                          Показано {visibleAccessInvites.length} из{" "}
+                          {accessInviteRows.length}
+                        </span>
+                      </header>
+
+                      <div className="access-users__table-wrap">
+                        <table className="access-users__table access-users__table--invites">
+                          <thead>
+                            <tr>
+                              <th>Email</th>
+                              <th>Роль</th>
+                              <th>Машина</th>
+                              <th>Статус</th>
+                              <th>Создано</th>
+                              <th>Действует до</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {visibleAccessInvites.length ? (
+                              visibleAccessInvites.map((row) => (
+                                <tr key={row.id}>
+                                  <td>{row.email}</td>
+                                  <td>
+                                    <span
+                                      className={`access-users__role access-users__role--${row.roleValue}`}
+                                    >
+                                      {row.role}
+                                    </span>
+                                  </td>
+                                  <td>{row.resource}</td>
+                                  <td>
+                                    <span
+                                      className={`access-users__status access-users__status--${row.statusTone}`}
+                                    >
+                                      {row.status}
+                                    </span>
+                                  </td>
+                                  <td>{row.createdAt}</td>
+                                  <td>{row.expiresAt}</td>
+                                </tr>
+                              ))
+                            ) : (
+                              <tr>
+                                <td colSpan={6}>Нет приглашений</td>
+                              </tr>
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </section>
                   </section>
 
                   <aside className="access-activity">
@@ -3917,6 +4251,41 @@ export function App() {
           <ResultDetailModal
             resultId={route.modal.resultId}
             onClose={closeRouteModal}
+          />
+        ) : null}
+
+        {isInviteModalOpen ? (
+          <InviteAccessModal
+            machineOptions={inviteMachineOptions}
+            roleOptions={inviteRoleOptions}
+            selectedMachineId={selectedInviteMachine?.id ?? ""}
+            selectedRole={inviteRole}
+            email={inviteEmail}
+            password={invitePassword}
+            errorMessage={accessError}
+            isSubmitting={isInviteSubmitting}
+            onMachineChange={handleInviteMachineChange}
+            onRoleChange={setInviteRole}
+            onEmailChange={setInviteEmail}
+            onPasswordChange={setInvitePassword}
+            onClose={closeInviteModal}
+            onSubmit={handleCreateInviteSubmit}
+          />
+        ) : null}
+
+        {selectedManageRow ? (
+          <ManageAccessModal
+            row={selectedManageRow}
+            roleOptions={manageRoleOptions}
+            selectedRole={manageRole}
+            password={managePassword}
+            errorMessage={accessError}
+            isSubmitting={isManageSubmitting}
+            onRoleChange={setManageRole}
+            onPasswordChange={setManagePassword}
+            onClose={closeManageAccessModal}
+            onSubmit={handleManageAccessSubmit}
+            onRevoke={handleRevokeAccess}
           />
         ) : null}
 
