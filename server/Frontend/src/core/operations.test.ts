@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { getTaskPresentation, groupTasksByStatus } from "./operations";
+import {
+  buildTaskSections,
+  getTaskPresentation,
+  groupTasksByStatus,
+} from "./operations";
 
 describe("getTaskPresentation", () => {
   it("keeps queued lifecycle separate from in-progress work", () => {
@@ -35,5 +39,24 @@ describe("groupTasksByStatus", () => {
     expect(grouped.in_progress.map((item) => item.id)).toEqual(["2"]);
     expect(grouped.completed.map((item) => item.id)).toEqual(["3", "5"]);
     expect(grouped.error.map((item) => item.id)).toEqual(["4"]);
+  });
+});
+
+describe("buildTaskSections", () => {
+  it("keeps queued tasks visible between in-progress and error sections", () => {
+    const sections = buildTaskSections([
+      { id: "1", status: "completed" as const },
+      { id: "2", status: "in_progress" as const },
+      { id: "3", status: "queued" as const },
+      { id: "4", status: "error" as const },
+    ]);
+
+    expect(sections.map((section) => section.key)).toEqual([
+      "completed",
+      "in_progress",
+      "queued",
+      "error",
+    ]);
+    expect(sections.map((section) => section.cards.length)).toEqual([1, 1, 1, 1]);
   });
 });

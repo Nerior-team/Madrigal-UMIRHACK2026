@@ -48,6 +48,7 @@ import {
   buildTaskPreview,
   getTaskPreviewShellLabel,
 } from "./core/task-preview";
+import { buildTaskSections } from "./core/operations";
 import {
   bootstrapAuthSession,
   terminateAuthSession,
@@ -61,6 +62,7 @@ import {
 } from "./core/search";
 import { ConsoleModal } from "./components/operations/ConsoleModal";
 import { ResultDetailModal } from "./components/operations/ResultDetailModal";
+import { MachineWorkspace } from "./components/operations/machine/MachineWorkspace";
 import { InviteAccessModal } from "./components/access/InviteAccessModal";
 import { ManageAccessModal } from "./components/access/ManageAccessModal";
 
@@ -78,7 +80,6 @@ type WorkspaceTab =
   | "reports"
   | "install"
   | "profile";
-type MachineDetailTab = "dashboard" | "logs" | "tasks" | "results";
 type ProfileSection = "general" | "security" | "sessions" | "notifications";
 
 type MachineCardStatus = "online" | "running" | "offline";
@@ -224,19 +225,6 @@ const machineStatusSections = [
   { key: "running", label: "Выполняют задачу" },
   { key: "offline", label: "Оффлайн" },
 ] as const;
-
-const taskStatusSections = [
-  { key: "completed", label: "Завершенные" },
-  { key: "in_progress", label: "В процессе" },
-  { key: "error", label: "Ошибки" },
-] as const;
-
-const machineDetailTabs: Array<{ key: MachineDetailTab; label: string }> = [
-  { key: "dashboard", label: "Дашборд" },
-  { key: "logs", label: "Логи" },
-  { key: "tasks", label: "Задачи" },
-  { key: "results", label: "Результаты" },
-];
 
 const machineStatusLabelByStatus: Record<MachineCardStatus, string> = {
   online: "Онлайн",
@@ -483,10 +471,6 @@ export function App() {
       ? Boolean(route.isAddMachine)
       : false;
   const selectedMachineId = route.section === "workspace" ? route.machineId ?? null : null;
-  const machineDetailTab: MachineDetailTab =
-    route.section === "workspace" && route.machineId
-      ? route.machineTab ?? "dashboard"
-      : "dashboard";
   const logContext = useMemo(
     () =>
       route.section === "workspace" && route.workspaceTab === "logs"
@@ -638,12 +622,10 @@ export function App() {
     navigate(machineId ? machinePath(machineId) : workspacePath("machines"));
   };
 
-  const setMachineDetailTab = (nextTab: MachineDetailTab) => {
-    if (!selectedMachineId) return;
-    navigate(machinePath(selectedMachineId, nextTab));
-  };
-
-  const openMachine = (machineId: string, tab: MachineDetailTab = "dashboard") => {
+  const openMachine = (
+    machineId: string,
+    tab: "dashboard" | "tasks" | "results" | "logs" = "dashboard",
+  ) => {
     navigate(machinePath(machineId, tab));
   };
 
@@ -764,7 +746,7 @@ export function App() {
 
   useEffect(() => {
     setWorkspaceSearchQuery("");
-  }, [workspaceTab, selectedMachineId, machineDetailTab]);
+  }, [workspaceTab, selectedMachineId]);
 
   useEffect(() => {
     if (!machineDashboardCards.length) {
@@ -1160,18 +1142,16 @@ export function App() {
 
   const taskStatusGroups = useMemo(
     () =>
-      taskStatusSections.map((section) => ({
+      buildTaskSections(taskCards).map((section) => ({
         ...section,
-        cards: taskCards.filter(
-          (task) =>
-            task.status === section.key &&
-            matchesSearchQuery(workspaceSearchQuery, [
-              task.taskNumber,
-              task.title,
-              task.machine,
-              task.serverNumber,
-              task.resultText,
-            ]),
+        cards: section.cards.filter((task) =>
+          matchesSearchQuery(workspaceSearchQuery, [
+            task.taskNumber,
+            task.title,
+            task.machine,
+            task.serverNumber,
+            task.resultText,
+          ]),
         ),
       })),
     [taskCards, workspaceSearchQuery],
@@ -1897,7 +1877,7 @@ export function App() {
 
   const handleTaskSecondaryAction = async (task: TaskCard) => {
     try {
-      if (task.status === "in_progress") {
+      if (task.status === "in_progress" || task.status === "queued") {
         await apiClient.cancelTask(task.id);
       } else {
         await apiClient.retryTask(task.id);
@@ -2331,6 +2311,13 @@ export function App() {
                   </button>
                   <button
                     type="button"
+                    className={`tasks-dashboard__chip ${taskFilterStatus === "queued" ? "tasks-dashboard__chip--active" : ""}`}
+                    onClick={() => setTaskFilterStatus("queued")}
+                  >
+                    В очереди
+                  </button>
+                  <button
+                    type="button"
                     className={`tasks-dashboard__chip ${taskFilterStatus === "error" ? "tasks-dashboard__chip--active" : ""}`}
                     onClick={() => setTaskFilterStatus("error")}
                   >
@@ -2357,11 +2344,11 @@ export function App() {
                       <div className="tasks-status-column__cards">
                         {section.cards.map((task, index) => {
                           const secondaryActionLabel =
-                            task.status === "in_progress"
-                              ? "Убить"
+                            task.status === "in_progress" || task.status === "queued"
+                              ? "Отменить"
                               : "Повторить";
                           const primaryActionLabel =
-                            task.status === "in_progress"
+                            task.status === "in_progress" || task.status === "queued"
                               ? "Детали"
                               : "Посмотреть логи";
                           const completedLabel =
@@ -2399,7 +2386,7 @@ export function App() {
                                     alt=""
                                     aria-hidden="true"
                                   />
-                                  <span>Сервер №{task.serverNumber}</span>
+                                  <span>{task.machine}</span>
                                 </div>
                                 <div
                                   className={`task-card__result task-card__result--${task.resultColor}`}
@@ -3555,526 +3542,49 @@ export function App() {
               {renderWorkspaceTopbar()}
 
               <div className="machine-details__body">
-                <header className="machine-details__header machine-details__header--hero">
-                  <div>
-                    <h1>
-                      Агент {getMachineDisplayName(selectedMachine)}{" "}
-                      <span>{selectedMachine.owner}</span>
-                    </h1>
-                    <p className="machine-details__status">
-                      <span
-                        className={`machine-details__status-dot machine-details__status-dot--${selectedMachine.status}`}
-                      />
-                      <span>
-                        {machineStatusLabelByStatus[selectedMachine.status]}
-                      </span>
-                    </p>
-                  </div>
-                </header>
-
-                <section className="machine-details__panel">
-                  <h2>Обзор</h2>
-                  <div className="machine-details__overview-grid">
-                    <article className="machine-details__overview-card">
-                      <p className="machine-details__overview-label">Хост</p>
-                      <p className="machine-details__overview-value">
-                        {selectedMachine.hostname}
-                      </p>
-                    </article>
-
-                    <article className="machine-details__overview-card">
-                      <p className="machine-details__overview-label">Моя роль</p>
-                      <p className="machine-details__overview-value machine-details__overview-value--accent">
-                        {selectedMachine.myRole}
-                      </p>
-                    </article>
-
-                    <article className="machine-details__overview-card">
-                      <p className="machine-details__overview-label">ОС</p>
-                      <p className="machine-details__overview-value">
-                        {selectedMachine.os}
-                      </p>
-                    </article>
-
-                    <article className="machine-details__overview-card">
-                      <p className="machine-details__overview-label">Last heartbeat</p>
-                      <p className="machine-details__overview-value machine-details__overview-value--heartbeat">
-                        {selectedMachine.heartbeat}
-                      </p>
-                    </article>
-
-                    <article className="machine-details__overview-card">
-                      <p className="machine-details__overview-label">
-                        Создатель машины
-                      </p>
-                      <p className="machine-details__overview-value machine-details__overview-value--accent">
-                        {selectedMachine.owner}
-                      </p>
-                    </article>
-                  </div>
-                </section>
-
-                {machineDetailTab === "dashboard" ||
-                machineDetailTab === "tasks" ||
-                machineDetailTab === "results" ||
-                machineDetailTab === "logs" ? (
-                  <>
-                    <div className="machine-details__dashboard-grid">
-                      <section className="machine-details__panel machine-details__panel--task-create">
-                        <header className="machine-details__section-head">
-                          <h2>Задача</h2>
-                          <span className="machine-details__task-role">
-                            {selectedMachine.myRole}
-                          </span>
-                        </header>
-
-                        {selectedMachineCanCreateTask ? (
-                          <form
-                            className="machine-details__task-create-card"
-                            onSubmit={handleCreateTaskSubmit}
-                          >
-                            <label className="machine-details__task-field">
-                              <span>Команда</span>
-                              <select
-                                value={taskCommand}
-                                onChange={(event) =>
-                                  setTaskCommand(event.target.value)
-                                }
-                                disabled={!taskTemplateOptions.length}
-                              >
-                                <option value="">
-                                  {taskTemplateOptions.length
-                                    ? "Введите или выберите команду"
-                                    : "Нет доступных команд"}
-                                </option>
-                                {taskTemplateOptions.map((template) => (
-                                  <option
-                                    key={template.templateKey}
-                                    value={template.templateKey}
-                                  >
-                                    {template.name}
-                                  </option>
-                                ))}
-                              </select>
-                            </label>
-
-                            {selectedTaskTemplate?.parameters.length ? (
-                              selectedTaskTemplate.parameters.map((parameter) => (
-                                <label
-                                  key={parameter.key}
-                                  className="machine-details__task-field"
-                                >
-                                  <span>{parameter.label}</span>
-                                  <select
-                                    value={taskParamValues[parameter.key] ?? ""}
-                                    onChange={(event) =>
-                                      setTaskParamValues((current) => ({
-                                        ...current,
-                                        [parameter.key]: event.target.value,
-                                      }))
-                                    }
-                                  >
-                                    {parameter.allowedValues.map((option) => (
-                                      <option key={option} value={option}>
-                                        {option}
-                                      </option>
-                                    ))}
-                                  </select>
-                                </label>
-                              ))
-                            ) : (
-                              <p className="machine-details__task-create-text">
-                                У выбранной команды нет дополнительных параметров.
-                              </p>
-                            )}
-
-                            {/^linux\b/i.test(selectedMachine.os) ? (
-                              <label className="machine-details__task-checkbox">
-                                <input
-                                  type="checkbox"
-                                  checked={taskUseSudo}
-                                  onChange={(event) =>
-                                    setTaskUseSudo(event.target.checked)
-                                  }
-                                />
-                                <span>Разрешить sudo</span>
-                              </label>
-                            ) : null}
-
-                            <div className="machine-details__task-terminal">
-                              <div className="machine-details__task-terminal-head">
-                                <span>{taskPreviewShellLabel}</span>
-                                <button
-                                  type="button"
-                                  className="machine-details__inline-action machine-details__inline-action--ghost"
-                                  onClick={copyTaskPreview}
-                                >
-                                  <span>Копировать</span>
-                                </button>
-                              </div>
-                              <code>
-                                {taskPreviewCommand ||
-                                  "Выберите команду и параметры, чтобы увидеть итоговый запуск."}
-                              </code>
-                            </div>
-
-                            <div className="machine-details__task-actions">
-                              <button
-                                type="button"
-                                className="machine-details__link-button"
-                                onClick={resetTaskComposer}
-                              >
-                                Сбросить
-                              </button>
-                              <button
-                                type="submit"
-                                className="machine-details__primary-button"
-                                disabled={!canSubmitTask}
-                              >
-                                Добавить
-                              </button>
-                            </div>
-                          </form>
-                        ) : (
-                          <div className="machine-details__task-create-card">
-                            <strong>{getMachineDisplayName(selectedMachine)}</strong>
-                            <p className="machine-details__task-create-text">
-                              Для этой машины доступен только выбор разрешённых сценариев
-                              от администратора.
-                            </p>
-                          </div>
-                        )}
-                      </section>
-
-                      <section className="machine-details__panel">
-                        <header className="machine-details__section-head">
-                          <h2>Недавние задачи</h2>
-                          <button
-                            type="button"
-                            className="machine-details__link-button"
-                            onClick={() => openMachine(selectedMachine.id, "tasks")}
-                          >
-                            Смотреть все
-                          </button>
-                        </header>
-
-                        <div className="machine-details__recent-list">
-                          {selectedMachineTaskCards.length ? (
-                            selectedMachineTaskCards.slice(0, 3).map((task) => (
-                              <article
-                                key={task.id}
-                                className="machine-details__recent-card"
-                              >
-                                <div>
-                                  <p className="machine-details__recent-kicker">
-                                    Задача №{task.taskNumber}
-                                  </p>
-                                  <strong>{task.title}</strong>
-                                  <p>{task.startedAt}</p>
-                                </div>
-                                <div className="machine-details__recent-actions">
-                                  <span
-                                    className={`results-status results-status--${task.status === "completed" ? "success" : task.status === "error" ? "error" : "cancelled"}`}
-                                  >
-                                    {task.resultText}
-                                  </span>
-                                  <button
-                                    type="button"
-                                    className="machine-details__link-button"
-                                    onClick={() =>
-                                      openTaskLogs(task.id, selectedMachine.id)
-                                    }
-                                  >
-                                    Посмотреть логи
-                                  </button>
-                                </div>
-                              </article>
-                            ))
-                          ) : (
-                            <p className="machine-details__empty">
-                              По этой машине пока нет задач
-                            </p>
-                          )}
-                        </div>
-                      </section>
-                    </div>
-
-                    <section className="machine-details__panel">
-                      <header className="machine-details__section-head">
-                        <h2>Результаты</h2>
-                        <button
-                          type="button"
-                          className="machine-details__link-button"
-                          onClick={() =>
-                            openMachine(selectedMachine.id, "results")
-                          }
-                        >
-                          Смотреть все
-                        </button>
-                      </header>
-
-                      <div className="machine-details__table-wrap">
-                        <table className="results-table-card__grid">
-                          <thead>
-                            <tr>
-                              <th>Название</th>
-                              <th>Статус</th>
-                              <th>Команда</th>
-                              <th>Дата результата</th>
-                              <th>Действия</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {selectedMachineResultRows.length ? (
-                              selectedMachineResultRows.slice(0, 4).map((row) => (
-                                <tr key={row.id}>
-                                  <td>
-                                    <button
-                                      type="button"
-                                      className="results-actions__details"
-                                      onClick={() =>
-                                        openResultDetail(row.id, row.machineId)
-                                      }
-                                    >
-                                      {row.title}
-                                    </button>
-                                  </td>
-                                  <td>
-                                    <span
-                                      className={`results-status results-status--${row.statusTone}`}
-                                    >
-                                      {row.statusLabel}
-                                    </span>
-                                  </td>
-                                  <td>
-                                    <span className="results-command">
-                                      {row.command}
-                                    </span>
-                                  </td>
-                                  <td>{row.resultAt}</td>
-                                  <td>
-                                    <button
-                                      type="button"
-                                      className="results-actions__logs"
-                                      onClick={() =>
-                                        openTaskLogs(row.taskId, row.machineId)
-                                      }
-                                    >
-                                      Смотреть логи
-                                    </button>
-                                  </td>
-                                </tr>
-                              ))
-                            ) : (
-                              <tr>
-                                <td colSpan={5}>Нет результатов по этой машине</td>
-                              </tr>
-                            )}
-                          </tbody>
-                        </table>
-                      </div>
-                    </section>
-
-                    <section className="machine-details__panel">
-                      <header className="machine-details__section-head">
-                        <h2>Логи</h2>
-                        <button
-                          type="button"
-                          className="machine-details__link-button"
-                          onClick={() => openMachine(selectedMachine.id, "logs")}
-                        >
-                          Смотреть все
-                        </button>
-                      </header>
-
-                      <div className="machine-details__table-wrap">
-                        <table className="logs-table__grid">
-                          <thead>
-                            <tr>
-                              <th>Задача</th>
-                              <th>Пользователь</th>
-                              <th>Статус</th>
-                              <th>Дата</th>
-                              <th>Действия</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {selectedMachineLogEntries.length ? (
-                              selectedMachineLogEntries.slice(0, 4).map((entry) => (
-                                <tr key={entry.id}>
-                                  <td>
-                                    <div className="logs-table__task">
-                                      <strong>{entry.taskTitle}</strong>
-                                      <span>{entry.action}</span>
-                                    </div>
-                                  </td>
-                                  <td>{entry.email}</td>
-                                  <td>
-                                    <span
-                                      className={`logs-table__status logs-table__status--${entry.tone}`}
-                                    >
-                                      {entry.status}
-                                    </span>
-                                  </td>
-                                  <td>{entry.createdAt}</td>
-                                  <td>
-                                    <button
-                                      type="button"
-                                      className="logs-table__details"
-                                      onClick={() =>
-                                        openTaskLogs(entry.taskId, entry.machineId)
-                                      }
-                                    >
-                                      К деталям
-                                    </button>
-                                  </td>
-                                </tr>
-                              ))
-                            ) : (
-                              <tr>
-                                <td colSpan={5}>Нет логов по этой машине</td>
-                              </tr>
-                            )}
-                          </tbody>
-                        </table>
-                      </div>
-                    </section>
-                  </>
-                ) : machineDetailTab === "tasks" ? (
-                  <section className="machine-details__panel">
-                    <header className="machine-details__section-head">
-                      <h2>Задачи машины</h2>
-                    </header>
-                    <div className="machine-details__recent-list">
-                      {selectedMachineTaskCards.length ? (
-                        selectedMachineTaskCards.map((task) => (
-                          <article key={task.id} className="machine-details__recent-card">
-                            <div>
-                              <p className="machine-details__recent-kicker">
-                                Задача №{task.taskNumber}
-                              </p>
-                              <strong>{task.title}</strong>
-                              <p>{task.startedAt}</p>
-                            </div>
-                            <span
-                              className={`results-status results-status--${task.status === "completed" ? "success" : task.status === "error" ? "error" : "cancelled"}`}
-                            >
-                              {task.resultText}
-                            </span>
-                            <button
-                              type="button"
-                              className="machine-details__link-button"
-                              onClick={() => openTaskLogs(task.id, task.machineId)}
-                            >
-                              Посмотреть логи
-                            </button>
-                          </article>
-                        ))
-                      ) : (
-                        <p className="machine-details__empty">Нет задач по этой машине</p>
-                      )}
-                    </div>
-                  </section>
-                ) : machineDetailTab === "results" ? (
-                  <section className="machine-details__panel">
-                    <header className="machine-details__section-head">
-                      <h2>Результаты машины</h2>
-                    </header>
-                    <div className="machine-details__table-wrap">
-                      <table className="results-table-card__grid">
-                        <thead>
-                          <tr>
-                            <th>Название</th>
-                            <th>Статус</th>
-                            <th>Команда</th>
-                            <th>Дата результата</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {selectedMachineResultRows.length ? (
-                            selectedMachineResultRows.map((row) => (
-                              <tr key={row.id}>
-                                <td>{row.title}</td>
-                                <td>
-                                  <span
-                                    className={`results-status results-status--${row.statusTone}`}
-                                  >
-                                    {row.statusLabel}
-                                  </span>
-                                </td>
-                                <td>
-                                  <span className="results-command">{row.command}</span>
-                                </td>
-                                <td>{row.resultAt}</td>
-                              </tr>
-                            ))
-                          ) : (
-                            <tr>
-                              <td colSpan={4}>Нет результатов по этой машине</td>
-                            </tr>
-                          )}
-                        </tbody>
-                      </table>
-                    </div>
-                  </section>
-                ) : (
-                  <section className="machine-details__panel">
-                    <header className="machine-details__section-head">
-                      <h2>Логи машины</h2>
-                    </header>
-                    <div className="machine-details__table-wrap">
-                      <table className="logs-table__grid">
-                        <thead>
-                          <tr>
-                            <th>Задача</th>
-                            <th>Пользователь</th>
-                            <th>Статус</th>
-                            <th>Дата</th>
-                            <th>Действия</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {selectedMachineLogEntries.length ? (
-                            selectedMachineLogEntries.map((entry) => (
-                              <tr key={entry.id}>
-                                <td>
-                                  <div className="logs-table__task">
-                                    <strong>{entry.taskTitle}</strong>
-                                    <span>{entry.action}</span>
-                                  </div>
-                                </td>
-                                <td>{entry.email}</td>
-                                <td>
-                                  <span
-                                    className={`logs-table__status logs-table__status--${entry.tone}`}
-                                  >
-                                    {entry.status}
-                                  </span>
-                                </td>
-                                <td>{entry.createdAt}</td>
-                                <td>
-                                  <button
-                                    type="button"
-                                    className="logs-table__details"
-                                    onClick={() =>
-                                      openTaskLogs(entry.taskId, entry.machineId)
-                                    }
-                                  >
-                                    К деталям
-                                  </button>
-                                </td>
-                              </tr>
-                            ))
-                          ) : (
-                            <tr>
-                              <td colSpan={5}>Нет логов по этой машине</td>
-                            </tr>
-                          )}
-                        </tbody>
-                      </table>
-                    </div>
-                  </section>
-                )}
+                <MachineWorkspace
+                  machine={{
+                    id: selectedMachine.id,
+                    name: getMachineDisplayName(selectedMachine),
+                    hostname: selectedMachine.hostname,
+                    os: selectedMachine.os,
+                    heartbeat: selectedMachine.heartbeat,
+                    owner: selectedMachine.owner,
+                    role: selectedMachine.myRole,
+                    status: selectedMachine.status,
+                    statusLabel: machineStatusLabelByStatus[selectedMachine.status],
+                  }}
+                  canCreateTask={selectedMachineCanCreateTask}
+                  taskRoleLabel={selectedMachine.myRole}
+                  taskTemplateOptions={taskTemplateOptions}
+                  selectedTaskTemplateKey={taskCommand}
+                  selectedTaskParameterValues={taskParamValues}
+                  taskUseSudo={taskUseSudo}
+                  taskShellLabel={taskPreviewShellLabel}
+                  taskPreviewCommand={taskPreviewCommand}
+                  canSubmitTask={canSubmitTask}
+                  onTaskTemplateChange={setTaskCommand}
+                  onTaskParameterChange={(parameterKey, value) =>
+                    setTaskParamValues((current) => ({
+                      ...current,
+                      [parameterKey]: value,
+                    }))
+                  }
+                  onTaskUseSudoChange={setTaskUseSudo}
+                  onTaskReset={resetTaskComposer}
+                  onTaskSubmit={handleCreateTaskSubmit}
+                  onCopyTaskPreview={copyTaskPreview}
+                  tasks={selectedMachineTaskCards}
+                  results={selectedMachineResultRows}
+                  logs={selectedMachineLogEntries}
+                  onOpenTasks={() => openMachine(selectedMachine.id, "tasks")}
+                  onOpenResults={() => openMachine(selectedMachine.id, "results")}
+                  onOpenLogs={() => openMachine(selectedMachine.id, "logs")}
+                  onOpenTaskLogs={(taskId) => openTaskLogs(taskId, selectedMachine.id)}
+                  onOpenResultDetail={(resultId) =>
+                    openResultDetail(resultId, selectedMachine.id)
+                  }
+                />
               </div>
             </section>
           ) : (

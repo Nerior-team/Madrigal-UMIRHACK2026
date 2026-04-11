@@ -26,6 +26,22 @@ export type TaskLike = {
   status: OperationTaskGroup;
 };
 
+export type TaskSection<T extends TaskLike> = {
+  key: OperationTaskGroup;
+  label: string;
+  cards: T[];
+};
+
+const TASK_SECTION_META: Array<{
+  key: OperationTaskGroup;
+  label: string;
+}> = [
+  { key: "completed", label: "Завершенные" },
+  { key: "in_progress", label: "В процессе" },
+  { key: "queued", label: "В очереди" },
+  { key: "error", label: "Ошибки" },
+];
+
 const PRESENTATION_BY_STATUS: Record<
   BackendTaskLifecycle,
   OperationTaskPresentation
@@ -109,4 +125,15 @@ export function groupTasksByStatus<T extends TaskLike>(
       error: [],
     },
   );
+}
+
+export function buildTaskSections<T extends TaskLike>(
+  tasks: T[],
+): TaskSection<T>[] {
+  const grouped = groupTasksByStatus(tasks);
+
+  return TASK_SECTION_META.map((section) => ({
+    ...section,
+    cards: grouped[section.key],
+  }));
 }
