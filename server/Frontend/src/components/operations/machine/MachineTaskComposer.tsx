@@ -4,6 +4,7 @@ import { CustomSelect } from "../../primitives/CustomSelect";
 import type { MachineTaskComposerProps } from "./types";
 
 export function MachineTaskComposer({
+  isActive = false,
   canCreateTask,
   taskRoleLabel,
   machineName,
@@ -47,7 +48,12 @@ export function MachineTaskComposer({
   );
 
   return (
-    <section className="machine-details__panel machine-details__panel--task-create">
+    <section
+      className={`machine-details__panel machine-details__panel--task-create${
+        isActive ? " machine-details__panel--active" : ""
+      }`}
+      data-testid="machine-task-composer-section"
+    >
       <header className="machine-details__section-head">
         <h2>Задача</h2>
         <span className="machine-details__task-role">{taskRoleLabel}</span>

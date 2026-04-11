@@ -1073,6 +1073,7 @@ a {
 .machine-pairing-card__form {
   display: grid;
   gap: 14px;
+  align-content: start;
 }
 
 .machine-pairing-card__field {
@@ -1114,6 +1115,76 @@ a {
   margin-top: 4px;
 }
 
+.machine-pairing-card__steps {
+  margin: 2px 0 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 6px;
+  color: #4e4649;
+  font-family: "Albert Sans", sans-serif;
+  font-size: 14px;
+  line-height: 22px;
+}
+
+.machine-pairing-card__terminal {
+  margin-top: 4px;
+  border-radius: 18px;
+  border: 1px solid rgba(18, 19, 22, 0.08);
+  background: #18181a;
+  padding: 16px 18px;
+  display: grid;
+  gap: 12px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.machine-pairing-card__terminal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: rgba(255, 255, 255, 0.7);
+  font-family: "Albert Sans", sans-serif;
+  font-size: 12px;
+  line-height: 16px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.machine-pairing-card__terminal-copy {
+  min-height: 30px;
+  padding: 6px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+  font-family: "Albert Sans", sans-serif;
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 600;
+}
+
+.machine-pairing-card__terminal code {
+  color: #f8f4f5;
+  white-space: normal;
+  word-break: break-word;
+}
+
+.machine-pairing-card__hint,
+.machine-pairing-card__feedback {
+  margin: 0;
+  font-family: "Albert Sans", sans-serif;
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.machine-pairing-card__hint {
+  color: #7a7174;
+}
+
+.machine-pairing-card__feedback {
+  color: #b42318;
+}
+
 .machine-pairing-card__secondary,
 .machine-pairing-card__primary {
   min-height: 42px;
@@ -1135,6 +1206,13 @@ a {
   border: 1px solid transparent;
   background: #82333e;
   color: #fff;
+}
+
+.machine-pairing-card__secondary:disabled,
+.machine-pairing-card__primary:disabled,
+.machine-pairing-card__terminal-copy:disabled {
+  opacity: 0.6;
+  cursor: default;
 }
 
 .machines-dashboard__controls {
@@ -6849,6 +6927,109 @@ button:disabled {
   background: rgba(130, 51, 62, 0.06);
 }
 
+.machine-details__panel--active {
+  border-color: rgba(130, 51, 62, 0.26);
+  box-shadow:
+    0 20px 46px rgba(39, 19, 25, 0.09),
+    0 0 0 1px rgba(130, 51, 62, 0.05);
+}
+
+.machine-details__section-note {
+  margin: 4px 0 0;
+  color: #85777b;
+  font-family: "Albert Sans", sans-serif;
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.machine-details__task-role {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(130, 51, 62, 0.08);
+  color: #82333e;
+  font-family: "Albert Sans", sans-serif;
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.machine-details__task-field {
+  display: grid;
+  gap: 8px;
+}
+
+.machine-details__task-field > span {
+  color: #4e4649;
+  font-family: "Albert Sans", sans-serif;
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 700;
+}
+
+.machine-details__task-field .custom-select__control {
+  min-height: 46px;
+  border-radius: 12px;
+  border-color: rgba(18, 19, 22, 0.1);
+  background: rgba(255, 255, 255, 0.96);
+}
+
+.machine-details__task-checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: #6e6568;
+  font-family: "Albert Sans", sans-serif;
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.machine-details__task-checkbox input {
+  width: 16px;
+  height: 16px;
+  accent-color: #82333e;
+}
+
+.machine-details__task-terminal {
+  border-radius: 16px;
+  background: #18181a;
+  padding: 14px 16px 16px;
+  display: grid;
+  gap: 10px;
+}
+
+.machine-details__task-terminal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: rgba(255, 255, 255, 0.7);
+  font-family: "Albert Sans", sans-serif;
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.machine-details__task-terminal code {
+  color: #fff;
+  font-family: "Ubuntu Mono", monospace;
+  font-size: 14px;
+  line-height: 22px;
+  white-space: normal;
+  word-break: break-word;
+}
+
+.machine-details__task-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 4px;
+}
+
 .machine-details__task-create-card {
   min-height: 240px;
   border: 1px solid rgba(130, 51, 62, 0.12);
@@ -6908,6 +7089,7 @@ button:disabled {
 
 .machine-details__recent-list {
   display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
 }
 
@@ -6932,11 +7114,19 @@ button:disabled {
 
 .machine-details__recent-actions {
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
 }
 
 .machine-details__table-wrap {
   overflow-x: auto;
+}
+
+.results-status--pending {
+  background: #fff3d8;
+  border-color: #d8a73a;
+  color: #8f5a00;
 }
 
 .task-create-modal__field select,
@@ -6985,11 +7175,19 @@ button:disabled {
 }
 
 @media (max-width: 1180px) {
+  .machine-pairing-card {
+    grid-template-columns: 1fr;
+  }
+
   .machine-details__overview-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .machine-details__dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .machine-details__recent-list {
     grid-template-columns: 1fr;
   }
 }
@@ -7019,6 +7217,10 @@ button:disabled {
 }
 
 @media (max-width: 768px) {
+  .machine-pairing-card {
+    padding: 18px;
+  }
+
   .machines-sidebar {
     position: static;
     width: 100%;
@@ -7049,6 +7251,13 @@ button:disabled {
   .machine-details__body {
     width: calc(100% - 24px);
     margin: 12px;
+  }
+
+  .machine-details__task-actions,
+  .machine-pairing-card__actions,
+  .machine-details__recent-actions {
+    flex-direction: column;
+    align-items: stretch;
   }
 }
 

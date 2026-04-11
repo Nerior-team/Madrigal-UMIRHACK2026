@@ -19,6 +19,7 @@ function createProps(): MachineWorkspaceProps {
       status: "online",
       statusLabel: "Онлайн",
     },
+    activeSection: "dashboard",
     canCreateTask: true,
     taskRoleLabel: "Администратор",
     taskTemplateOptions: [
@@ -117,5 +118,18 @@ describe("MachineWorkspace", () => {
     await user.click(screen.getAllByRole("button", { name: "Посмотреть логи" })[0]);
 
     expect(props.onOpenTaskLogs).toHaveBeenCalledWith("task-1");
+  });
+
+  it("highlights the route-selected section without splitting the page into tabs", () => {
+    const props = createProps();
+
+    render(<MachineWorkspace {...props} activeSection="results" />);
+
+    expect(screen.getByTestId("machine-results-section")).toHaveClass(
+      "machine-details__panel--active",
+    );
+    expect(screen.getByTestId("machine-logs-section")).not.toHaveClass(
+      "machine-details__panel--active",
+    );
   });
 });

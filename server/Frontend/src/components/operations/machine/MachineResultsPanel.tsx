@@ -1,6 +1,7 @@
 import type { MachineWorkspaceResult } from "./types";
 
 type MachineResultsPanelProps = {
+  isActive?: boolean;
   results: MachineWorkspaceResult[];
   onOpenResults: () => void;
   onOpenResultDetail: (resultId: string) => void;
@@ -8,15 +9,26 @@ type MachineResultsPanelProps = {
 };
 
 export function MachineResultsPanel({
+  isActive = false,
   results,
   onOpenResults,
   onOpenResultDetail,
   onOpenTaskLogs,
 }: MachineResultsPanelProps) {
   return (
-    <section className="machine-details__panel">
+    <section
+      className={`machine-details__panel${
+        isActive ? " machine-details__panel--active" : ""
+      }`}
+      data-testid="machine-results-section"
+    >
       <header className="machine-details__section-head">
-        <h2>Результаты</h2>
+        <div>
+          <h2>Результаты</h2>
+          <p className="machine-details__section-note">
+            Последние выполненные команды по этой машине.
+          </p>
+        </div>
         <button
           type="button"
           className="machine-details__link-button"

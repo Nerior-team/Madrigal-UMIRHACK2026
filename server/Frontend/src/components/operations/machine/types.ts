@@ -67,12 +67,14 @@ type MachineTaskComposerControls = {
 };
 
 export type MachineTaskComposerProps = MachineTaskComposerControls & {
+  isActive?: boolean;
   machineName: string;
   machineOs: string;
 };
 
 export type MachineWorkspaceProps = MachineTaskComposerControls & {
   machine: MachineWorkspaceMachine;
+  activeSection: "dashboard" | "tasks" | "results" | "logs";
   tasks: MachineWorkspaceTask[];
   results: MachineWorkspaceResult[];
   logs: MachineWorkspaceLog[];

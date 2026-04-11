@@ -9,6 +9,7 @@ export type { MachineWorkspaceProps } from "./types";
 
 export function MachineWorkspace({
   machine,
+  activeSection,
   canCreateTask,
   taskRoleLabel,
   taskTemplateOptions,
@@ -53,6 +54,7 @@ export function MachineWorkspace({
 
       <div className="machine-details__dashboard-grid">
         <MachineTaskComposer
+          isActive={activeSection === "tasks"}
           canCreateTask={canCreateTask}
           taskRoleLabel={taskRoleLabel}
           machineName={machine.name}
@@ -73,6 +75,7 @@ export function MachineWorkspace({
         />
 
         <MachineTasksPanel
+          isActive={activeSection === "tasks"}
           tasks={tasks}
           onOpenTasks={onOpenTasks}
           onOpenTaskLogs={onOpenTaskLogs}
@@ -80,6 +83,7 @@ export function MachineWorkspace({
       </div>
 
       <MachineResultsPanel
+        isActive={activeSection === "results"}
         results={results}
         onOpenResults={onOpenResults}
         onOpenResultDetail={onOpenResultDetail}
@@ -87,6 +91,7 @@ export function MachineWorkspace({
       />
 
       <MachineLogsPanel
+        isActive={activeSection === "logs"}
         logs={logs}
         onOpenLogs={onOpenLogs}
         onOpenTaskLogs={onOpenTaskLogs}

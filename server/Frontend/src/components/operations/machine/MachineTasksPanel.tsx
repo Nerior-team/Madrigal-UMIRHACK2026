@@ -1,18 +1,31 @@
 import type { MachineWorkspaceTask } from "./types";
 
 type MachineTasksPanelProps = {
+  isActive?: boolean;
   tasks: MachineWorkspaceTask[];
   onOpenTasks: () => void;
   onOpenTaskLogs: (taskId: string) => void;
 };
 
+function getTaskStatusTone(status: MachineWorkspaceTask["status"]) {
+  if (status === "completed") return "success";
+  if (status === "error") return "error";
+  return "pending";
+}
+
 export function MachineTasksPanel({
+  isActive = false,
   tasks,
   onOpenTasks,
   onOpenTaskLogs,
 }: MachineTasksPanelProps) {
   return (
-    <section className="machine-details__panel">
+    <section
+      className={`machine-details__panel${
+        isActive ? " machine-details__panel--active" : ""
+      }`}
+      data-testid="machine-tasks-section"
+    >
       <header className="machine-details__section-head">
         <h2>Недавние задачи</h2>
         <button
@@ -26,24 +39,21 @@ export function MachineTasksPanel({
 
       <div className="machine-details__recent-list">
         {tasks.length ? (
-          tasks.slice(0, 3).map((task) => (
+          tasks.slice(0, 4).map((task) => (
             <article key={task.id} className="machine-details__recent-card">
               <div>
                 <p className="machine-details__recent-kicker">
                   Задача №{task.taskNumber}
                 </p>
                 <strong>{task.title}</strong>
-                <p>{task.startedAt}</p>
+                <p>Запущена: {task.startedAt}</p>
+                {task.completedAt ? <p>Завершена: {task.completedAt}</p> : null}
               </div>
               <div className="machine-details__recent-actions">
                 <span
-                  className={`results-status results-status--${
-                    task.status === "completed"
-                      ? "success"
-                      : task.status === "error"
-                        ? "error"
-                        : "cancelled"
-                  }`}
+                  className={`results-status results-status--${getTaskStatusTone(
+                    task.status,
+                  )}`}
                 >
                   {task.resultText}
                 </span>

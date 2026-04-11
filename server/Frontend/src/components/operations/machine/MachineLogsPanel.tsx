@@ -1,20 +1,32 @@
 import type { MachineWorkspaceLog } from "./types";
 
 type MachineLogsPanelProps = {
+  isActive?: boolean;
   logs: MachineWorkspaceLog[];
   onOpenLogs: () => void;
   onOpenTaskLogs: (taskId: string) => void;
 };
 
 export function MachineLogsPanel({
+  isActive = false,
   logs,
   onOpenLogs,
   onOpenTaskLogs,
 }: MachineLogsPanelProps) {
   return (
-    <section className="machine-details__panel">
+    <section
+      className={`machine-details__panel${
+        isActive ? " machine-details__panel--active" : ""
+      }`}
+      data-testid="machine-logs-section"
+    >
       <header className="machine-details__section-head">
-        <h2>Логи</h2>
+        <div>
+          <h2>Логи</h2>
+          <p className="machine-details__section-note">
+            События и переход в детальную консоль конкретной задачи.
+          </p>
+        </div>
         <button
           type="button"
           className="machine-details__link-button"

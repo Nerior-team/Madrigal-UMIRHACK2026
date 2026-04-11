@@ -71,6 +71,7 @@ import {
 import { ConsoleModal } from "./components/operations/ConsoleModal";
 import { LogsWorkspace } from "./components/operations/logs/LogsWorkspace";
 import { ResultDetailModal } from "./components/operations/ResultDetailModal";
+import { AddMachineCard } from "./components/operations/machine/AddMachineCard";
 import { MachineWorkspace } from "./components/operations/machine/MachineWorkspace";
 import { InviteAccessModal } from "./components/access/InviteAccessModal";
 import { ManageAccessModal } from "./components/access/ManageAccessModal";
@@ -78,6 +79,7 @@ import { ResultsWorkspace } from "./components/operations/results/ResultsWorkspa
 import { TasksWorkspace } from "./components/operations/tasks/TasksWorkspace";
 
 const apiClient = api;
+const AGENT_PAIR_COMMAND = "predict pair --backend-url https://nerior.store";
 
 type AuthMode = "login" | "register" | "confirm";
 type AppScreen = "auth" | "machines";
@@ -467,6 +469,8 @@ export function App() {
       ? Boolean(route.isAddMachine)
       : false;
   const selectedMachineId = route.section === "workspace" ? route.machineId ?? null : null;
+  const selectedMachineRouteTab =
+    route.section === "workspace" ? route.machineTab ?? "dashboard" : "dashboard";
   const logContext = useMemo(
     () =>
       route.section === "workspace" && route.workspaceTab === "logs"
@@ -583,6 +587,8 @@ export function App() {
   const [taskUseSudo, setTaskUseSudo] = useState(false);
   const [addMachineCode, setAddMachineCode] = useState("");
   const [addMachineDisplayName, setAddMachineDisplayName] = useState("");
+  const [isAddMachineSubmitting, setIsAddMachineSubmitting] = useState(false);
+  const [addMachineError, setAddMachineError] = useState<string | null>(null);
   const profileAvatarInputRef = useRef<HTMLInputElement | null>(null);
   const [registeredEmail, setRegisteredEmail] = useState(() => {
     try {
@@ -746,6 +752,15 @@ export function App() {
   useEffect(() => {
     setWorkspaceSearchQuery("");
   }, [workspaceTab, selectedMachineId]);
+
+  useEffect(() => {
+    if (isAddMachineRoute) {
+      return;
+    }
+
+    setAddMachineError(null);
+    setIsAddMachineSubmitting(false);
+  }, [isAddMachineRoute]);
 
   useEffect(() => {
     if (!machineDashboardCards.length) {
@@ -1556,7 +1571,7 @@ export function App() {
     }
 
     if (normalized.includes("добавить агента")) {
-      navigate(workspacePath("machines"));
+      navigate(addMachinePath());
       return;
     }
 
@@ -1601,6 +1616,20 @@ export function App() {
     }
 
     void navigator.clipboard.writeText(taskPreviewCommand);
+  };
+
+  const copyAddMachineCommand = () => {
+    if (typeof navigator === "undefined" || !navigator.clipboard?.writeText) {
+      return;
+    }
+
+    void navigator.clipboard.writeText(AGENT_PAIR_COMMAND);
+  };
+
+  const resetAddMachineForm = () => {
+    setAddMachineCode("");
+    setAddMachineDisplayName("");
+    setAddMachineError(null);
   };
 
   const resetTaskComposer = () => {
@@ -1670,21 +1699,28 @@ export function App() {
     event.preventDefault();
 
     if (!addMachineCode.trim()) {
+      setAddMachineError("Введите device code.");
       return;
     }
+
+    setIsAddMachineSubmitting(true);
+    setAddMachineError(null);
 
     try {
       const machine = await apiClient.confirmMachineRegistration({
         deviceCode: addMachineCode,
-        displayName: addMachineDisplayName,
+        displayName: addMachineDisplayName.trim() || undefined,
       });
-      setAddMachineCode("");
-      setAddMachineDisplayName("");
+      resetAddMachineForm();
       const machines = await apiClient.getMachines();
       setMachineDashboardCards(machines);
       navigate(machinePath(machine.id));
-    } catch {
-      return;
+    } catch (error) {
+      setAddMachineError(
+        extractApiErrorMessage(error, "Не удалось подтвердить device code."),
+      );
+    } finally {
+      setIsAddMachineSubmitting(false);
     }
   };
 
@@ -3439,6 +3475,7 @@ export function App() {
 
               <div className="machine-details__body">
                 <MachineWorkspace
+                  activeSection={selectedMachineRouteTab}
                   machine={{
                     id: selectedMachine.id,
                     name: getMachineDisplayName(selectedMachine),
@@ -3507,56 +3544,28 @@ export function App() {
               </header>
 
               {isAddMachineRoute ? (
-                <section className="machine-pairing-card" aria-label="Добавление машины">
-                  <div className="machine-pairing-card__copy">
-                    <h2>Добавление машины</h2>
-                    <p>
-                      Выполните на целевой машине команду <code>predict pair --backend-url https://nerior.store</code>,
-                      затем подтвердите появившийся device code здесь.
-                    </p>
-                  </div>
-
-                  <form className="machine-pairing-card__form" onSubmit={handleAddMachineSubmit}>
-                    <label className="machine-pairing-card__field">
-                      <span>Device code</span>
-                      <input
-                        type="text"
-                        value={addMachineCode}
-                        onChange={(event) => setAddMachineCode(event.target.value)}
-                        placeholder="Например, 761861"
-                        autoComplete="one-time-code"
-                      />
-                    </label>
-
-                    <label className="machine-pairing-card__field">
-                      <span>Имя машины</span>
-                      <input
-                        type="text"
-                        value={addMachineDisplayName}
-                        onChange={(event) =>
-                          setAddMachineDisplayName(event.target.value)
-                        }
-                        placeholder="Необязательно"
-                      />
-                    </label>
-
-                    <div className="machine-pairing-card__actions">
-                      <button
-                        type="button"
-                        className="machine-pairing-card__secondary"
-                        onClick={() => {
-                          setAddMachineCode("");
-                          setAddMachineDisplayName("");
-                        }}
-                      >
-                        Сбросить
-                      </button>
-                      <button type="submit" className="machine-pairing-card__primary">
-                        Подтвердить
-                      </button>
-                    </div>
-                  </form>
-                </section>
+                <AddMachineCard
+                  command={AGENT_PAIR_COMMAND}
+                  deviceCode={addMachineCode}
+                  displayName={addMachineDisplayName}
+                  errorMessage={addMachineError}
+                  isSubmitting={isAddMachineSubmitting}
+                  onDeviceCodeChange={(value) => {
+                    setAddMachineCode(value);
+                    if (addMachineError) {
+                      setAddMachineError(null);
+                    }
+                  }}
+                  onDisplayNameChange={(value) => {
+                    setAddMachineDisplayName(value);
+                    if (addMachineError) {
+                      setAddMachineError(null);
+                    }
+                  }}
+                  onReset={resetAddMachineForm}
+                  onSubmit={handleAddMachineSubmit}
+                  onCopyCommand={copyAddMachineCommand}
+                />
               ) : null}
 
               <div className="machines-dashboard__statuses">
