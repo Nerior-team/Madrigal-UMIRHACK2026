@@ -3291,6 +3291,25 @@ a {
   width: 14%;
 }
 
+.logs-table__task {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.logs-table__task strong,
+.logs-table__task span {
+  display: block;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.logs-table__task span {
+  color: #7a7a7a;
+}
+
 .logs-table__status {
   display: inline-flex;
   align-items: center;
@@ -3336,6 +3355,10 @@ a {
   color: #7a7a7a;
 }
 
+.logs-table__empty {
+  color: #7a7a7a;
+}
+
 .logs-stream {
   border: 1px solid #ccc;
   border-radius: 8px;
@@ -3355,6 +3378,12 @@ a {
   gap: 12px;
 }
 
+.logs-stream__title-block {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
 .logs-stream__header h2 {
   margin: 0;
   font-family: "Ubuntu", sans-serif;
@@ -3362,6 +3391,14 @@ a {
   line-height: 28px;
   font-weight: 500;
   color: #fff;
+}
+
+.logs-stream__title-block p {
+  margin: 0;
+  font-family: "Ubuntu", sans-serif;
+  font-size: 13px;
+  line-height: 20px;
+  color: #8da18b;
 }
 
 .logs-stream__toggle {
@@ -3389,14 +3426,26 @@ a {
   padding: 10px;
   display: grid;
   gap: 8px;
+  min-height: 0;
+  height: 100%;
+  max-height: 560px;
+  overflow: auto;
   font-family: "Ubuntu Mono", monospace;
   font-size: 13px;
   line-height: 18px;
   color: #b8fdb2;
 }
 
+.logs-stream__console-line,
 .logs-stream__console p {
   margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.logs-stream__empty {
+  color: #8da18b;
 }
 
 .results-dashboard {

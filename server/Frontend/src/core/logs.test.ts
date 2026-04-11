@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { formatLogStreamLine } from "./logs";
+import { buildLogsScopeSummary, formatLogStreamLine } from "./logs";
 
 describe("formatLogStreamLine", () => {
   it("formats request lines in Moscow time", () => {
@@ -25,5 +25,22 @@ describe("formatLogStreamLine", () => {
         text: "Порт 443 открыт",
       }),
     ).toBe("Ответ (04.04.2026, 12:01 ubuntu-prod): Порт 443 открыт");
+  });
+});
+
+describe("buildLogsScopeSummary", () => {
+  it("builds machine and task aware summary when route is scoped", () => {
+    expect(
+      buildLogsScopeSummary({
+        machine: "ubuntu-prod",
+        taskTitle: "Deploy backend",
+      }),
+    ).toBe('Логи задачи "Deploy backend" по машине ubuntu-prod');
+  });
+
+  it("falls back to the generic logs copy when no scope is set", () => {
+    expect(buildLogsScopeSummary({ machine: null, taskTitle: null })).toBe(
+      "История системных событий по задачам и машинам",
+    );
   });
 });

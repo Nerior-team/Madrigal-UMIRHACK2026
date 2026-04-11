@@ -49,6 +49,7 @@ import {
   getTaskPreviewShellLabel,
 } from "./core/task-preview";
 import { buildTaskSections } from "./core/operations";
+import { buildLogsScopeSummary } from "./core/logs";
 import {
   bootstrapAuthSession,
   terminateAuthSession,
@@ -61,6 +62,7 @@ import {
   type SearchTarget,
 } from "./core/search";
 import { ConsoleModal } from "./components/operations/ConsoleModal";
+import { LogsWorkspace } from "./components/operations/logs/LogsWorkspace";
 import { ResultDetailModal } from "./components/operations/ResultDetailModal";
 import { MachineWorkspace } from "./components/operations/machine/MachineWorkspace";
 import { InviteAccessModal } from "./components/access/InviteAccessModal";
@@ -863,6 +865,33 @@ export function App() {
       ),
     [logContext.machineId, logContext.taskId, logStreamItems, workspaceSearchQuery],
   );
+
+  const logScopeSummary = useMemo(() => {
+    const machineName =
+      (logContext.machineId
+        ? machineDashboardCards.find((machine) => machine.id === logContext.machineId)
+            ?.machine ?? visibleLogEntries[0]?.machine ?? null
+        : null) ?? null;
+    const taskTitle =
+      (logContext.taskId
+        ? visibleLogEntries.find((entry) => entry.taskId === logContext.taskId)
+            ?.taskTitle ??
+          visibleLogStreamItems.find((item) => item.taskId === logContext.taskId)
+            ?.title ??
+          null
+        : null) ?? null;
+
+    return buildLogsScopeSummary({
+      machine: machineName,
+      taskTitle,
+    });
+  }, [
+    logContext.machineId,
+    logContext.taskId,
+    machineDashboardCards,
+    visibleLogEntries,
+    visibleLogStreamItems,
+  ]);
 
   const logStatusStats = useMemo(
     () => ({
@@ -2591,155 +2620,24 @@ export function App() {
               </div>
             </section>
           ) : workspaceTab === "logs" ? (
-            <section className="logs-dashboard" aria-label="Логи">
+            <>
               {renderWorkspaceTopbar()}
-
-              <div className="logs-dashboard__body">
-                <header className="logs-dashboard__header">
-                  <div>
-                    <h1>Логи</h1>
-                    <p>История системных событий по задачам и машинам</p>
-                  </div>
-                </header>
-
-                <div className="logs-dashboard__filters">
-                  <div className="logs-dashboard__chips">
-                    <button
-                      type="button"
-                      className={`logs-dashboard__chip ${logFilterTone === "all" ? "logs-dashboard__chip--active" : ""}`}
-                      onClick={() => setLogFilterTone("all")}
-                    >
-                      Все ({logEntries.length})
-                    </button>
-                    <button
-                      type="button"
-                      className={`logs-dashboard__chip ${logFilterTone === "success" ? "logs-dashboard__chip--active" : ""}`}
-                      onClick={() => setLogFilterTone("success")}
-                    >
-                      Завершено ({logStatusStats.success})
-                    </button>
-                    <button
-                      type="button"
-                      className={`logs-dashboard__chip ${logFilterTone === "warning" ? "logs-dashboard__chip--active" : ""}`}
-                      onClick={() => setLogFilterTone("warning")}
-                    >
-                      Требует внимания ({logStatusStats.warning})
-                    </button>
-                    <button
-                      type="button"
-                      className={`logs-dashboard__chip ${logFilterTone === "critical" ? "logs-dashboard__chip--active" : ""}`}
-                      onClick={() => setLogFilterTone("critical")}
-                    >
-                      Критично ({logStatusStats.critical})
-                    </button>
-                  </div>
-
-                  <span className="logs-dashboard__search-note">Поиск выполняется через верхнюю панель</span>
-                </div>
-
-                <div className="logs-dashboard__content">
-                  <section className="logs-table" aria-label="Таблица логов">
-                    <table className="logs-table__grid">
-                      <thead>
-                        <tr>
-                          <th>Задача</th>
-                          <th>Машина</th>
-                          <th>Пользователь</th>
-                          <th>Статус</th>
-                          <th>Дата</th>
-                          <th>Действия</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {visibleLogEntries.map((entry) => (
-                          <tr key={entry.id}>
-                            <td>
-                              <div className="logs-table__task">
-                                <strong>{entry.taskTitle}</strong>
-                                <span>{entry.action}</span>
-                              </div>
-                            </td>
-                            <td>{entry.machine}</td>
-                            <td>{entry.email}</td>
-                            <td>
-                              <span
-                                className={`logs-table__status logs-table__status--${entry.tone}`}
-                              >
-                                {entry.status}
-                              </span>
-                            </td>
-                            <td>{entry.createdAt}</td>
-                            <td>
-                              <button
-                                type="button"
-                                className="logs-table__details"
-                                onClick={() =>
-                                  openTaskLogs(entry.taskId, entry.machineId)
-                                }
-                              >
-                                К деталям
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-
-                    <footer className="logs-table__footer">
-                      <span>
-                        Показано {visibleLogEntries.length} из{" "}
-                        {logEntries.length}
-                      </span>
-                      <span>Событий в потоке: {visibleLogStreamItems.length}</span>
-                    </footer>
-                  </section>
-
-                  <aside className="logs-stream" aria-label="Поток логов">
-                    <header className="logs-stream__header">
-                      <h2>Поток задачи</h2>
-                      <button
-                        type="button"
-                        className={
-                          logsAutoScrollEnabled
-                            ? "logs-stream__toggle logs-stream__toggle--active"
-                            : "logs-stream__toggle"
-                        }
-                        onClick={() =>
-                          setLogsAutoScrollEnabled((current) => !current)
-                        }
-                      >
-                        {logsAutoScrollEnabled
-                          ? "Автопрокрутка: вкл"
-                          : "Автопрокрутка: выкл"}
-                      </button>
-                    </header>
-
-                    <div
-                      className="logs-stream__console"
-                      role="log"
-                      aria-live="polite"
-                    >
-                      {visibleLogStreamItems.map((item) => (
-                        <article
-                          key={item.id}
-                          className={`logs-stream__item logs-stream__item--${item.kind}`}
-                        >
-                          <p className="logs-stream__item-title">
-                            {item.kind === "request"
-                              ? "Отправленная задача"
-                              : "Ответ"}{" "}
-                            <span>
-                              ({item.createdAt} {item.machine})
-                            </span>
-                          </p>
-                          <p className="logs-stream__item-text">{item.text}</p>
-                        </article>
-                      ))}
-                    </div>
-                  </aside>
-                </div>
-              </div>
-            </section>
+              <LogsWorkspace
+                scopeSummary={logScopeSummary}
+                filterTone={logFilterTone}
+                statusStats={logStatusStats}
+                totalEntries={logEntries.length}
+                totalStreamItems={visibleLogStreamItems.length}
+                autoScrollEnabled={logsAutoScrollEnabled}
+                entries={visibleLogEntries}
+                streamItems={visibleLogStreamItems}
+                onFilterToneChange={setLogFilterTone}
+                onToggleAutoScroll={() =>
+                  setLogsAutoScrollEnabled((current) => !current)
+                }
+                onOpenTaskLogs={openTaskLogs}
+              />
+            </>
           ) : workspaceTab === "access" ? (
             <section className="access-dashboard" aria-label="Доступ">
               {renderWorkspaceTopbar()}
