@@ -6427,8 +6427,62 @@ a {
   gap: 16px;
 }
 
+.task-create-modal__note {
+  margin: 0;
+  color: #7a7174;
+  font-family: "Albert Sans", sans-serif;
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.task-create-modal__terminal {
+  border-radius: 16px;
+  background: #18181a;
+  padding: 14px 16px 16px;
+  display: grid;
+  gap: 10px;
+}
+
+.task-create-modal__terminal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: rgba(255, 255, 255, 0.7);
+  font-family: "Albert Sans", sans-serif;
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.task-create-modal__terminal code {
+  color: #fff;
+  font-family: "Ubuntu Mono", monospace;
+  font-size: 14px;
+  line-height: 22px;
+  white-space: normal;
+  word-break: break-word;
+}
+
+.task-create-modal__actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.task-create-modal__secondary {
+  min-height: 44px;
+  padding: 10px 16px;
+  border-radius: 12px;
+  background: rgba(130, 51, 62, 0.06);
+  color: #82333e;
+  font-family: "Albert Sans", sans-serif;
+  font-size: 14px;
+  line-height: 20px;
+}
+
 .task-create-modal__submit {
-  width: 100%;
+  flex: 1;
   height: 44px;
   border: 0;
   border-radius: 8px;
@@ -6455,6 +6509,12 @@ a {
 
   .task-create-modal__params {
     grid-template-columns: 1fr;
+  }
+
+  .task-create-modal__actions,
+  .task-create-modal__terminal-head {
+    flex-direction: column;
+    align-items: stretch;
   }
 }
 
@@ -9288,7 +9348,8 @@ html[data-theme="dark"] .machine-details__section-note,
 html[data-theme="dark"] .machine-details__header h1 span,
 html[data-theme="dark"] .machine-details__recent-card p,
 html[data-theme="dark"] .machine-details__task-create-text,
-html[data-theme="dark"] .machine-details__empty {
+html[data-theme="dark"] .machine-details__empty,
+html[data-theme="dark"] .task-create-modal__note {
   color: var(--muted);
 }
 
@@ -9314,6 +9375,11 @@ html[data-theme="dark"] .home-theme-toggle,
 html[data-theme="dark"] .notification-center__trigger {
   background: rgba(30, 23, 30, 0.96);
   border-color: rgba(255, 255, 255, 0.08);
+  color: var(--text);
+}
+
+html[data-theme="dark"] .task-create-modal__secondary {
+  background: rgba(255, 255, 255, 0.06);
   color: var(--text);
 }
 

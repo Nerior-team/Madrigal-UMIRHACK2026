@@ -16,7 +16,6 @@ import {
   Shield,
   Smartphone,
   Laptop,
-  X,
 } from "lucide-react";
 import {
   api,
@@ -101,6 +100,7 @@ import { InviteAccessModal } from "./components/access/InviteAccessModal";
 import { ManageAccessModal } from "./components/access/ManageAccessModal";
 import { ResultsWorkspace } from "./components/operations/results/ResultsWorkspace";
 import { TasksWorkspace } from "./components/operations/tasks/TasksWorkspace";
+import { TaskCreateModal } from "./components/operations/tasks/TaskCreateModal";
 import { ProfileWorkspace } from "./components/profile/ProfileWorkspace";
 import { CustomSelect } from "./components/primitives/CustomSelect";
 import { ProfileGeneralSection } from "./components/profile/ProfileGeneralSection";
@@ -3978,102 +3978,44 @@ export function App() {
           </div>
         ) : null}
 
-        {isCreateTaskOpen ? (
-          <div
-            className="task-create-modal__overlay"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="task-create-title"
-            onClick={closeCreateTaskModal}
-          >
-            <form
-              className="task-create-modal"
-              onSubmit={handleCreateTaskSubmit}
-              onClick={(event) => event.stopPropagation()}
-            >
-              <button
-                type="button"
-                className="task-create-modal__close"
-                aria-label="Закрыть"
-                onClick={closeCreateTaskModal}
-              >
-                <X size={20} />
-              </button>
-
-              <div className="task-create-modal__head">
-                <p>Новая задача</p>
-                <h2 id="task-create-title">Создание задачи</h2>
-              </div>
-
-              <label className="task-create-modal__field">
-                <span>Машина</span>
-                <CustomSelect
-                  value={taskMachineId}
-                  options={[
-                    { value: "", label: "Выбрать" },
-                    ...machineDashboardCards.map((machine) => ({
-                      value: machine.id,
-                      label: getMachineDisplayName(machine),
-                    })),
-                  ]}
-                  onChange={setTaskMachineId}
-                  ariaLabel="Выбор машины для задачи"
-                />
-              </label>
-
-              <label className="task-create-modal__field">
-                <span>Команда</span>
-                <CustomSelect
-                  value={taskCommand}
-                  options={[
-                    {
-                      value: "",
-                      label: taskMachineId ? "Выбрать" : "Сначала выберите машину",
-                    },
-                    ...runnableTaskTemplateOptions.map((template) => ({
-                      value: template.templateKey,
-                      label: template.name,
-                    })),
-                  ]}
-                  onChange={setTaskCommand}
-                  disabled={!taskMachineId || !runnableTaskTemplateOptions.length}
-                  ariaLabel="Выбор команды для задачи"
-                />
-              </label>
-
-              {selectedTaskTemplate ? (
-                <div className="task-create-modal__params">
-                  {selectedTaskTemplate.parameters.map((parameter) => (
-                    <label
-                      key={parameter.key}
-                      className="task-create-modal__field"
-                    >
-                      <span>{parameter.label}</span>
-                      <CustomSelect
-                        value={taskParamValues[parameter.key] ?? ""}
-                        options={parameter.allowedValues.map((option) => ({
-                          value: option,
-                          label: option,
-                        }))}
-                        onChange={(value) =>
-                          setTaskParamValues((current) => ({
-                            ...current,
-                            [parameter.key]: value,
-                          }))
-                        }
-                        ariaLabel={`Параметр ${parameter.label}`}
-                      />
-                    </label>
-                  ))}
-                </div>
-              ) : null}
-
-              <button type="submit" className="task-create-modal__submit">
-                Создать задачу
-              </button>
-            </form>
-          </div>
-        ) : null}
+        <TaskCreateModal
+          isOpen={isCreateTaskOpen}
+          machineId={taskMachineId}
+          machineOptions={[
+            { value: "", label: "Выбрать" },
+            ...machineDashboardCards.map((machine) => ({
+              value: machine.id,
+              label: getMachineDisplayName(machine),
+            })),
+          ]}
+          onMachineChange={setTaskMachineId}
+          templateId={taskCommand}
+          templateOptions={[
+            {
+              value: "",
+              label: taskMachineId ? "Выбрать" : "Сначала выберите машину",
+            },
+            ...runnableTaskTemplateOptions.map((template) => ({
+              value: template.templateKey,
+              label: template.name,
+            })),
+          ]}
+          onTemplateChange={setTaskCommand}
+          selectedTemplate={selectedTaskTemplate}
+          parameterValues={taskParamValues}
+          onParameterChange={(parameterKey, value) =>
+            setTaskParamValues((current) => ({
+              ...current,
+              [parameterKey]: value,
+            }))
+          }
+          previewShellLabel={taskPreviewShellLabel}
+          previewCommand={taskPreviewCommand}
+          canSubmit={canSubmitTask}
+          onReset={resetTaskComposer}
+          onClose={closeCreateTaskModal}
+          onSubmit={handleCreateTaskSubmit}
+        />
       </main>
     );
   }
