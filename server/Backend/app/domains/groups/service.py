@@ -1,3 +1,4 @@
+from app.core.config import get_settings
 from app.core.exceptions import AppError
 from app.domains.access.repository import AccessRepository
 from app.domains.access.roles import ensure_can_view_machine
@@ -12,8 +13,10 @@ from app.domains.groups.schemas import (
 )
 from app.domains.machines.repository import MachineRepository
 from app.domains.machines.schemas import MachineSummary
+from app.domains.machines.status import resolve_machine_status
 from app.infra.observability.audit import record_audit_event
 from app.shared.enums import AuditStatus
+from app.shared.time import utc_now
 
 
 class GroupService:
@@ -27,6 +30,7 @@ class GroupService:
         self.group_repository = group_repository
         self.access_repository = access_repository
         self.machine_repository = machine_repository
+        self.settings = get_settings()
 
     def _require_group_owner(self, *, group_id: str, actor_user_id: str):
         group = self.group_repository.get_group_for_owner(group_id=group_id, owner_user_id=actor_user_id)
@@ -44,8 +48,14 @@ class GroupService:
                     hostname=row.machine.hostname,
                     os_family=row.machine.os_family,
                     os_version=row.machine.os_version,
-                    status=row.machine.status,
+                    status=resolve_machine_status(
+                        stored_status=row.machine.status,
+                        last_heartbeat_at=row.machine.last_heartbeat_at,
+                        now=utc_now(),
+                        stale_minutes=self.settings.machine_heartbeat_stale_minutes,
+                    ),
                     last_heartbeat_at=row.machine.last_heartbeat_at,
+                    unpaired_at=row.unpaired_at,
                     owner_email=row.owner_email,
                     my_role=row.my_role,
                 )
@@ -193,4 +203,3 @@ class GroupService:
     def resolve_group_machine_ids(self, *, actor_user_id: str, group_id: str) -> list[str]:
         group = self._require_group_owner(group_id=group_id, actor_user_id=actor_user_id)
         return self.group_repository.list_group_machine_ids(group_id=group.id)
-

@@ -46,6 +46,7 @@ class Settings(BaseSettings):
     auth_reauth_lockout_seconds: int = 600
     machine_registration_ttl_minutes: int = 15
     machine_invite_ttl_hours: int = 72
+    machine_heartbeat_stale_minutes: int = 5
 
     smtp_host: str
     smtp_port: int

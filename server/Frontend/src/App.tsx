@@ -2495,17 +2495,19 @@ export function App() {
     setProfileSaveError(null);
     setIsProfileSaving(true);
 
-    try {
-      const nextProfile = await accountApi.updateProfile({
-        firstName: profileFirstName.trim(),
-        lastName: profileLastName.trim(),
-        avatarDataUrl: profileAvatarUrl,
-        deletedMachineRetention: profileDeletedRetention,
-      });
-      setProfileDetails(nextProfile);
-      setProfileDashboard((current) =>
-        current
-          ? {
+      try {
+        const nextProfile = await accountApi.updateProfile({
+          firstName: profileFirstName.trim(),
+          lastName: profileLastName.trim(),
+          avatarDataUrl: profileAvatarUrl,
+          deletedMachineRetention: profileDeletedRetention,
+        });
+        const refreshedMachines = await apiClient.getMachines();
+        setProfileDetails(nextProfile);
+        setMachineDashboardCards(refreshedMachines);
+        setProfileDashboard((current) =>
+          current
+            ? {
               ...current,
               firstName: nextProfile.firstName,
               lastName: nextProfile.lastName,
