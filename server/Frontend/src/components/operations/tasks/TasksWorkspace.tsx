@@ -5,8 +5,16 @@ import {
   type OperationTaskGroup,
   type TaskSection,
 } from "../../../core/operations";
+import {
+  formatResultDateRangeLabel,
+  type ResultDateRange,
+} from "../../../core/results";
 import { EmptyState } from "../../primitives/EmptyState";
 import { Pagination } from "../../primitives/Pagination";
+import {
+  CustomSelect,
+  type CustomSelectOption,
+} from "../../primitives/CustomSelect";
 
 const FILTER_OPTIONS: Array<{
   value: "all" | OperationTaskGroup;
@@ -24,8 +32,16 @@ const PAGE_SIZE = 6;
 export type TasksWorkspaceProps = {
   totalItems: number;
   activeFilter: "all" | OperationTaskGroup;
+  machineValue: string;
+  templateValue: string;
+  dateRange: ResultDateRange;
+  machineOptions: Array<CustomSelectOption<string>>;
+  templateOptions: Array<CustomSelectOption<string>>;
   sections: Array<TaskSection<TaskCardResponse>>;
   onFilterChange: (value: "all" | OperationTaskGroup) => void;
+  onMachineChange: (value: string) => void;
+  onTemplateChange: (value: string) => void;
+  onDateRangeChange: (range: ResultDateRange) => void;
   onOpenLogs: (taskId: string, machineId: string) => void;
   onSecondaryAction: (task: TaskCardResponse) => void;
 };
@@ -35,8 +51,7 @@ function getTaskActionLabels(task: TaskCardResponse) {
 
   return {
     secondaryActionLabel: isActive ? "Отменить" : "Повторить",
-    primaryActionLabel: "Посмотреть логи",
-    finishedLabel: isActive ? "Обновлено" : "Завершено",
+    primaryActionLabel: "Открыть логи",
   };
 }
 
@@ -50,12 +65,26 @@ function getResultIcon(task: TaskCardResponse) {
 export function TasksWorkspace({
   totalItems,
   activeFilter,
+  machineValue,
+  templateValue,
+  dateRange,
+  machineOptions,
+  templateOptions,
   sections,
   onFilterChange,
+  onMachineChange,
+  onTemplateChange,
+  onDateRangeChange,
   onOpenLogs,
   onSecondaryAction,
 }: TasksWorkspaceProps) {
   const [pages, setPages] = useState<Record<string, number>>({});
+  const [isDateRangeOpen, setIsDateRangeOpen] = useState(false);
+  const [draftRange, setDraftRange] = useState<ResultDateRange>(dateRange);
+
+  useEffect(() => {
+    setDraftRange(dateRange);
+  }, [dateRange]);
 
   useEffect(() => {
     setPages((current) =>
@@ -70,6 +99,11 @@ export function TasksWorkspace({
       }, {}),
     );
   }, [sections]);
+
+  const visibleItems = useMemo(
+    () => sections.reduce((sum, section) => sum + section.cards.length, 0),
+    [sections],
+  );
 
   const pagedSections = useMemo(
     () =>
@@ -91,7 +125,11 @@ export function TasksWorkspace({
       <header className="tasks-dashboard__header">
         <div className="tasks-dashboard__title-box">
           <h1>Задачи</h1>
-          <p>{`Всего ${totalItems}`}</p>
+          <p>
+            {visibleItems === totalItems
+              ? `Всего ${totalItems}`
+              : `Показано ${visibleItems} из ${totalItems}`}
+          </p>
         </div>
       </header>
 
@@ -112,12 +150,97 @@ export function TasksWorkspace({
         ))}
       </div>
 
-      <div className="tasks-dashboard__statuses">
-        {sections.map((section) => (
-          <p key={section.key} className="tasks-dashboard__status-item">
-            <span>{`${section.label} (${section.cards.length})`}</span>
-          </p>
-        ))}
+      <div className="tasks-dashboard__filter-grid">
+        <label className="tasks-filter-field">
+          <span>Машина</span>
+          <CustomSelect
+            value={machineValue}
+            options={machineOptions}
+            onChange={onMachineChange}
+            ariaLabel="Фильтр задач по машине"
+            className="tasks-filter"
+          />
+        </label>
+
+        <label className="tasks-filter-field">
+          <span>Тип задачи</span>
+          <CustomSelect
+            value={templateValue}
+            options={templateOptions}
+            onChange={onTemplateChange}
+            ariaLabel="Фильтр задач по типу"
+            className="tasks-filter"
+          />
+        </label>
+
+        <div className="tasks-filter-field tasks-filter-field--date">
+          <span>Период запуска</span>
+          <div className="results-date-filter tasks-date-filter">
+            <button
+              type="button"
+              className="results-date-filter__trigger"
+              aria-label={formatResultDateRangeLabel(dateRange)}
+              onClick={() => setIsDateRangeOpen((value) => !value)}
+            >
+              {formatResultDateRangeLabel(dateRange)}
+            </button>
+
+            {isDateRangeOpen ? (
+              <div className="results-date-filter__panel">
+                <label className="results-date-filter__field">
+                  <span>От</span>
+                  <input
+                    type="date"
+                    value={draftRange.from}
+                    onChange={(event) =>
+                      setDraftRange((current) => ({
+                        ...current,
+                        from: event.target.value,
+                      }))
+                    }
+                  />
+                </label>
+                <label className="results-date-filter__field">
+                  <span>До</span>
+                  <input
+                    type="date"
+                    value={draftRange.to}
+                    onChange={(event) =>
+                      setDraftRange((current) => ({
+                        ...current,
+                        to: event.target.value,
+                      }))
+                    }
+                  />
+                </label>
+                <div className="results-date-filter__actions">
+                  <button
+                    type="button"
+                    className="results-date-filter__button results-date-filter__button--secondary"
+                    onClick={() => {
+                      const emptyRange = { from: "", to: "" };
+                      setDraftRange(emptyRange);
+                      onDateRangeChange(emptyRange);
+                      setIsDateRangeOpen(false);
+                    }}
+                  >
+                    Сбросить
+                  </button>
+                  <button
+                    type="button"
+                    className="results-date-filter__button results-date-filter__button--primary"
+                    onClick={() => {
+                      onDateRangeChange(draftRange);
+                      setIsDateRangeOpen(false);
+                    }}
+                  >
+                    Применить
+                  </button>
+                </div>
+              </div>
+            ) : null}
+          </div>
+        </div>
       </div>
 
       <div
@@ -125,15 +248,23 @@ export function TasksWorkspace({
       >
         {pagedSections.map((section) => (
           <section key={section.key} className="tasks-status-column">
+            <header className="tasks-status-column__header">
+              <div>
+                <h2>{section.label}</h2>
+                <p>
+                  {section.cards.length
+                    ? `${section.cards.length} задач`
+                    : "Нет задач по выбранным фильтрам"}
+                </p>
+              </div>
+            </header>
+
             {section.visibleCards.length ? (
               <>
                 <div className="tasks-status-column__cards">
                   {section.visibleCards.map((task) => {
-                    const {
-                      secondaryActionLabel,
-                      primaryActionLabel,
-                      finishedLabel,
-                    } = getTaskActionLabels(task);
+                    const { secondaryActionLabel, primaryActionLabel } =
+                      getTaskActionLabels(task);
 
                     return (
                       <article
@@ -146,23 +277,32 @@ export function TasksWorkspace({
                             <h3 className="task-card__title">{task.title}</h3>
                           </div>
 
+                          <div className="task-card__meta">
+                            <span className="task-card__meta-item">{task.machine}</span>
+                            <span className="task-card__meta-item">
+                              {task.templateKey}
+                            </span>
+                          </div>
+
                           <div className="task-card__timeline">
-                            <p>{`Машина: ${task.machine}`}</p>
-                            <p>{`Отправил: ${task.requestedBy}`}</p>
+                            <p>{`Инициатор: ${task.requestedBy}`}</p>
                             <p>{`Старт: ${task.startedAt}`}</p>
                             {task.completedAt ? (
-                              <p>{`${finishedLabel}: ${task.completedAt}`}</p>
+                              <p>{`Завершено: ${task.completedAt}`}</p>
                             ) : null}
                           </div>
+                        </div>
+
+                        <div className="task-card__command">
+                          <span className="task-card__command-label">
+                            Команда запуска
+                          </span>
+                          <code>{task.renderedCommand}</code>
                         </div>
 
                         <div className="task-card__divider" />
 
                         <div className="task-card__footer">
-                          <div className="task-card__server">
-                            <img src="/server.png" alt="" aria-hidden="true" />
-                            <span>{task.machine}</span>
-                          </div>
                           <div
                             className={`task-card__result task-card__result--${task.resultColor}`}
                           >
@@ -213,7 +353,7 @@ export function TasksWorkspace({
               <div className="tasks-status-column__empty">
                 <EmptyState
                   title={`${section.label}: пусто`}
-                  description="По подходящим фильтрам задач нет."
+                  description="Измените фильтры или выберите другую машину, чтобы увидеть задачи."
                 />
               </div>
             )}

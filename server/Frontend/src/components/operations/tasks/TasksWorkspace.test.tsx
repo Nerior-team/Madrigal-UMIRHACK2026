@@ -15,7 +15,9 @@ function createTaskCards(count: number) {
     taskNumber: `${index + 1}`,
     title: `Deploy backend ${index + 1}`,
     startedAt: "10.04.2026, 12:00",
+    startedAtIso: "2026-04-10T09:00:00Z",
     completedAt: "10.04.2026, 12:05",
+    completedAtIso: "2026-04-10T09:05:00Z",
     serverNumber: "1",
     resultText: "Задача завершена",
     resultColor: "green" as const,
@@ -28,6 +30,17 @@ function createProps(): TasksWorkspaceProps {
   return {
     totalItems: 7,
     activeFilter: "all",
+    machineValue: "all",
+    templateValue: "all",
+    dateRange: { from: "", to: "" },
+    machineOptions: [
+      { value: "all", label: "Все машины" },
+      { value: "ubuntu-prod", label: "ubuntu-prod" },
+    ],
+    templateOptions: [
+      { value: "all", label: "Все типы задач" },
+      { value: "system:deploy", label: "Deploy backend 1 • system:deploy" },
+    ],
     sections: [
       {
         key: "completed",
@@ -51,6 +64,9 @@ function createProps(): TasksWorkspaceProps {
       },
     ],
     onFilterChange: vi.fn(),
+    onMachineChange: vi.fn(),
+    onTemplateChange: vi.fn(),
+    onDateRangeChange: vi.fn(),
     onOpenLogs: vi.fn(),
     onSecondaryAction: vi.fn(),
   };
@@ -81,7 +97,7 @@ describe("TasksWorkspace", () => {
 
     await user.click(screen.getByRole("button", { name: "В очереди" }));
     await user.click(screen.getAllByRole("button", { name: "Повторить" })[0]);
-    await user.click(screen.getAllByRole("button", { name: "Посмотреть логи" })[0]);
+    await user.click(screen.getAllByRole("button", { name: "Открыть логи" })[0]);
 
     expect(props.onFilterChange).toHaveBeenCalledWith("queued");
     expect(props.onSecondaryAction).toHaveBeenCalledWith(

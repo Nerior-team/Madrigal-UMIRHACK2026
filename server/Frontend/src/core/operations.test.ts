@@ -11,7 +11,7 @@ describe("getTaskPresentation", () => {
     expect(getTaskPresentation("queued")).toMatchObject({
       group: "queued",
       taskStatusLabel: "В очереди",
-      resultLabel: "Задача в очереди",
+      resultLabel: "Ожидает запуска",
     });
   });
 

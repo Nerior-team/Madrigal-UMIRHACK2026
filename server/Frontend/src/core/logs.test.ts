@@ -35,12 +35,12 @@ describe("buildLogsScopeSummary", () => {
         machine: "ubuntu-prod",
         taskTitle: "Deploy backend",
       }),
-    ).toBe('Логи задачи "Deploy backend" по машине ubuntu-prod');
+    ).toBe("Логи задачи «Deploy backend» на машине ubuntu-prod");
   });
 
   it("falls back to the generic logs copy when no scope is set", () => {
     expect(buildLogsScopeSummary({ machine: null, taskTitle: null })).toBe(
-      "История системных событий по задачам и машинам",
+      "История событий по задачам и машинам",
     );
   });
 });

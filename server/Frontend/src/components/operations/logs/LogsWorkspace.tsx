@@ -88,67 +88,77 @@ export function LogsWorkspace({
 
         <div className="logs-dashboard__content">
           <section className="logs-table" aria-label="Журнал задач">
-            <table className="logs-table__grid">
-              <thead>
-                <tr>
-                  <th>Задача</th>
-                  <th>Машина</th>
-                  <th>Пользователь</th>
-                  <th>Состояние</th>
-                  <th>Когда</th>
-                  <th>Действие</th>
-                </tr>
-              </thead>
-              <tbody>
-                {pagedEntries.length ? (
-                  pagedEntries.map((entry) => (
-                    <tr key={entry.id}>
-                      <td>
-                        <div className="logs-table__task">
-                          <strong className="logs-table__task-title">
-                            {entry.taskTitle}
-                          </strong>
-                          <span className="logs-table__task-action">
-                            {entry.action}
+            <div className="logs-table__summary">
+              <strong>{scopeSummary}</strong>
+              <span>Консоль привязана к конкретной задаче и выбранной машине.</span>
+            </div>
+
+            <div className="logs-table__wrap">
+              <table className="logs-table__grid">
+                <thead>
+                  <tr>
+                    <th>Задача</th>
+                    <th>Машина</th>
+                    <th>Пользователь</th>
+                    <th>Состояние</th>
+                    <th>Когда</th>
+                    <th>Действие</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pagedEntries.length ? (
+                    pagedEntries.map((entry) => (
+                      <tr key={entry.id}>
+                        <td>
+                          <div className="logs-table__task">
+                            <strong className="logs-table__task-title">
+                              {entry.taskTitle}
+                            </strong>
+                            <code className="logs-table__command">
+                              {entry.renderedCommand}
+                            </code>
+                            <span className="logs-table__task-action">
+                              {entry.action}
+                            </span>
+                          </div>
+                        </td>
+                        <td>
+                          <span className="logs-table__context">{entry.machine}</span>
+                        </td>
+                        <td>
+                          <span className="logs-table__email">{entry.email}</span>
+                        </td>
+                        <td>
+                          <span
+                            className={`logs-table__status logs-table__status--${entry.tone}`}
+                          >
+                            {entry.status}
                           </span>
-                        </div>
-                      </td>
-                      <td>
-                        <span className="logs-table__context">{entry.machine}</span>
-                      </td>
-                      <td>
-                        <span className="logs-table__email">{entry.email}</span>
-                      </td>
-                      <td>
-                        <span
-                          className={`logs-table__status logs-table__status--${entry.tone}`}
-                        >
-                          {entry.status}
-                        </span>
-                      </td>
-                      <td>{entry.createdAt}</td>
-                      <td>
-                        <button
-                          type="button"
-                          className="logs-table__details"
-                          onClick={() =>
-                            onOpenTaskLogs(entry.taskId, entry.machineId)
-                          }
-                        >
-                          Посмотреть логи
-                        </button>
+                        </td>
+                        <td>{entry.createdAt}</td>
+                        <td>
+                          <button
+                            type="button"
+                            className="logs-table__details"
+                            onClick={() =>
+                              onOpenTaskLogs(entry.taskId, entry.machineId)
+                            }
+                          >
+                            Открыть консоль
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={6} className="logs-table__empty">
+                        По текущим фильтрам записей не найдено.
                       </td>
                     </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={6} className="logs-table__empty">
-                      По текущим фильтрам записей не найдено.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+                  )}
+                </tbody>
+              </table>
+            </div>
 
             <footer className="logs-table__footer">
               <span>{`Показано ${pagedEntries.length} из ${entries.length}`}</span>

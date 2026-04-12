@@ -86,7 +86,9 @@ export interface TaskCardResponse {
   taskNumber: string;
   title: string;
   startedAt: string;
+  startedAtIso: string;
   completedAt?: string;
+  completedAtIso?: string;
   serverNumber: string;
   resultText: string;
   resultColor: "green" | "yellow" | "red" | "gray";
@@ -619,13 +621,15 @@ function mapTask(
   const machine = machineMap.get(task.machine_id);
   const taskTitle = machine ? `${task.template_name}` : task.template_name;
 
-  const startedAt = formatDateTime(
-    lastAttempt?.started_at ?? lastAttempt?.queued_at ?? task.created_at,
-  );
-  const completedAt =
+  const startedAtIso =
+    lastAttempt?.started_at ?? lastAttempt?.queued_at ?? task.created_at;
+  const startedAt = formatDateTime(startedAtIso);
+  const completedAtIso =
     presentation.group === "in_progress" || presentation.group === "queued"
       ? undefined
-      : formatDateTime(lastAttempt?.finished_at ?? task.created_at);
+      : lastAttempt?.finished_at ?? task.created_at;
+  const completedAt =
+    completedAtIso == null ? undefined : formatDateTime(completedAtIso);
   const requestedBy = resolveUserDisplayName(
     task.requested_by_email ?? userEmailMap.get(task.requested_by_user_id),
     task.requested_by_user_id,
@@ -635,10 +639,18 @@ function mapTask(
   let statusLabel = presentation.taskStatusLabel;
 
   if (task.status === "cancelled" && task.cancelled_by_email) {
-    resultText = `Отменено: ${task.cancelled_by_email}`;
-    statusLabel = "Завершено администратором";
+    resultText = formatTaskActorAction(
+      "Отменил",
+      task.cancelled_by_role,
+      task.cancelled_by_email,
+    );
+    statusLabel = "Отменено";
   } else if (task.cancel_requested_by_email) {
-    resultText = `Запрошена отмена: ${task.cancel_requested_by_email}`;
+    resultText = formatTaskActorAction(
+      "Запросил отмену",
+      task.cancel_requested_by_role,
+      task.cancel_requested_by_email,
+    );
   } else if (task.status_reason) {
     resultText = task.status_reason;
   }
@@ -654,7 +666,9 @@ function mapTask(
     taskNumber,
     title: taskTitle,
     startedAt,
+    startedAtIso,
     completedAt,
+    completedAtIso,
     serverNumber: extractDigits(task.machine_id) || task.machine_id.slice(0, 6),
     resultText,
     resultColor: mapPresentationToResultColor(presentation.resultTone),
@@ -668,6 +682,23 @@ function mapAccessRoleLabel(role: BackendMachineRole): string {
   if (role === "admin") return "Администратор";
   if (role === "operator") return "Оператор";
   return "Наблюдатель";
+}
+
+function mapTaskActorRoleLabel(role?: string | null): string {
+  if (role === "owner") return "владелец";
+  if (role === "admin") return "администратор";
+  if (role === "operator") return "оператор";
+  if (role === "viewer") return "наблюдатель";
+  return "пользователь";
+}
+
+function formatTaskActorAction(
+  prefix: string,
+  role?: string | null,
+  email?: string | null,
+): string {
+  const roleLabel = mapTaskActorRoleLabel(role);
+  return email ? `${prefix} ${roleLabel} • ${email}` : `${prefix} ${roleLabel}`;
 }
 
 function mapAccessRoleTone(
@@ -1594,13 +1625,21 @@ export const api = {
     );
     const statusLabel =
       task.status === "cancelled" && task.cancelled_by_email
-        ? "Завершено администратором"
+        ? "Отменено"
         : presentation.taskStatusLabel;
     const resultText =
       task.status === "cancelled" && task.cancelled_by_email
-        ? `Отменено: ${task.cancelled_by_email}`
+        ? formatTaskActorAction(
+            "Отменил",
+            task.cancelled_by_role,
+            task.cancelled_by_email,
+          )
         : task.cancel_requested_by_email
-          ? `Запрошена отмена: ${task.cancel_requested_by_email}`
+          ? formatTaskActorAction(
+              "Запросил отмену",
+              task.cancel_requested_by_role,
+              task.cancel_requested_by_email,
+            )
           : task.status_reason || presentation.resultLabel;
 
     return {
@@ -1920,7 +1959,7 @@ export const api = {
           resource: machine.display_name || machine.hostname,
           status: status.status,
           statusTone: status.statusTone,
-          action: entry.revoked_at ? "-" : "РћС‚РѕР·РІР°С‚СЊ",
+          action: entry.revoked_at ? "-" : "Отозвать",
         };
       });
 
@@ -1947,25 +1986,25 @@ export const api = {
       metrics: [
         {
           id: "users_total",
-          title: "Р’СЃРµРіРѕ РїРѕР»СЊР·РѕРІР°С‚РµР»РµР№",
+          title: "Всего пользователей",
           value: String(uniqueUsers.size),
           tone: "highlight",
         },
         {
           id: "admins_total",
-          title: "РђРґРјРёРЅРёСЃС‚СЂР°С‚РѕСЂРѕРІ",
+          title: "Администраторов",
           value: String(uniqueAdmins.size),
           tone: "default",
         },
         {
           id: "agents_total",
-          title: "Р’СЃРµРіРѕ Р°РіРµРЅС‚РѕРІ",
+          title: "Всего агентов",
           value: String(machines.length),
           tone: "default",
         },
         {
           id: "agents_online",
-          title: "РћРЅР»Р°Р№РЅ",
+          title: "Онлайн",
           value: String(agentsOnline),
           tone: "default",
         },

@@ -6,7 +6,7 @@ import { LogsWorkspace, type LogsWorkspaceProps } from "./LogsWorkspace";
 
 function createProps(): LogsWorkspaceProps {
   return {
-    scopeSummary: 'Логи задачи "Deploy backend" по машине ubuntu-prod',
+    scopeSummary: "Логи задачи «Deploy backend» на машине ubuntu-prod",
     filterTone: "all",
     statusStats: {
       success: 1,
@@ -22,6 +22,7 @@ function createProps(): LogsWorkspaceProps {
         taskId: "task-1",
         machineId: "machine-1",
         taskTitle: "Deploy backend",
+        renderedCommand: "docker compose up --build -d",
         action: "Отправленная задача",
         email: "operator@example.com",
         status: "Выполнено",
@@ -57,13 +58,11 @@ describe("LogsWorkspace", () => {
     render(<LogsWorkspace {...props} />);
 
     expect(screen.getByRole("heading", { name: "Логи" })).toBeInTheDocument();
-    expect(screen.getByText(props.scopeSummary)).toBeInTheDocument();
+    expect(screen.getAllByText(props.scopeSummary)).toHaveLength(3);
     expect(screen.getByText("operator@example.com")).toBeInTheDocument();
-    expect(
-      screen.getByText(
-        "Отправленная задача (11.04.2026, 16:00 ubuntu-prod): docker compose up --build -d",
-      ),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("log")).toHaveTextContent(
+      "11.04.2026, 16:00ubuntu-proddocker compose up --build -d",
+    );
 
     await user.click(
       screen.getByRole("button", { name: "Открыть консоль" }),

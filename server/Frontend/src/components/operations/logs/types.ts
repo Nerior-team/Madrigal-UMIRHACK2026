@@ -9,6 +9,7 @@ export type LogsWorkspaceEntry = {
   taskId: string;
   machineId: string;
   taskTitle: string;
+  renderedCommand: string;
   action: string;
   email: string;
   status: string;

@@ -224,6 +224,30 @@ type ReportComparisonStats = {
 
 type ResultHistoryRow = ResultsDashboardResponse["rows"][number];
 
+function getDateRangeStart(value: string): Date | null {
+  if (!value) return null;
+  const date = new Date(`${value}T00:00:00`);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function getDateRangeEnd(value: string): Date | null {
+  if (!value) return null;
+  const date = new Date(`${value}T23:59:59.999`);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function matchesIsoDateRange(value: string, range: ResultDateRange): boolean {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return false;
+  }
+
+  const rangeStart = getDateRangeStart(range.from);
+  const rangeEnd = getDateRangeEnd(range.to);
+
+  return (!rangeStart || date >= rangeStart) && (!rangeEnd || date <= rangeEnd);
+}
+
 function getReportComparisonStats(
   tasks: ReportTaskItem[],
 ): ReportComparisonStats {
@@ -678,6 +702,12 @@ export function App() {
   });
   const [taskFilterStatus, setTaskFilterStatus] =
     useState<TaskFilterStatus>("all");
+  const [taskFilterMachine, setTaskFilterMachine] = useState("all");
+  const [taskFilterTemplate, setTaskFilterTemplate] = useState("all");
+  const [taskDateRange, setTaskDateRange] = useState<ResultDateRange>({
+    from: "",
+    to: "",
+  });
   const [logFilterTone, setLogFilterTone] = useState<"all" | LogStatusTone>(
     "all",
   );
@@ -1427,21 +1457,86 @@ export function App() {
     [machineDashboardCards, workspaceSearchQuery],
   );
 
-  const taskStatusGroups = useMemo(
+  const taskMachineOptions = useMemo(
+    () => [
+      { value: "all", label: "Все машины" },
+      ...[...new Set(taskCards.map((task) => task.machine))]
+        .sort((left, right) => left.localeCompare(right, "ru"))
+        .map((value) => ({ value, label: value })),
+    ],
+    [taskCards],
+  );
+
+  const taskTypeFilterOptions = useMemo(() => {
+    const uniqueTemplates = new Map<string, string>();
+
+    taskCards.forEach((task) => {
+      if (!uniqueTemplates.has(task.templateKey)) {
+        uniqueTemplates.set(task.templateKey, task.title);
+      }
+    });
+
+    return [
+      { value: "all", label: "Все типы задач" },
+      ...[...uniqueTemplates.entries()]
+        .sort((left, right) => left[1].localeCompare(right[1], "ru"))
+        .map(([value, label]) => ({
+          value,
+          label: label === value ? label : `${label} • ${value}`,
+        })),
+    ];
+  }, [taskCards]);
+
+  useEffect(() => {
+    if (
+      taskFilterMachine !== "all" &&
+      !taskMachineOptions.some((option) => option.value === taskFilterMachine)
+    ) {
+      setTaskFilterMachine("all");
+    }
+  }, [taskFilterMachine, taskMachineOptions]);
+
+  useEffect(() => {
+    if (
+      taskFilterTemplate !== "all" &&
+      !taskTypeFilterOptions.some((option) => option.value === taskFilterTemplate)
+    ) {
+      setTaskFilterTemplate("all");
+    }
+  }, [taskFilterTemplate, taskTypeFilterOptions]);
+
+  const filteredTaskCards = useMemo(
     () =>
-      buildTaskSections(taskCards).map((section) => ({
-        ...section,
-        cards: section.cards.filter((task) =>
+      taskCards.filter(
+        (task) =>
           matchesSearchQuery(workspaceSearchQuery, [
             task.taskNumber,
             task.title,
             task.machine,
             task.serverNumber,
+            task.templateKey,
+            task.renderedCommand,
+            task.requestedBy,
             task.resultText,
-          ]),
-        ),
-      })),
-    [taskCards, workspaceSearchQuery],
+            task.statusLabel,
+          ]) &&
+          (taskFilterMachine === "all" || task.machine === taskFilterMachine) &&
+          (taskFilterTemplate === "all" ||
+            task.templateKey === taskFilterTemplate) &&
+          matchesIsoDateRange(task.startedAtIso, taskDateRange),
+      ),
+    [
+      taskCards,
+      taskDateRange,
+      taskFilterMachine,
+      taskFilterTemplate,
+      workspaceSearchQuery,
+    ],
+  );
+
+  const taskStatusGroups = useMemo(
+    () => buildTaskSections(filteredTaskCards),
+    [filteredTaskCards],
   );
 
   const visibleTaskStatusGroups = useMemo(
@@ -1688,8 +1783,6 @@ export function App() {
         .map((option) => option.value),
     [resultsFilterOptions],
   );
-  const resultsDateFilter = "all";
-  const setResultsDateFilter = (_value: string) => {};
 
   const visibleResultRows = useMemo(() => {
     return filterResultRows(resultHistoryRows, {
@@ -3053,7 +3146,7 @@ export function App() {
           }
         >
           {workspaceTab === "home" ? (
-            <section className="home-dashboard" aria-label="Р“Р»Р°РІРЅР°СЏ">
+            <section className="home-dashboard" aria-label="Главная">
               {renderWorkspaceTopbar()}
 
               <div className="home-body">
@@ -3193,8 +3286,16 @@ export function App() {
               <TasksWorkspace
                 totalItems={taskCards.length}
                 activeFilter={taskFilterStatus}
+                machineValue={taskFilterMachine}
+                templateValue={taskFilterTemplate}
+                dateRange={taskDateRange}
+                machineOptions={taskMachineOptions}
+                templateOptions={taskTypeFilterOptions}
                 sections={visibleTaskStatusGroups}
                 onFilterChange={setTaskFilterStatus}
+                onMachineChange={setTaskFilterMachine}
+                onTemplateChange={setTaskFilterTemplate}
+                onDateRangeChange={setTaskDateRange}
                 onOpenLogs={openTaskLogs}
                 onSecondaryAction={handleTaskSecondaryAction}
               />
