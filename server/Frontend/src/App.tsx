@@ -3427,6 +3427,7 @@ export function App() {
                   reportMachine={reportMachine}
                   reportTemplate={reportTemplate}
                   reportTeam={reportTeam}
+                  tasks={filteredReportTasks}
                   machineOptions={reportMachineOptions}
                   templateOptions={reportTemplateOptions}
                   teamOptions={reportTeamOptions}
