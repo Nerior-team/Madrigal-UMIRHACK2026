@@ -55,6 +55,7 @@ import {
   machineResultPath,
   machineTaskLogsPath,
   machinePath,
+  profileApiKeysPath,
   profilePath,
   resolveAppRoute,
   resultPath,
@@ -2417,6 +2418,70 @@ export function App() {
       });
     }
 
+    for (const row of accessUserRows) {
+      targets.push({
+        id: `access-user:${row.id}`,
+        kind: "access",
+        title: row.email,
+        subtitle: `${row.resource} • ${row.role}`,
+        href: workspacePath("access"),
+        keywords: [row.status, row.roleValue, row.resource],
+      });
+    }
+
+    for (const invite of accessInviteRows) {
+      targets.push({
+        id: `access-invite:${invite.id}`,
+        kind: "access",
+        title: invite.email,
+        subtitle: `${invite.resource} • ${invite.role}`,
+        href: workspacePath("access"),
+        keywords: [invite.status, invite.roleValue, invite.resource],
+      });
+    }
+
+    for (const section of profileSections) {
+      targets.push({
+        id: `profile:${section.key}`,
+        kind: "profile",
+        title: section.label,
+        subtitle: effectiveProfileDisplayName,
+        href: profilePath(section.key),
+        keywords: ["profile", section.key],
+      });
+    }
+
+    targets.push({
+      id: "profile:api-keys",
+      kind: "api_key",
+      title: "API-ключи",
+      subtitle: "Интеграции и внешние доступы",
+      href: profileApiKeysPath(),
+      keywords: ["api", "token", "integration", "key"],
+    });
+
+    for (const key of apiKeys) {
+      targets.push({
+        id: `api-key:${key.id}`,
+        kind: "api_key",
+        title: key.name,
+        subtitle: `${key.permission} • uses ${key.usesCount}`,
+        href: profileApiKeysPath(),
+        keywords: [key.publicId, ...key.allowedTemplateKeys],
+      });
+    }
+
+    for (const row of reportSummaryRows.slice(0, 12)) {
+      targets.push({
+        id: `report:${row.id}`,
+        kind: "report",
+        title: row.title,
+        subtitle: `${row.totalTasks} задач • ${row.successCount} успешно`,
+        href: workspacePath("reports"),
+        keywords: [String(row.errorCount), row.actionLabel],
+      });
+    }
+
     targets.push({
       id: "menu:profile",
       kind: "menu",
@@ -2435,8 +2500,17 @@ export function App() {
       keywords: ["linux", "windows", "predict pair"],
     });
 
-    return targets;
-  }, [effectiveProfileDisplayName, machineDashboardCards, resultHistoryRows, taskCards]);
+      return targets;
+    }, [
+      accessInviteRows,
+      accessUserRows,
+      apiKeys,
+      effectiveProfileDisplayName,
+      machineDashboardCards,
+      reportSummaryRows,
+      resultHistoryRows,
+      taskCards,
+    ]);
 
   const globalSearchResults = useMemo(
     () => getSearchMatches(workspaceSearchQuery, globalSearchTargets),

@@ -1,4 +1,12 @@
-export type SearchTargetKind = "menu" | "machine" | "task" | "result";
+export type SearchTargetKind =
+  | "menu"
+  | "machine"
+  | "task"
+  | "result"
+  | "access"
+  | "profile"
+  | "api_key"
+  | "report";
 
 export type SearchTarget = {
   id: string;
@@ -86,7 +94,12 @@ function scoreTarget(query: string, target: SearchTarget): number {
   const subtitleScore = scoreField(tokens, subtitle);
   const keywordScores = keywords.map((keyword) => scoreField(tokens, keyword));
   const bestKeywordScore = keywordScores.length ? Math.max(...keywordScores) : 0;
-  const bestFieldScore = Math.max(titleScore, subtitleScore, bestKeywordScore, distributedScore);
+  const bestFieldScore = Math.max(
+    titleScore,
+    subtitleScore,
+    bestKeywordScore,
+    distributedScore,
+  );
   if (bestFieldScore <= 0) {
     return 0;
   }
@@ -120,6 +133,10 @@ function scoreTarget(query: string, target: SearchTarget): number {
     machine: 16,
     task: 10,
     result: 8,
+    access: 9,
+    profile: 11,
+    api_key: 7,
+    report: 6,
   };
 
   return score + kindWeight[target.kind];
