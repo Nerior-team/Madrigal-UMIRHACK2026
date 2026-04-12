@@ -1,5 +1,6 @@
-import { formatMoscowDateTime } from "../../core/ui";
-import { CustomSelect } from "../primitives/CustomSelect";
+import { Activity, KeyRound, ShieldCheck, TimerReset } from "lucide-react";
+import { useMemo } from "react";
+
 import type {
   AccountMachineScopeOption,
   ApiKeyExpiryPreset,
@@ -10,6 +11,8 @@ import {
   getApiKeyExpiryLabel,
   getApiKeyPermissionLabel,
 } from "../../core/account-ui";
+import { formatMoscowDateTime } from "../../core/ui";
+import { CustomSelect } from "../primitives/CustomSelect";
 
 type ApiKeysWorkspaceProps = {
   items: ApiKeyRead[];
@@ -86,15 +89,75 @@ export function ApiKeysWorkspace({
   onCreate,
   onRevoke,
 }: ApiKeysWorkspaceProps) {
+  const stats = useMemo(() => {
+    const activeItems = items.filter((item) => item.isActive);
+    const totalUses = items.reduce((sum, item) => sum + item.usesCount, 0);
+    const runEnabled = items.filter((item) => item.permission === "run").length;
+    const limitedItems = items.filter((item) => item.expiresAt).length;
+    const chartItems = [...items]
+      .sort((left, right) => right.usesCount - left.usesCount)
+      .slice(0, 5);
+    const chartMax = Math.max(1, ...chartItems.map((item) => item.usesCount || 0));
+
+    return {
+      total: items.length,
+      active: activeItems.length,
+      totalUses,
+      runEnabled,
+      limitedItems,
+      chartItems,
+      chartMax,
+    };
+  }, [items]);
+
   return (
     <section className="profile-card profile-card--api-keys">
       <header className="profile-card__header">
         <h3>API-ключи</h3>
         <p>
           Новый ключ показывается один раз. Сразу сохраните его в безопасное
-          место.
+          место и выдавайте только минимально нужные права.
         </p>
       </header>
+
+      <div className="profile-api-stats">
+        <article className="profile-api-stat-card">
+          <span className="profile-api-stat-card__icon" aria-hidden="true">
+            <KeyRound size={18} />
+          </span>
+          <div>
+            <strong>{stats.total}</strong>
+            <span>Всего ключей</span>
+          </div>
+        </article>
+        <article className="profile-api-stat-card">
+          <span className="profile-api-stat-card__icon" aria-hidden="true">
+            <ShieldCheck size={18} />
+          </span>
+          <div>
+            <strong>{stats.active}</strong>
+            <span>Активных</span>
+          </div>
+        </article>
+        <article className="profile-api-stat-card">
+          <span className="profile-api-stat-card__icon" aria-hidden="true">
+            <Activity size={18} />
+          </span>
+          <div>
+            <strong>{stats.totalUses}</strong>
+            <span>Всего использований</span>
+          </div>
+        </article>
+        <article className="profile-api-stat-card">
+          <span className="profile-api-stat-card__icon" aria-hidden="true">
+            <TimerReset size={18} />
+          </span>
+          <div>
+            <strong>{stats.limitedItems}</strong>
+            <span>Со сроком действия</span>
+          </div>
+        </article>
+      </div>
 
       <div className="profile-api-layout">
         <article className="profile-api-form">
@@ -155,7 +218,14 @@ export function ApiKeysWorkspace({
           </div>
 
           <div className="profile-api-machines">
-            <strong>Область по машинам</strong>
+            <div className="profile-api-machines__header">
+              <strong>Область по машинам</strong>
+              <span>
+                {createForm.machineIds.length
+                  ? `Выбрано: ${createForm.machineIds.length}`
+                  : "Если не выбрать ничего, ключ останется без доступа к машинам."}
+              </span>
+            </div>
             <div className="profile-api-machines__list">
               {machineOptions.map((machine) => {
                 const checked = createForm.machineIds.includes(machine.id);
@@ -202,54 +272,91 @@ export function ApiKeysWorkspace({
           </div>
         </article>
 
-        <article className="profile-api-list">
-          <div className="profile-api-list__header">
-            <strong>Созданные ключи</strong>
-            <span>{isLoading ? "Загрузка..." : `${items.length} шт.`}</span>
-          </div>
+        <div className="profile-api-side">
+          <article className="profile-api-analytics">
+            <div className="profile-api-list__header">
+              <strong>Активность</strong>
+              <span>{stats.runEnabled} ключей с запуском команд</span>
+            </div>
 
-          <div className="profile-api-list__items">
-            {items.length ? (
-              items.map((item) => (
-                <article key={item.id} className="profile-api-row">
-                  <div className="profile-api-row__meta">
-                    <div className="profile-api-row__headline">
-                      <strong>{item.name}</strong>
-                      <span
-                        className={
-                          item.isActive
-                            ? "profile-api-row__status profile-api-row__status--active"
-                            : "profile-api-row__status"
-                        }
-                      >
-                        {item.isActive ? "Активен" : "Отключён"}
-                      </span>
-                    </div>
-                    <p>{`${getApiKeyPermissionLabel(item.permission)} • Использований: ${item.usesCount}`}</p>
-                    <p>{`Срок: ${item.expiresAt ? formatApiKeyDate(item.expiresAt) : "Без срока"}`}</p>
-                    <p>{`Последний вызов: ${formatApiKeyDate(item.lastUsedAt)}`}</p>
-                    <p>{`Публичный ID: ${item.publicId}`}</p>
-                    <p>{`Машин: ${item.machineIds.length} • Команды: ${formatTemplateScope(item.allowedTemplateKeys)}`}</p>
-                  </div>
+            {stats.chartItems.length ? (
+              <div className="profile-api-usage-chart">
+                {stats.chartItems.map((item) => {
+                  const fill = Math.max(
+                    item.usesCount ? 10 : 4,
+                    Math.round((item.usesCount / stats.chartMax) * 100),
+                  );
 
-                  <div className="profile-api-row__actions">
-                    {item.isActive ? (
-                      <button
-                        type="button"
-                        onClick={() => onRevoke(item.id)}
-                        disabled={isRevoking}
-                      >
-                        Отозвать
-                      </button>
-                    ) : null}
-                  </div>
-                </article>
-              ))
+                  return (
+                    <article key={item.id} className="profile-api-usage-chart__row">
+                      <div className="profile-api-usage-chart__label">
+                        <strong>{item.name}</strong>
+                        <span>{`${item.usesCount} вызовов`}</span>
+                      </div>
+                      <div className="profile-api-usage-chart__track">
+                        <div
+                          className="profile-api-usage-chart__fill"
+                          style={{ width: `${fill}%` }}
+                        />
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
             ) : (
-              <p className="profile-api-list__empty">API-ключей пока нет.</p>
+              <p className="profile-api-list__empty">Использований пока нет.</p>
             )}
-          </div>
-        </article>
+          </article>
+
+          <article className="profile-api-list">
+            <div className="profile-api-list__header">
+              <strong>Созданные ключи</strong>
+              <span>{isLoading ? "Загрузка..." : `${items.length} шт.`}</span>
+            </div>
+
+            <div className="profile-api-list__items">
+              {items.length ? (
+                items.map((item) => (
+                  <article key={item.id} className="profile-api-row">
+                    <div className="profile-api-row__meta">
+                      <div className="profile-api-row__headline">
+                        <strong>{item.name}</strong>
+                        <span
+                          className={
+                            item.isActive
+                              ? "profile-api-row__status profile-api-row__status--active"
+                              : "profile-api-row__status"
+                          }
+                        >
+                          {item.isActive ? "Активен" : "Отключён"}
+                        </span>
+                      </div>
+                      <p>{`${getApiKeyPermissionLabel(item.permission)} • Использований: ${item.usesCount}`}</p>
+                      <p>{`Срок: ${item.expiresAt ? formatApiKeyDate(item.expiresAt) : "Без срока"}`}</p>
+                      <p>{`Последний вызов: ${formatApiKeyDate(item.lastUsedAt)}`}</p>
+                      <p>{`Публичный ID: ${item.publicId}`}</p>
+                      <p>{`Машин: ${item.machineIds.length} • Команды: ${formatTemplateScope(item.allowedTemplateKeys)}`}</p>
+                    </div>
+
+                    <div className="profile-api-row__actions">
+                      {item.isActive ? (
+                        <button
+                          type="button"
+                          onClick={() => onRevoke(item.id)}
+                          disabled={isRevoking}
+                        >
+                          Отозвать
+                        </button>
+                      ) : null}
+                    </div>
+                  </article>
+                ))
+              ) : (
+                <p className="profile-api-list__empty">API-ключей пока нет.</p>
+              )}
+            </div>
+          </article>
+        </div>
       </div>
     </section>
   );
