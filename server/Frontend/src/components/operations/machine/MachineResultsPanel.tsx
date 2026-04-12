@@ -26,7 +26,7 @@ export function MachineResultsPanel({
         <div>
           <h2>Результаты</h2>
           <p className="machine-details__section-note">
-            Последние выполненные команды по этой машине.
+            Последние выполненные команды по выбранной машине.
           </p>
         </div>
         <button
@@ -46,7 +46,7 @@ export function MachineResultsPanel({
               <th>Статус</th>
               <th>Команда</th>
               <th>Дата результата</th>
-              <th>Действия</th>
+              <th>Действие</th>
             </tr>
           </thead>
           <tbody>
@@ -86,7 +86,7 @@ export function MachineResultsPanel({
               ))
             ) : (
               <tr>
-                <td colSpan={5}>Нет результатов по этой машине</td>
+                <td colSpan={5}>По этой машине результатов пока нет.</td>
               </tr>
             )}
           </tbody>

@@ -1,7 +1,12 @@
+import { useEffect, useMemo, useState } from "react";
+
+import { Pagination } from "../../primitives/Pagination";
 import { LogsConsolePanel } from "./LogsConsolePanel";
 import type { LogsWorkspaceFilterTone, LogsWorkspaceProps } from "./types";
 
 export type { LogsWorkspaceProps } from "./types";
+
+const PAGE_SIZE = 8;
 
 const FILTER_LABELS: Array<{
   value: LogsWorkspaceFilterTone;
@@ -27,6 +32,19 @@ export function LogsWorkspace({
   onToggleAutoScroll,
   onOpenTaskLogs,
 }: LogsWorkspaceProps) {
+  const [page, setPage] = useState(1);
+
+  useEffect(() => {
+    setPage(1);
+  }, [entries, filterTone, scopeSummary]);
+
+  const totalPages = Math.max(1, Math.ceil(entries.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const pagedEntries = useMemo(
+    () => entries.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE),
+    [entries, safePage],
+  );
+
   return (
     <section className="logs-dashboard" aria-label="Логи">
       <div className="logs-dashboard__body">
@@ -63,35 +81,44 @@ export function LogsWorkspace({
           </div>
 
           <span className="logs-dashboard__search-note">
-            Поиск выполняется через верхнюю панель
+            Глобальный поиск находится в верхней панели и учитывает машины,
+            задачи, результаты и пункты меню.
           </span>
         </div>
 
         <div className="logs-dashboard__content">
-          <section className="logs-table" aria-label="Таблица логов">
+          <section className="logs-table" aria-label="Журнал задач">
             <table className="logs-table__grid">
               <thead>
                 <tr>
                   <th>Задача</th>
                   <th>Машина</th>
                   <th>Пользователь</th>
-                  <th>Статус</th>
-                  <th>Дата</th>
-                  <th>Действия</th>
+                  <th>Состояние</th>
+                  <th>Когда</th>
+                  <th>Действие</th>
                 </tr>
               </thead>
               <tbody>
-                {entries.length ? (
-                  entries.map((entry) => (
+                {pagedEntries.length ? (
+                  pagedEntries.map((entry) => (
                     <tr key={entry.id}>
                       <td>
                         <div className="logs-table__task">
-                          <strong>{entry.taskTitle}</strong>
-                          <span>{entry.action}</span>
+                          <strong className="logs-table__task-title">
+                            {entry.taskTitle}
+                          </strong>
+                          <span className="logs-table__task-action">
+                            {entry.action}
+                          </span>
                         </div>
                       </td>
-                      <td>{entry.machine}</td>
-                      <td>{entry.email}</td>
+                      <td>
+                        <span className="logs-table__context">{entry.machine}</span>
+                      </td>
+                      <td>
+                        <span className="logs-table__email">{entry.email}</span>
+                      </td>
                       <td>
                         <span
                           className={`logs-table__status logs-table__status--${entry.tone}`}
@@ -108,7 +135,7 @@ export function LogsWorkspace({
                             onOpenTaskLogs(entry.taskId, entry.machineId)
                           }
                         >
-                          К деталям
+                          Посмотреть логи
                         </button>
                       </td>
                     </tr>
@@ -116,7 +143,7 @@ export function LogsWorkspace({
                 ) : (
                   <tr>
                     <td colSpan={6} className="logs-table__empty">
-                      По текущим фильтрам нет логов.
+                      По текущим фильтрам записей не найдено.
                     </td>
                   </tr>
                 )}
@@ -124,15 +151,20 @@ export function LogsWorkspace({
             </table>
 
             <footer className="logs-table__footer">
-              <span>
-                Показано {entries.length} из {totalEntries}
-              </span>
-              <span>Событий в потоке: {totalStreamItems}</span>
+              <span>{`Показано ${pagedEntries.length} из ${entries.length}`}</span>
+              <span>{`Строк в консоли: ${totalStreamItems}`}</span>
+              <Pagination
+                page={safePage}
+                pageSize={PAGE_SIZE}
+                totalItems={entries.length}
+                onChange={setPage}
+              />
             </footer>
           </section>
 
           <LogsConsolePanel
             autoScrollEnabled={autoScrollEnabled}
+            scopeSummary={scopeSummary}
             streamItems={streamItems}
             onToggleAutoScroll={onToggleAutoScroll}
           />

@@ -13,7 +13,7 @@ const FILTER_OPTIONS: Array<{
   label: string;
 }> = [
   { value: "all", label: "Все" },
-  { value: "completed", label: "Завершенные" },
+  { value: "completed", label: "Завершённые" },
   { value: "in_progress", label: "В процессе" },
   { value: "queued", label: "В очереди" },
   { value: "error", label: "Ошибки" },
@@ -31,23 +31,19 @@ export type TasksWorkspaceProps = {
 };
 
 function getTaskActionLabels(task: TaskCardResponse) {
-  const secondaryActionLabel =
-    task.status === "in_progress" || task.status === "queued"
-      ? "Отменить"
-      : "Повторить";
-  const primaryActionLabel =
-    task.status === "in_progress" || task.status === "queued"
-      ? "Детали"
-      : "Посмотреть логи";
-  const completedLabel =
-    task.status === "error" ? "Прервана" : "Завершена";
+  const isActive = task.status === "in_progress" || task.status === "queued";
 
-  return { secondaryActionLabel, primaryActionLabel, completedLabel };
+  return {
+    secondaryActionLabel: isActive ? "Отменить" : "Повторить",
+    primaryActionLabel: "Посмотреть логи",
+    finishedLabel: isActive ? "Обновлено" : "Завершено",
+  };
 }
 
 function getResultIcon(task: TaskCardResponse) {
   if (task.resultColor === "green") return "/greenport.png";
   if (task.resultColor === "yellow") return "/openport.png";
+  if (task.resultColor === "gray") return "/server.png";
   return "/closeport.png";
 }
 
@@ -64,7 +60,10 @@ export function TasksWorkspace({
   useEffect(() => {
     setPages((current) =>
       sections.reduce<Record<string, number>>((accumulator, section) => {
-        const totalPages = Math.max(1, Math.ceil(section.cards.length / PAGE_SIZE));
+        const totalPages = Math.max(
+          1,
+          Math.ceil(section.cards.length / PAGE_SIZE),
+        );
         const currentPage = current[section.key] ?? 1;
         accumulator[section.key] = Math.min(currentPage, totalPages);
         return accumulator;
@@ -102,7 +101,9 @@ export function TasksWorkspace({
             key={filter.value}
             type="button"
             className={`tasks-dashboard__chip ${
-              activeFilter === filter.value ? "tasks-dashboard__chip--active" : ""
+              activeFilter === filter.value
+                ? "tasks-dashboard__chip--active"
+                : ""
             }`}
             onClick={() => onFilterChange(filter.value)}
           >
@@ -131,7 +132,7 @@ export function TasksWorkspace({
                     const {
                       secondaryActionLabel,
                       primaryActionLabel,
-                      completedLabel,
+                      finishedLabel,
                     } = getTaskActionLabels(task);
 
                     return (
@@ -141,14 +142,16 @@ export function TasksWorkspace({
                       >
                         <div className="task-card__header">
                           <div className="task-card__title-box">
-                            <p className="task-card__number">{`Задача №${task.taskNumber}`}</p>
+                            <p className="task-card__number">{`Задача #${task.taskNumber}`}</p>
                             <h3 className="task-card__title">{task.title}</h3>
                           </div>
 
                           <div className="task-card__timeline">
-                            <p>{`Запущена: ${task.startedAt}`}</p>
+                            <p>{`Машина: ${task.machine}`}</p>
+                            <p>{`Отправил: ${task.requestedBy}`}</p>
+                            <p>{`Старт: ${task.startedAt}`}</p>
                             {task.completedAt ? (
-                              <p>{`${completedLabel}: ${task.completedAt}`}</p>
+                              <p>{`${finishedLabel}: ${task.completedAt}`}</p>
                             ) : null}
                           </div>
                         </div>
@@ -164,7 +167,10 @@ export function TasksWorkspace({
                             className={`task-card__result task-card__result--${task.resultColor}`}
                           >
                             <img src={getResultIcon(task)} alt="" aria-hidden="true" />
-                            <span>{task.resultText}</span>
+                            <div className="task-card__result-copy">
+                              <strong>{task.statusLabel}</strong>
+                              <span>{task.resultText}</span>
+                            </div>
                           </div>
                         </div>
 
@@ -195,7 +201,10 @@ export function TasksWorkspace({
                     pageSize={PAGE_SIZE}
                     totalItems={section.cards.length}
                     onChange={(nextPage) =>
-                      setPages((current) => ({ ...current, [section.key]: nextPage }))
+                      setPages((current) => ({
+                        ...current,
+                        [section.key]: nextPage,
+                      }))
                     }
                   />
                 </div>
@@ -204,7 +213,7 @@ export function TasksWorkspace({
               <div className="tasks-status-column__empty">
                 <EmptyState
                   title={`${section.label}: пусто`}
-                  description="Подходящих задач пока нет. Измените фильтры или откройте другую машину."
+                  description="По подходящим фильтрам задач нет."
                 />
               </div>
             )}

@@ -10,7 +10,7 @@ export type MachineWorkspaceMachine = {
   heartbeat: string;
   owner: string;
   role: string;
-  status: "online" | "running" | "offline";
+  status: "online" | "running" | "offline" | "deleted";
   statusLabel: string;
 };
 

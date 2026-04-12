@@ -39,7 +39,7 @@ export function MachineWorkspace({
       <header className="machine-details__header machine-details__header--hero">
         <div>
           <h1>
-            Агент {machine.name} <span>{machine.owner}</span>
+            {machine.name} <span>{machine.owner}</span>
           </h1>
           <p className="machine-details__status">
             <span

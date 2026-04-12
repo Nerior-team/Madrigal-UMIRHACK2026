@@ -39,7 +39,8 @@ function createProps(): LogsWorkspaceProps {
         machine: "ubuntu-prod",
         title: "Deploy backend",
         text: "docker compose up --build -d",
-        createdAt: "2026-04-11T13:00:00Z",
+        createdAt: "11.04.2026, 16:00",
+        createdAtIso: "2026-04-11T13:00:00Z",
       },
     ],
     onFilterToneChange: vi.fn(),
@@ -64,7 +65,9 @@ describe("LogsWorkspace", () => {
       ),
     ).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "К деталям" }));
+    await user.click(
+      screen.getByRole("button", { name: "Открыть консоль" }),
+    );
 
     expect(props.onOpenTaskLogs).toHaveBeenCalledWith("task-1", "machine-1");
   });

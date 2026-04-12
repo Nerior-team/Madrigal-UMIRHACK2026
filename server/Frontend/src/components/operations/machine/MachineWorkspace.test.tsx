@@ -105,13 +105,13 @@ describe("MachineWorkspace", () => {
 
     render(<MachineWorkspace {...props} />);
 
-    expect(screen.getByRole("heading", { name: "Задача" })).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: "Недавние задачи" }),
+      screen.getByRole("heading", { name: "Создать задачу" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: "Результаты" }),
+      screen.getByRole("heading", { name: "Задачи по машине" }),
     ).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Результаты" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Логи" })).toBeInTheDocument();
     expect(screen.getByText("sudo docker logs api")).toBeInTheDocument();
 

@@ -74,7 +74,7 @@ describe("ResultsWorkspace", () => {
     render(<ResultsWorkspace {...props} />);
 
     await user.click(screen.getByRole("button", { name: "Task result 1" }));
-    await user.click(screen.getAllByRole("button", { name: "Смотреть логи" })[0]);
+    await user.click(screen.getAllByRole("button", { name: "Посмотреть логи" })[0]);
 
     expect(props.onOpenResultDetail).toHaveBeenCalledWith("result-1", "machine-1");
     expect(props.onOpenLogs).toHaveBeenCalledWith("task-1", "machine-1");

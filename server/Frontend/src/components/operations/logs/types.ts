@@ -26,6 +26,7 @@ export type LogsWorkspaceStreamItem = {
   title: string;
   text: string;
   createdAt: string;
+  createdAtIso: string;
 };
 
 export type LogsWorkspaceProps = {

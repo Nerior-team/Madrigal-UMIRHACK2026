@@ -24,7 +24,8 @@ export function MachineLogsPanel({
         <div>
           <h2>Логи</h2>
           <p className="machine-details__section-note">
-            События и переход в детальную консоль конкретной задачи.
+            История команд по этой машине и быстрый переход к консоли конкретной
+            задачи.
           </p>
         </div>
         <button
@@ -42,9 +43,9 @@ export function MachineLogsPanel({
             <tr>
               <th>Задача</th>
               <th>Пользователь</th>
-              <th>Статус</th>
-              <th>Дата</th>
-              <th>Действия</th>
+              <th>Состояние</th>
+              <th>Когда</th>
+              <th>Действие</th>
             </tr>
           </thead>
           <tbody>
@@ -53,8 +54,12 @@ export function MachineLogsPanel({
                 <tr key={entry.id}>
                   <td>
                     <div className="logs-table__task">
-                      <strong>{entry.taskTitle}</strong>
-                      <span>{entry.action}</span>
+                      <strong className="logs-table__task-title">
+                        {entry.taskTitle}
+                      </strong>
+                      <span className="logs-table__task-action">
+                        {entry.action}
+                      </span>
                     </div>
                   </td>
                   <td>{entry.email}</td>
@@ -72,14 +77,14 @@ export function MachineLogsPanel({
                       className="logs-table__details"
                       onClick={() => onOpenTaskLogs(entry.taskId)}
                     >
-                      К деталям
+                      Посмотреть логи
                     </button>
                   </td>
                 </tr>
               ))
             ) : (
               <tr>
-                <td colSpan={5}>Нет логов по этой машине</td>
+                <td colSpan={5}>По этой машине логов пока нет.</td>
               </tr>
             )}
           </tbody>

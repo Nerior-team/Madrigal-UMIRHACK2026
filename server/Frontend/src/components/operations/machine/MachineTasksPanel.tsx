@@ -27,7 +27,12 @@ export function MachineTasksPanel({
       data-testid="machine-tasks-section"
     >
       <header className="machine-details__section-head">
-        <h2>Недавние задачи</h2>
+        <div>
+          <h2>Задачи по машине</h2>
+          <p className="machine-details__section-note">
+            Последние постановки в очередь, запуски и завершения.
+          </p>
+        </div>
         <button
           type="button"
           className="machine-details__link-button"
@@ -42,12 +47,10 @@ export function MachineTasksPanel({
           tasks.slice(0, 4).map((task) => (
             <article key={task.id} className="machine-details__recent-card">
               <div>
-                <p className="machine-details__recent-kicker">
-                  Задача №{task.taskNumber}
-                </p>
+                <p className="machine-details__recent-kicker">{`Задача #${task.taskNumber}`}</p>
                 <strong>{task.title}</strong>
-                <p>Запущена: {task.startedAt}</p>
-                {task.completedAt ? <p>Завершена: {task.completedAt}</p> : null}
+                <p>{`Старт: ${task.startedAt}`}</p>
+                {task.completedAt ? <p>{`Завершено: ${task.completedAt}`}</p> : null}
               </div>
               <div className="machine-details__recent-actions">
                 <span
@@ -68,7 +71,7 @@ export function MachineTasksPanel({
             </article>
           ))
         ) : (
-          <p className="machine-details__empty">По этой машине пока нет задач</p>
+          <p className="machine-details__empty">По этой машине задач пока нет.</p>
         )}
       </div>
     </section>

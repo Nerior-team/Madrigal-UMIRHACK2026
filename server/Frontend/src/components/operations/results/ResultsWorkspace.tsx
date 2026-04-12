@@ -13,10 +13,8 @@ import {
   type ResultStatusTone,
 } from "../../../core/results";
 
-const STATUS_OPTIONS: Array<
-  CustomSelectOption<"all" | ResultStatusTone>
-> = [
-  { value: "all", label: "Все статусы" },
+const STATUS_OPTIONS: Array<CustomSelectOption<"all" | ResultStatusTone>> = [
+  { value: "all", label: "Все" },
   { value: "success", label: "Выполнено" },
   { value: "error", label: "Ошибка" },
   { value: "cancelled", label: "Отменено" },
@@ -74,10 +72,7 @@ export function ResultsWorkspace({
 
   const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
-  const pagedRows = rows.slice(
-    (safePage - 1) * PAGE_SIZE,
-    safePage * PAGE_SIZE,
-  );
+  const pagedRows = rows.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
   return (
     <div className="results-dashboard__body">
@@ -185,7 +180,7 @@ export function ResultsWorkspace({
           <div>
             <h2>История запусков</h2>
             <span className="results-table-card__caption">
-              Поиск выполняется через верхнюю панель
+              Поиск выполняется через верхнюю панель.
             </span>
           </div>
         </header>
@@ -234,7 +229,7 @@ export function ResultsWorkspace({
                           className="results-actions__logs"
                           onClick={() => onOpenLogs(row.taskId, row.machineId)}
                         >
-                          Смотреть логи
+                          Посмотреть логи
                         </button>
                       </div>
                     </td>

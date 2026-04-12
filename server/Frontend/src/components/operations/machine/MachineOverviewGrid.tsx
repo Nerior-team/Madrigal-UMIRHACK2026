@@ -28,14 +28,14 @@ export function MachineOverviewGrid({
         </article>
 
         <article className="machine-details__overview-card">
-          <p className="machine-details__overview-label">Последний heartbeat</p>
+          <p className="machine-details__overview-label">Последняя связь</p>
           <p className="machine-details__overview-value machine-details__overview-value--heartbeat">
             {machine.heartbeat}
           </p>
         </article>
 
         <article className="machine-details__overview-card">
-          <p className="machine-details__overview-label">Создатель машины</p>
+          <p className="machine-details__overview-label">Владелец</p>
           <p className="machine-details__overview-value machine-details__overview-value--accent">
             {machine.owner}
           </p>

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+﻿import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
   AlertTriangle,
@@ -20,13 +20,23 @@ import {
 } from "lucide-react";
 import {
   api,
+  accountApi,
   type AccessDashboardResponse,
+  type AccountMachineScopeOption,
+  type AccountNotification,
+  type AccountProfileDetails,
+  type AccountSession,
+  type ApiKeyExpiryPreset,
+  type ApiKeyPermission,
+  type ApiKeyRead,
   type CommandTemplateOption,
+  type DeletedMachineRetention,
   type LogsDashboardResponse,
   type ProfileDashboardResponse,
   type ResultsDashboardResponse,
   type ReportsDashboardResponse,
   type TaskCardResponse,
+  type TotpSetupStart,
 } from "./core";
 import { ApiError } from "./core/http";
 import {
@@ -34,11 +44,18 @@ import {
   normalizeMachineTitle,
 } from "./core/ui";
 import {
+  getSessionKindLabel,
+  summarizeSession,
+  validatePasswordPolicy,
+} from "./core/account-ui";
+import {
+  authPath,
   addMachinePath,
   logsPath,
   machineResultPath,
   machineTaskLogsPath,
   machinePath,
+  profilePath,
   resolveAppRoute,
   resultPath,
   taskLogsPath,
@@ -59,8 +76,13 @@ import {
 } from "./core/results";
 import {
   bootstrapAuthSession,
-  terminateAuthSession,
 } from "./app/auth-session";
+import {
+  applyThemeMode,
+  resolveInitialThemeMode,
+  THEME_STORAGE_KEY,
+  type ThemeMode,
+} from "./app/theme";
 import { Sidebar } from "./components/layout/Sidebar";
 import { Topbar } from "./components/layout/Topbar";
 import {
@@ -73,15 +95,29 @@ import { LogsWorkspace } from "./components/operations/logs/LogsWorkspace";
 import { ResultDetailModal } from "./components/operations/ResultDetailModal";
 import { AddMachineCard } from "./components/operations/machine/AddMachineCard";
 import { MachineWorkspace } from "./components/operations/machine/MachineWorkspace";
+import { ReportsWorkspace } from "./components/operations/reports/ReportsWorkspace";
 import { InviteAccessModal } from "./components/access/InviteAccessModal";
 import { ManageAccessModal } from "./components/access/ManageAccessModal";
 import { ResultsWorkspace } from "./components/operations/results/ResultsWorkspace";
 import { TasksWorkspace } from "./components/operations/tasks/TasksWorkspace";
+import { ProfileWorkspace } from "./components/profile/ProfileWorkspace";
+import { CustomSelect } from "./components/primitives/CustomSelect";
+import { ProfileGeneralSection } from "./components/profile/ProfileGeneralSection";
+import { ProfileSecuritySection } from "./components/profile/ProfileSecuritySection";
+import { ProfileSessionsSection } from "./components/profile/ProfileSessionsSection";
+import { ProfileNotificationsSection } from "./components/profile/ProfileNotificationsSection";
+import { ApiKeysWorkspace } from "./components/profile/ApiKeysWorkspace";
+import type { ProfileSectionKey } from "./components/profile/types";
 
 const apiClient = api;
 const AGENT_PAIR_COMMAND = "predict pair --backend-url https://nerior.store";
 
-type AuthMode = "login" | "register" | "confirm";
+type AuthMode =
+  | "login"
+  | "register"
+  | "confirm"
+  | "forgot-password"
+  | "reset-password";
 type AppScreen = "auth" | "machines";
 type WorkspaceTab =
   | "home"
@@ -93,9 +129,8 @@ type WorkspaceTab =
   | "reports"
   | "install"
   | "profile";
-type ProfileSection = "general" | "security" | "sessions" | "notifications";
 
-type MachineCardStatus = "online" | "running" | "offline";
+type MachineCardStatus = "online" | "running" | "offline" | "deleted";
 
 type MachineDashboardCard = {
   id: string;
@@ -222,12 +257,14 @@ const machineStatusSections = [
   { key: "online", label: "Онлайн" },
   { key: "running", label: "Выполняют задачу" },
   { key: "offline", label: "Оффлайн" },
+  { key: "deleted", label: "Удалённые" },
 ] as const;
 
 const machineStatusLabelByStatus: Record<MachineCardStatus, string> = {
   online: "Онлайн",
   running: "Выполняет задачу",
   offline: "Оффлайн",
+  deleted: "Удалена",
 };
 
 function getMachineDisplayName(card: MachineDashboardCard): string {
@@ -279,7 +316,7 @@ const menuItems: MenuItem[] = [
   { label: "Результаты", iconSrc: "/res.png", tab: "results" },
   { label: "Логи", iconSrc: "/logs.png", tab: "logs" },
   { label: "Доступ", iconSrc: "/access.png", tab: "access" },
-  { label: "Отчеты", iconSrc: "/otch.png", tab: "reports" },
+  { label: "Отчёты", iconSrc: "/otch.png", tab: "reports" },
 ];
 
 const WINDOWS_DAEMON_INSTALL_URL =
@@ -323,7 +360,7 @@ const installCards: Array<{
     versions: ["Windows 10 x64", "Windows 11 x64"],
     actions: ["Скачать установщик", "Desktop скоро"],
     activeActionIndex: 0,
-    hint: "Сейчас доступен daemon-установщик. Desktop-клиент подключим сразу после сборки отдельного артефакта",
+    hint: "Сейчас доступен daemon-установщик. Desktop-клиент подключим сразу после сборки отдельного артефакта.",
   },
   {
     id: "linux",
@@ -331,7 +368,7 @@ const installCards: Array<{
     versions: ["Ubuntu 22.04+ x86_64", "Debian 12+ x86_64"],
     actions: ["Команды установки", "Скачать архив"],
     activeActionIndex: 0,
-    hint: "На Linux ставится только systemd-сервис без графического клиента",
+    hint: "На Linux ставится только systemd-сервис без графического клиента.",
   },
 ];
 
@@ -355,7 +392,7 @@ const SIDEBAR_ACTIVE_TOP_BY_TAB: Record<WorkspaceTab, number> = {
   profile: 516,
 };
 
-const profileSections: Array<{ key: ProfileSection; label: string }> = [
+const profileSections: Array<{ key: Exclude<ProfileSectionKey, "api-keys">; label: string }> = [
   { key: "general", label: "Основная информация" },
   { key: "security", label: "Безопасность" },
   { key: "sessions", label: "Активные сессии" },
@@ -442,12 +479,6 @@ function renderLinuxInstallCommandTokens(commandLine: string) {
   return <span className="install-guide-modal__cmd-value">{commandLine}</span>;
 }
 
-function mapSessionKindLabel(sessionKind: "web" | "desktop" | "cli"): string {
-  if (sessionKind === "web") return "Браузер";
-  if (sessionKind === "desktop") return "Desktop";
-  return "CLI";
-}
-
 export function App() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -458,9 +489,7 @@ export function App() {
   const screen: AppScreen = route.section === "auth" ? "auth" : "machines";
   const authMode: AuthMode =
     route.section === "auth"
-      ? route.authMode === "register" || route.authMode === "confirm"
-        ? route.authMode
-        : "login"
+      ? route.authMode
       : "login";
   const workspaceTab: WorkspaceTab =
     route.section === "workspace" ? route.workspaceTab : "machines";
@@ -489,6 +518,16 @@ export function App() {
       ? ((location.state as { returnTo: string }).returnTo)
       : null;
   const [sessionReady, setSessionReady] = useState(false);
+  const [themeMode, setThemeMode] = useState<ThemeMode>(() => {
+    if (typeof window === "undefined") {
+      return "light";
+    }
+
+    return resolveInitialThemeMode(
+      window.localStorage.getItem(THEME_STORAGE_KEY),
+      window.matchMedia?.("(prefers-color-scheme: dark)").matches ?? false,
+    );
+  });
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -558,14 +597,81 @@ export function App() {
   const [isReportsRefreshing, setIsReportsRefreshing] = useState(false);
   const [profileDashboard, setProfileDashboard] =
     useState<ProfileDashboardResponse | null>(null);
-  const [profileSection, setProfileSection] =
-    useState<ProfileSection>("general");
+  const [profileDetails, setProfileDetails] =
+    useState<AccountProfileDetails | null>(null);
   const [profileFirstName, setProfileFirstName] = useState("");
   const [profileLastName, setProfileLastName] = useState("");
-  const [profileNotifications, setProfileNotifications] = useState({
-    taskCompleted: false,
-    warnings: true,
-    reports: true,
+  const [profileDeletedRetention, setProfileDeletedRetention] =
+    useState<DeletedMachineRetention>("month");
+  const [profileSaveNotice, setProfileSaveNotice] = useState<string | null>(null);
+  const [profileSaveError, setProfileSaveError] = useState<string | null>(null);
+  const [isProfileSaving, setIsProfileSaving] = useState(false);
+  const [notificationPreferences, setNotificationPreferences] = useState<
+    Record<"tasks" | "warnings" | "reports" | "security", {
+      topic: "tasks" | "warnings" | "reports" | "security";
+      siteEnabled: boolean;
+      telegramEnabled: boolean;
+    }>
+  >({
+    tasks: { topic: "tasks", siteEnabled: true, telegramEnabled: false },
+    warnings: { topic: "warnings", siteEnabled: true, telegramEnabled: true },
+      reports: { topic: "reports", siteEnabled: true, telegramEnabled: false },
+      security: { topic: "security", siteEnabled: true, telegramEnabled: true },
+    });
+  const [notificationFeed, setNotificationFeed] = useState<AccountNotification[]>([]);
+  const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [notificationsNotice, setNotificationsNotice] = useState<string | null>(null);
+  const [notificationsError, setNotificationsError] = useState<string | null>(null);
+  const [isNotificationsLoading, setIsNotificationsLoading] = useState(false);
+  const [isNotificationsSaving, setIsNotificationsSaving] = useState(false);
+  const [accountSessions, setAccountSessions] = useState<AccountSession[]>([]);
+  const [sessionsNotice, setSessionsNotice] = useState<string | null>(null);
+  const [sessionsError, setSessionsError] = useState<string | null>(null);
+  const [isSessionsLoading, setIsSessionsLoading] = useState(false);
+  const [isSessionRevoking, setIsSessionRevoking] = useState(false);
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+  });
+  const [passwordNotice, setPasswordNotice] = useState<string | null>(null);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [isPasswordSubmitting, setIsPasswordSubmitting] = useState(false);
+  const [totpSetup, setTotpSetup] = useState<TotpSetupStart | null>(null);
+  const [totpCode, setTotpCode] = useState("");
+  const [totpNotice, setTotpNotice] = useState<string | null>(null);
+  const [totpError, setTotpError] = useState<string | null>(null);
+  const [isTotpLoading, setIsTotpLoading] = useState(false);
+  const [telegramSetupState, setTelegramSetupState] = useState<{
+    linkUrl?: string | null;
+    reason?: string | null;
+  } | null>(null);
+  const [telegramNotice, setTelegramNotice] = useState<string | null>(null);
+  const [telegramError, setTelegramError] = useState<string | null>(null);
+  const [isTelegramLoading, setIsTelegramLoading] = useState(false);
+  const [apiKeys, setApiKeys] = useState<ApiKeyRead[]>([]);
+  const [apiKeyMachineOptions, setApiKeyMachineOptions] = useState<AccountMachineScopeOption[]>([]);
+  const [apiKeysNotice, setApiKeysNotice] = useState<string | null>(null);
+  const [apiKeysError, setApiKeysError] = useState<string | null>(null);
+  const [isApiKeysLoading, setIsApiKeysLoading] = useState(false);
+  const [isApiKeySubmitting, setIsApiKeySubmitting] = useState(false);
+  const [isApiKeyRevoking, setIsApiKeyRevoking] = useState(false);
+  const [latestApiKeySecret, setLatestApiKeySecret] = useState<string | null>(null);
+  const [apiKeyForm, setApiKeyForm] = useState<{
+    name: string;
+    permission: ApiKeyPermission;
+    expiryPreset: ApiKeyExpiryPreset;
+    machineIds: string[];
+    templateKeysText: string;
+    reauthPassword: string;
+  }>({
+    name: "",
+    permission: "read",
+    expiryPreset: "month",
+    machineIds: [],
+    templateKeysText: "",
+    reauthPassword: "",
   });
   const [taskFilterStatus, setTaskFilterStatus] =
     useState<TaskFilterStatus>("all");
@@ -599,6 +705,14 @@ export function App() {
       return "";
     }
   });
+  const [authNotice, setAuthNotice] = useState<string | null>(null);
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [manualResetToken, setManualResetToken] = useState("");
+  const resetTokenFromUrl = useMemo(
+    () => new URLSearchParams(location.search).get("token")?.trim() ?? "",
+    [location.search],
+  );
+  const resolvedResetToken = resetTokenFromUrl || manualResetToken.trim();
 
   const setScreen = (nextScreen: AppScreen) => {
     if (nextScreen === "auth") {
@@ -610,13 +724,9 @@ export function App() {
   };
 
   const setAuthMode = (nextMode: AuthMode) => {
-    navigate(
-      nextMode === "login"
-        ? "/login"
-        : nextMode === "register"
-          ? "/register"
-          : "/confirm",
-    );
+    setAuthNotice(null);
+    setAuthError(null);
+    navigate(authPath(nextMode));
   };
 
   const setWorkspaceTab = (nextTab: WorkspaceTab) => {
@@ -689,10 +799,29 @@ export function App() {
   };
 
   const profileDisplayName = useMemo(() => {
-    if (!profileDashboard) return "Имя Фамилия";
+    if (!profileDashboard) return "Профиль";
     const trimmed = profileDashboard.fullName.trim();
-    return trimmed || "Имя Фамилия";
+    return trimmed || profileDashboard.email || "Профиль";
   }, [profileDashboard]);
+
+  const effectiveProfileDisplayName = useMemo(() => {
+    const candidate = profileDetails?.fullName || profileDetails?.email || profileDisplayName;
+    const trimmed = candidate.trim();
+    return trimmed || "Профиль";
+  }, [profileDetails, profileDisplayName]);
+
+  const activeProfileSection: ProfileSectionKey =
+    route.section === "workspace" && route.workspaceTab === "profile"
+      ? route.profileSection ?? "general"
+      : "general";
+
+  const passwordIssues = useMemo(
+    () =>
+      passwordForm.newPassword
+        ? validatePasswordPolicy(passwordForm.newPassword)
+        : [],
+    [passwordForm.newPassword],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -730,24 +859,109 @@ export function App() {
     };
   }, [navigate, route.section, route.section === "auth" ? route.authMode : ""]);
 
-  const profileSessions = useMemo(() => {
-    if (!profileDashboard) return [];
-
-    return [
-      {
-        id: `${profileDashboard.userId}_${profileDashboard.sessionKind}`,
-        deviceLabel: mapSessionKindLabel(profileDashboard.sessionKind),
-        description: profileDashboard.email,
-        isCurrent: true,
-      },
-    ];
-  }, [profileDashboard]);
+  useEffect(() => {
+    applyThemeMode(themeMode, document.documentElement);
+    window.localStorage.setItem(THEME_STORAGE_KEY, themeMode);
+  }, [themeMode]);
 
   useEffect(() => {
     if (!profileDashboard) return;
     setProfileFirstName(profileDashboard.firstName);
     setProfileLastName(profileDashboard.lastName);
   }, [profileDashboard]);
+
+  useEffect(() => {
+    if (!profileDetails) return;
+    setProfileFirstName(profileDetails.firstName);
+    setProfileLastName(profileDetails.lastName);
+    setProfileDeletedRetention(profileDetails.deletedMachineRetention);
+    setProfileAvatarUrl(profileDetails.avatarDataUrl ?? null);
+  }, [profileDetails]);
+
+  useEffect(() => {
+    if (!profileDashboard) {
+      setNotificationFeed([]);
+      setUnreadNotificationCount(0);
+      return;
+    }
+
+    let cancelled = false;
+    setIsNotificationsLoading(true);
+
+    accountApi
+      .listNotifications()
+      .then((response) => {
+        if (cancelled) return;
+        setNotificationFeed(response.items);
+        setUnreadNotificationCount(response.unreadCount);
+      })
+      .catch(() => {
+        if (cancelled) return;
+      })
+      .finally(() => {
+        if (cancelled) return;
+        setIsNotificationsLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [profileDashboard]);
+
+  useEffect(() => {
+    if (workspaceTab !== "profile" || !profileDashboard) {
+      return;
+    }
+
+    let cancelled = false;
+    setIsSessionsLoading(true);
+    setIsApiKeysLoading(true);
+    setIsNotificationsLoading(true);
+
+    Promise.all([
+      accountApi.getProfileDetails(),
+      accountApi.listSessions(),
+      accountApi.getNotificationPreferences(),
+      accountApi.listNotifications(),
+      accountApi.listApiKeys(),
+      accountApi.listMachineScopeOptions(),
+    ])
+      .then(
+        ([profile, sessions, preferences, notifications, apiKeyItems, machineOptions]) => {
+          if (cancelled) return;
+          setProfileDetails(profile);
+          setProfileDashboard((current) =>
+            current
+              ? {
+                  ...current,
+                  firstName: profile.firstName,
+                  lastName: profile.lastName,
+                  fullName: profile.fullName,
+                }
+              : current,
+          );
+          setAccountSessions(sessions);
+          setNotificationPreferences(preferences);
+          setNotificationFeed(notifications.items);
+          setUnreadNotificationCount(notifications.unreadCount);
+          setApiKeys(apiKeyItems);
+          setApiKeyMachineOptions(machineOptions);
+        },
+      )
+      .catch(() => {
+        if (cancelled) return;
+      })
+      .finally(() => {
+        if (cancelled) return;
+        setIsSessionsLoading(false);
+        setIsApiKeysLoading(false);
+        setIsNotificationsLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [profileDashboard, workspaceTab]);
 
   useEffect(() => {
     setWorkspaceSearchQuery("");
@@ -1530,6 +1744,40 @@ export function App() {
   }, [screen, selectedMachineId, sessionReady, workspaceTab]);
 
   useEffect(() => {
+    if (!sessionReady || screen !== "machines") return;
+
+    let cancelled = false;
+
+    const refreshMachineSnapshots = async () => {
+      try {
+        const machines = await apiClient.getMachines();
+        if (cancelled) return;
+        setMachineDashboardCards(machines);
+
+        if (workspaceTab === "home") {
+          const dashboard = await apiClient.getHomeDashboard();
+          if (cancelled) return;
+          setHomeMetricCards(dashboard.metrics);
+          setHomeActionCards(dashboard.actions);
+          setHomeErrorItems(dashboard.errors);
+          setHomeTaskRows(dashboard.tasks);
+        }
+      } catch {
+        if (cancelled) return;
+      }
+    };
+
+    const intervalId = window.setInterval(() => {
+      void refreshMachineSnapshots();
+    }, 30_000);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+    };
+  }, [screen, sessionReady, workspaceTab]);
+
+  useEffect(() => {
     if (!isCreateTaskOpen) return;
 
     const onKeyDown = (event: KeyboardEvent) => {
@@ -1654,20 +1902,6 @@ export function App() {
     };
     reader.readAsDataURL(selectedFile);
     event.target.value = "";
-  };
-
-  const handleTerminateProfileSession = async () => {
-    setIsCreateTaskOpen(false);
-    setIsLinuxInstallGuideOpen(false);
-    setAuthChallengeId(null);
-    try {
-      await terminateAuthSession();
-    } catch {
-      // Ignore logout cleanup failures and continue clearing local screen state.
-    }
-    setProfileDashboard(null);
-    setAuthMode("login");
-    setScreen("auth");
   };
 
   const handleCreateTaskSubmit = async (
@@ -1929,6 +2163,8 @@ export function App() {
 
   const handleAuthSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    setAuthNotice(null);
+    setAuthError(null);
 
     if (authMode === "login") {
       try {
@@ -1940,7 +2176,10 @@ export function App() {
         }
         setAuthChallengeId(null);
         setScreen("machines");
-      } catch {
+      } catch (error) {
+        setAuthError(
+          extractApiErrorMessage(error, "Не удалось выполнить вход."),
+        );
         return;
       }
       return;
@@ -1956,7 +2195,11 @@ export function App() {
         normalizedEmail,
       );
       setAuthMode("confirm");
-    } catch {
+      setAuthNotice("Письмо с кодом отправлено. Завершите подтверждение.");
+    } catch (error) {
+      setAuthError(
+        extractApiErrorMessage(error, "Не удалось завершить регистрацию."),
+      );
       return;
     }
   };
@@ -1965,6 +2208,8 @@ export function App() {
     event: React.FormEvent<HTMLFormElement>,
   ) => {
     event.preventDefault();
+    setAuthNotice(null);
+    setAuthError(null);
 
     try {
       const normalizedEmail = email.trim();
@@ -1982,7 +2227,65 @@ export function App() {
       }
       setAuthChallengeId(null);
       setScreen("machines");
-    } catch {
+    } catch (error) {
+      setAuthError(
+        extractApiErrorMessage(error, "Не удалось подтвердить вход."),
+      );
+      return;
+    }
+  };
+
+  const handleForgotPasswordSubmit = async (
+    event: React.FormEvent<HTMLFormElement>,
+  ) => {
+    event.preventDefault();
+    setAuthNotice(null);
+    setAuthError(null);
+
+    try {
+      const response = await apiClient.forgotPassword(email.trim());
+      setAuthNotice(response.message);
+    } catch (error) {
+      setAuthError(
+        extractApiErrorMessage(error, "Не удалось отправить письмо для сброса."),
+      );
+      return;
+    }
+  };
+
+  const handleResetPasswordSubmit = async (
+    event: React.FormEvent<HTMLFormElement>,
+  ) => {
+    event.preventDefault();
+    setAuthNotice(null);
+    setAuthError(null);
+
+    if (!resolvedResetToken) {
+      setAuthError("Введите токен для сброса пароля.");
+      return;
+    }
+    if (password !== confirmPassword) {
+      setAuthError("Подтверждение нового пароля не совпадает.");
+      return;
+    }
+
+    const issues = validatePasswordPolicy(password);
+    if (issues.length) {
+      setAuthError(issues[0] ?? "Пароль не соответствует политике.");
+      return;
+    }
+
+    try {
+      const response = await apiClient.resetPassword(resolvedResetToken, password);
+      setPassword("");
+      setConfirmPassword("");
+      setManualResetToken("");
+      navigate(authPath("login"), { replace: true });
+      setAuthNotice(response.message);
+    } catch (error) {
+      setAuthError(
+        extractApiErrorMessage(error, "Не удалось обновить пароль."),
+      );
       return;
     }
   };
@@ -2002,7 +2305,7 @@ export function App() {
               : workspaceTab === "access"
                 ? "Поиск по доступам"
                 : workspaceTab === "reports"
-                  ? "Поиск по отчетам"
+                  ? "Поиск по отчётам"
                   : workspaceTab === "install"
                     ? "Поиск по установке"
                     : "Поиск по профилю";
@@ -2072,7 +2375,7 @@ export function App() {
       id: "menu:profile",
       kind: "menu",
       title: "Профиль",
-      subtitle: profileDisplayName,
+      subtitle: effectiveProfileDisplayName,
       href: workspacePath("profile"),
       keywords: ["security", "sessions", "notifications"],
     });
@@ -2087,7 +2390,7 @@ export function App() {
     });
 
     return targets;
-  }, [machineDashboardCards, profileDisplayName, resultHistoryRows, taskCards]);
+  }, [effectiveProfileDisplayName, machineDashboardCards, resultHistoryRows, taskCards]);
 
   const globalSearchResults = useMemo(
     () => getSearchMatches(workspaceSearchQuery, globalSearchTargets),
@@ -2099,13 +2402,462 @@ export function App() {
     navigate(result.href);
   };
 
+  const navigateProfileSection = (section: ProfileSectionKey) => {
+    navigate(profilePath(section));
+  };
+
+  const handleOpenNotificationsPage = () => {
+    setIsNotificationsOpen(false);
+    navigateProfileSection("notifications");
+  };
+
+  const handleOpenNotificationTarget = (href: string) => {
+    setIsNotificationsOpen(false);
+    navigate(href);
+  };
+
+  const handleMarkNotificationRead = async (notificationId: string) => {
+    try {
+      await accountApi.markNotificationRead(notificationId);
+      setNotificationFeed((current) =>
+        current.map((item) =>
+          item.id === notificationId ? { ...item, siteRead: true } : item,
+        ),
+      );
+      setUnreadNotificationCount((current) => Math.max(0, current - 1));
+    } catch {
+      // Ignore feed interaction errors and keep the list usable.
+    }
+  };
+
+  const handleMarkAllNotificationsRead = async () => {
+    try {
+      await accountApi.markAllNotificationsRead();
+      setNotificationFeed((current) =>
+        current.map((item) => ({ ...item, siteRead: true })),
+      );
+      setUnreadNotificationCount(0);
+    } catch {
+      // Ignore feed interaction errors and keep the list usable.
+    }
+  };
+
+  const handleProfileSave = async () => {
+    if (!profileDetails) return;
+
+    setProfileSaveNotice(null);
+    setProfileSaveError(null);
+    setIsProfileSaving(true);
+
+    try {
+      const nextProfile = await accountApi.updateProfile({
+        firstName: profileFirstName.trim(),
+        lastName: profileLastName.trim(),
+        avatarDataUrl: profileAvatarUrl,
+        deletedMachineRetention: profileDeletedRetention,
+      });
+      setProfileDetails(nextProfile);
+      setProfileDashboard((current) =>
+        current
+          ? {
+              ...current,
+              firstName: nextProfile.firstName,
+              lastName: nextProfile.lastName,
+              fullName: nextProfile.fullName,
+            }
+          : current,
+      );
+      setProfileSaveNotice("Профиль сохранён.");
+    } catch (error) {
+      setProfileSaveError(
+        error instanceof ApiError ? error.body : "Не удалось сохранить профиль.",
+      );
+    } finally {
+      setIsProfileSaving(false);
+    }
+  };
+
+  const handleNotificationToggle = (
+    topic: "tasks" | "warnings" | "reports" | "security",
+    channel: "siteEnabled" | "telegramEnabled",
+    value: boolean,
+  ) => {
+    setNotificationPreferences((current) => ({
+      ...current,
+      [topic]: {
+        ...current[topic],
+        [channel]: value,
+      },
+    }));
+  };
+
+  const handleNotificationPreferencesSave = async () => {
+    setNotificationsNotice(null);
+    setNotificationsError(null);
+    setIsNotificationsSaving(true);
+
+    try {
+      const nextPreferences = await accountApi.updateNotificationPreferences(
+        notificationPreferences,
+      );
+      setNotificationPreferences(nextPreferences);
+      setNotificationsNotice("Настройки уведомлений сохранены.");
+    } catch (error) {
+      setNotificationsError(
+        error instanceof ApiError
+          ? error.body
+          : "Не удалось сохранить настройки уведомлений.",
+      );
+    } finally {
+      setIsNotificationsSaving(false);
+    }
+  };
+
+  const handleSessionRevoke = async (sessionId: string) => {
+    setSessionsNotice(null);
+    setSessionsError(null);
+    setIsSessionRevoking(true);
+
+    try {
+      const result = await accountApi.revokeSession(sessionId);
+      if (result.revokedCurrentSession) {
+        setProfileDashboard(null);
+        setProfileDetails(null);
+        navigate("/login", { replace: true });
+        return;
+      }
+
+      setAccountSessions((current) =>
+        current.filter((session) => session.id !== sessionId),
+      );
+      setSessionsNotice(result.message);
+    } catch (error) {
+      setSessionsError(
+        error instanceof ApiError ? error.body : "Не удалось завершить сессию.",
+      );
+    } finally {
+      setIsSessionRevoking(false);
+    }
+  };
+
+  const getReauthGrant = async () => {
+    if (passwordForm.currentPassword.trim()) {
+      return accountApi.reauth({ password: passwordForm.currentPassword.trim() });
+    }
+    if (totpCode.trim()) {
+      return accountApi.reauth({ totpCode: totpCode.trim() });
+    }
+    throw new Error("Введите текущий пароль или код TOTP для подтверждения действия.");
+  };
+
+  const handlePasswordFieldChange = (
+    field: "currentPassword" | "newPassword" | "confirmPassword",
+    value: string,
+  ) => {
+    setPasswordForm((current) => ({
+      ...current,
+      [field]: value,
+    }));
+  };
+
+  const handlePasswordSubmit = async () => {
+    setPasswordNotice(null);
+    setPasswordError(null);
+    if (passwordIssues.length) {
+      setPasswordError(passwordIssues[0] ?? "Пароль не соответствует политике.");
+      return;
+    }
+
+    setIsPasswordSubmitting(true);
+    try {
+      const response = await accountApi.changePassword(passwordForm);
+      setPasswordNotice(response.message);
+      setPasswordForm({
+        currentPassword: "",
+        newPassword: "",
+        confirmPassword: "",
+      });
+    } catch (error) {
+      setPasswordError(
+        error instanceof ApiError ? error.body : "Не удалось изменить пароль.",
+      );
+    } finally {
+      setIsPasswordSubmitting(false);
+    }
+  };
+
+  const handleTotpStart = async () => {
+    if (!passwordForm.currentPassword.trim()) {
+      setTotpError("Введите текущий пароль, чтобы подключить TOTP.");
+      return;
+    }
+
+    setTotpNotice(null);
+    setTotpError(null);
+    setIsTotpLoading(true);
+    try {
+      const setup = await accountApi.startTotpSetup(passwordForm.currentPassword.trim());
+      setTotpSetup(setup);
+      setTotpNotice("Секрет создан. Подтвердите его кодом из приложения.");
+    } catch (error) {
+      setTotpError(
+        error instanceof ApiError ? error.body : "Не удалось начать настройку TOTP.",
+      );
+    } finally {
+      setIsTotpLoading(false);
+    }
+  };
+
+  const handleTotpConfirm = async () => {
+    setTotpNotice(null);
+    setTotpError(null);
+    setIsTotpLoading(true);
+    try {
+      const response = await accountApi.confirmTotpSetup(totpCode.trim());
+      setTotpSetup(null);
+      setTotpCode("");
+      setTotpNotice(response.message);
+      const profile = await accountApi.getProfileDetails();
+      setProfileDetails(profile);
+    } catch (error) {
+      setTotpError(
+        error instanceof ApiError ? error.body : "Не удалось подтвердить TOTP.",
+      );
+    } finally {
+      setIsTotpLoading(false);
+    }
+  };
+
+  const handleTotpDisable = async () => {
+    if (!passwordForm.currentPassword.trim() || !totpCode.trim()) {
+      setTotpError("Введите текущий пароль и действующий код TOTP.");
+      return;
+    }
+
+    setTotpNotice(null);
+    setTotpError(null);
+    setIsTotpLoading(true);
+    try {
+      const response = await accountApi.disableTotp({
+        password: passwordForm.currentPassword.trim(),
+        code: totpCode.trim(),
+      });
+      setTotpCode("");
+      setTotpSetup(null);
+      setTotpNotice(response.message);
+      const profile = await accountApi.getProfileDetails();
+      setProfileDetails(profile);
+    } catch (error) {
+      setTotpError(
+        error instanceof ApiError ? error.body : "Не удалось отключить TOTP.",
+      );
+    } finally {
+      setIsTotpLoading(false);
+    }
+  };
+
+  const handleTelegramLink = async () => {
+    setTelegramNotice(null);
+    setTelegramError(null);
+    setIsTelegramLoading(true);
+    try {
+      const response = await accountApi.startTelegramLink();
+      setTelegramSetupState({ linkUrl: response.linkUrl });
+      setTelegramNotice("Откройте Telegram и завершите привязку.");
+    } catch (error) {
+      setTelegramError(
+        error instanceof ApiError ? error.body : "Не удалось начать привязку Telegram.",
+      );
+    } finally {
+      setIsTelegramLoading(false);
+    }
+  };
+
+  const handleTelegramEnable = async () => {
+    setTelegramNotice(null);
+    setTelegramError(null);
+    setIsTelegramLoading(true);
+    try {
+      const setup = await accountApi.startTelegramTwoFactorSetup();
+      if (!setup.linked) {
+        setTelegramSetupState({
+          linkUrl: setup.linkUrl ?? null,
+          reason: setup.reason ?? "Сначала завершите привязку Telegram.",
+        });
+        return;
+      }
+
+      const grant = await getReauthGrant();
+      const response = await accountApi.confirmTelegramTwoFactorSetup(grant.token);
+      setTelegramNotice(response.message);
+      const profile = await accountApi.getProfileDetails();
+      setProfileDetails(profile);
+    } catch (error) {
+      setTelegramError(
+        error instanceof ApiError ? error.body : (error as Error).message || "Не удалось включить Telegram 2FA.",
+      );
+    } finally {
+      setIsTelegramLoading(false);
+    }
+  };
+
+  const handleTelegramDisable = async () => {
+    setTelegramNotice(null);
+    setTelegramError(null);
+    setIsTelegramLoading(true);
+    try {
+      const grant = await getReauthGrant();
+      const response = await accountApi.disableTelegramTwoFactor(grant.token);
+      setTelegramNotice(response.message);
+      const profile = await accountApi.getProfileDetails();
+      setProfileDetails(profile);
+    } catch (error) {
+      setTelegramError(
+        error instanceof ApiError ? error.body : (error as Error).message || "Не удалось отключить Telegram 2FA.",
+      );
+    } finally {
+      setIsTelegramLoading(false);
+    }
+  };
+
+  const handleTelegramUnlink = async () => {
+    setTelegramNotice(null);
+    setTelegramError(null);
+    setIsTelegramLoading(true);
+    try {
+      const grant = await getReauthGrant();
+      await accountApi.unlinkTelegram(grant.token);
+      setTelegramNotice("Telegram отвязан.");
+      const profile = await accountApi.getProfileDetails();
+      setProfileDetails(profile);
+    } catch (error) {
+      setTelegramError(
+        error instanceof ApiError ? error.body : (error as Error).message || "Не удалось отвязать Telegram.",
+      );
+    } finally {
+      setIsTelegramLoading(false);
+    }
+  };
+
+  const handleApiKeyFieldChange = (
+    field: "name" | "permission" | "expiryPreset" | "templateKeysText" | "reauthPassword",
+    value: string,
+  ) => {
+    setApiKeyForm((current) => ({
+      ...current,
+      [field]:
+        field === "permission"
+          ? (value as ApiKeyPermission)
+          : field === "expiryPreset"
+            ? (value as ApiKeyExpiryPreset)
+            : value,
+    }));
+  };
+
+  const handleApiKeyMachineToggle = (machineId: string) => {
+    setApiKeyForm((current) => ({
+      ...current,
+      machineIds: current.machineIds.includes(machineId)
+        ? current.machineIds.filter((id) => id !== machineId)
+        : [...current.machineIds, machineId],
+    }));
+  };
+
+  const handleApiKeyCreate = async () => {
+    setApiKeysNotice(null);
+    setApiKeysError(null);
+    setLatestApiKeySecret(null);
+
+    if (!apiKeyForm.machineIds.length) {
+      setApiKeysError("Выберите хотя бы одну машину для API ключа.");
+      return;
+    }
+
+    setIsApiKeySubmitting(true);
+    try {
+      const grant = await accountApi.reauth({
+        password: apiKeyForm.reauthPassword.trim(),
+      });
+      const response = await accountApi.createApiKey({
+        name: apiKeyForm.name.trim(),
+        permission: apiKeyForm.permission,
+        machineIds: apiKeyForm.machineIds,
+        allowedTemplateKeys: apiKeyForm.templateKeysText
+          .split(",")
+          .map((item) => item.trim())
+          .filter(Boolean),
+        expiryPreset: apiKeyForm.expiryPreset,
+        reauthToken: grant.token,
+      });
+      setApiKeys((current) => [response.key, ...current]);
+      setLatestApiKeySecret(response.rawKey);
+      setApiKeysNotice("API ключ создан. Сохраните его сейчас.");
+      setApiKeyForm({
+        name: "",
+        permission: "read",
+        expiryPreset: "month",
+        machineIds: [],
+        templateKeysText: "",
+        reauthPassword: "",
+      });
+    } catch (error) {
+      setApiKeysError(
+        error instanceof ApiError ? error.body : "Не удалось создать API ключ.",
+      );
+    } finally {
+      setIsApiKeySubmitting(false);
+    }
+  };
+
+  const handleApiKeyRevoke = async (keyId: string) => {
+    if (!apiKeyForm.reauthPassword.trim()) {
+      setApiKeysError("Введите пароль в форме API keys, чтобы отозвать ключ.");
+      return;
+    }
+
+    setApiKeysNotice(null);
+    setApiKeysError(null);
+    setIsApiKeyRevoking(true);
+    try {
+      const grant = await accountApi.reauth({
+        password: apiKeyForm.reauthPassword.trim(),
+      });
+      await accountApi.revokeApiKey(keyId, grant.token);
+      setApiKeys((current) =>
+        current.map((item) =>
+          item.id === keyId
+            ? { ...item, isActive: false, revokedAt: new Date().toISOString() }
+            : item,
+        ),
+      );
+      setApiKeysNotice("API ключ отозван.");
+    } catch (error) {
+      setApiKeysError(
+        error instanceof ApiError ? error.body : "Не удалось отозвать API ключ.",
+      );
+    } finally {
+      setIsApiKeyRevoking(false);
+    }
+  };
+
   const renderWorkspaceTopbar = () => (
     <Topbar
       searchQuery={workspaceSearchQuery}
       searchPlaceholder={workspaceSearchPlaceholder}
       searchResults={globalSearchResults}
+      notificationItems={notificationFeed}
+      unreadNotificationCount={unreadNotificationCount}
+      notificationsOpen={isNotificationsOpen}
+      themeMode={themeMode}
       onSearchChange={setWorkspaceSearchQuery}
       onSelectSearchResult={handleSelectGlobalSearchResult}
+      onToggleNotifications={() => setIsNotificationsOpen((current) => !current)}
+      onOpenNotificationsPage={handleOpenNotificationsPage}
+      onOpenNotificationTarget={handleOpenNotificationTarget}
+      onMarkNotificationRead={handleMarkNotificationRead}
+      onToggleTheme={() =>
+        setThemeMode((current) => (current === "dark" ? "light" : "dark"))
+      }
       onCreateTask={openCreateTaskModal}
     />
   );
@@ -2141,7 +2893,7 @@ export function App() {
                   : workspaceTab === "access"
                     ? "Страница доступа"
                     : workspaceTab === "reports"
-                      ? "Страница отчетов"
+                      ? "Страница отчётов"
                       : workspaceTab === "install"
                         ? "Страница установки"
                         : workspaceTab === "profile"
@@ -2152,12 +2904,11 @@ export function App() {
         <Sidebar
           activeStripTop={sidebarActiveTop}
           items={sidebarItems}
-          profileLabel={profileDisplayName}
+          profileLabel={effectiveProfileDisplayName}
           isProfileActive={workspaceTab === "profile"}
           isInstallActive={workspaceTab === "install"}
           onProfileClick={() => {
-            navigate(workspacePath("profile"));
-            setProfileSection("general");
+            navigate(profilePath());
           }}
           onInstallClick={() => {
             navigate(workspacePath("install"));
@@ -2180,7 +2931,7 @@ export function App() {
           }
         >
           {workspaceTab === "home" ? (
-            <section className="home-dashboard" aria-label="Главная">
+            <section className="home-dashboard" aria-label="Р“Р»Р°РІРЅР°СЏ">
               {renderWorkspaceTopbar()}
 
               <div className="home-body">
@@ -2268,7 +3019,7 @@ export function App() {
                       <table className="home-tasks__table">
                         <thead>
                           <tr>
-                            <th>ID Задачи</th>
+                            <th>ID задачи</th>
                             <th>Машина</th>
                             <th>Статус</th>
                             <th>Время отправки</th>
@@ -2329,8 +3080,8 @@ export function App() {
 
                 <header className="tasks-dashboard__header">
                   <div className="tasks-dashboard__title-box">
-                    <h1>Задачи</h1>
-                    <p>Всего {taskCards.length}</p>
+                    <h1>Р—Р°РґР°С‡Рё</h1>
+                    <p>Р’СЃРµРіРѕ {taskCards.length}</p>
                   </div>
                 </header>
 
@@ -2340,35 +3091,35 @@ export function App() {
                     className={`tasks-dashboard__chip ${taskFilterStatus === "all" ? "tasks-dashboard__chip--active" : ""}`}
                     onClick={() => setTaskFilterStatus("all")}
                   >
-                    Все
+                    Р’СЃРµ
                   </button>
                   <button
                     type="button"
                     className={`tasks-dashboard__chip ${taskFilterStatus === "completed" ? "tasks-dashboard__chip--active" : ""}`}
                     onClick={() => setTaskFilterStatus("completed")}
                   >
-                    Завершенные
+                    Р—Р°РІРµСЂС€РµРЅРЅС‹Рµ
                   </button>
                   <button
                     type="button"
                     className={`tasks-dashboard__chip ${taskFilterStatus === "in_progress" ? "tasks-dashboard__chip--active" : ""}`}
                     onClick={() => setTaskFilterStatus("in_progress")}
                   >
-                    В процессе
+                    Р’ РїСЂРѕС†РµСЃСЃРµ
                   </button>
                   <button
                     type="button"
                     className={`tasks-dashboard__chip ${taskFilterStatus === "queued" ? "tasks-dashboard__chip--active" : ""}`}
                     onClick={() => setTaskFilterStatus("queued")}
                   >
-                    В очереди
+                    Р’ РѕС‡РµСЂРµРґРё
                   </button>
                   <button
                     type="button"
                     className={`tasks-dashboard__chip ${taskFilterStatus === "error" ? "tasks-dashboard__chip--active" : ""}`}
                     onClick={() => setTaskFilterStatus("error")}
                   >
-                    Ошибки
+                    РћС€РёР±РєРё
                   </button>
                 </div>
 
@@ -2392,14 +3143,14 @@ export function App() {
                         {section.cards.map((task, index) => {
                           const secondaryActionLabel =
                             task.status === "in_progress" || task.status === "queued"
-                              ? "Отменить"
-                              : "Повторить";
+                              ? "РћС‚РјРµРЅРёС‚СЊ"
+                              : "РџРѕРІС‚РѕСЂРёС‚СЊ";
                           const primaryActionLabel =
                             task.status === "in_progress" || task.status === "queued"
-                              ? "Детали"
-                              : "Посмотреть логи";
+                              ? "Р”РµС‚Р°Р»Рё"
+                              : "РџРѕСЃРјРѕС‚СЂРµС‚СЊ Р»РѕРіРё";
                           const completedLabel =
-                            task.status === "error" ? "Прервана" : "Завершена";
+                            task.status === "error" ? "РџСЂРµСЂРІР°РЅР°" : "Р—Р°РІРµСЂС€РµРЅР°";
 
                           return (
                             <article
@@ -2409,7 +3160,7 @@ export function App() {
                               <div className="task-card__header">
                                 <div className="task-card__title-box">
                                   <p className="task-card__number">
-                                    Задача №{task.taskNumber}
+                                    Р—Р°РґР°С‡Р° в„–{task.taskNumber}
                                   </p>
                                   <h3 className="task-card__title">
                                     {task.title}
@@ -2417,7 +3168,7 @@ export function App() {
                                 </div>
 
                                 <div className="task-card__timeline">
-                                  <p>Запущена: {task.startedAt}</p>
+                                  <p>Р—Р°РїСѓС‰РµРЅР°: {task.startedAt}</p>
                                   {task.completedAt ? (
                                     <p>{`${completedLabel}: ${task.completedAt}`}</p>
                                   ) : null}
@@ -2500,7 +3251,7 @@ export function App() {
               />
               {false ? <div className="results-dashboard__body">
                 <header className="results-dashboard__header">
-                  <h1>Результаты</h1>
+                  <h1>Р РµР·СѓР»СЊС‚Р°С‚С‹</h1>
                 </header>
 
                 <div className="results-dashboard__filters">
@@ -2513,10 +3264,10 @@ export function App() {
                         )
                       }
                     >
-                      <option value="all">Статус</option>
-                      <option value="success">Выполнено</option>
-                      <option value="error">Ошибка</option>
-                      <option value="cancelled">Отменено</option>
+                      <option value="all">РЎС‚Р°С‚СѓСЃ</option>
+                      <option value="success">Р’С‹РїРѕР»РЅРµРЅРѕ</option>
+                      <option value="error">РћС€РёР±РєР°</option>
+                      <option value="cancelled">РћС‚РјРµРЅРµРЅРѕ</option>
                     </select>
                   </label>
 
@@ -2527,7 +3278,7 @@ export function App() {
                         setResultsMachineFilter(event.target.value)
                       }
                     >
-                      <option value="all">Машина</option>
+                      <option value="all">РњР°С€РёРЅР°</option>
                       {resultsMachineOptions.map((machine) => (
                         <option key={machine} value={machine}>
                           {machine}
@@ -2543,7 +3294,7 @@ export function App() {
                         setResultsCommandFilter(event.target.value)
                       }
                     >
-                      <option value="all">Команда</option>
+                      <option value="all">РљРѕРјР°РЅРґР°</option>
                       {resultsCommandOptions.map((command) => (
                         <option key={command} value={command}>
                           {command}
@@ -2559,8 +3310,8 @@ export function App() {
                         setResultsDateFilter(event.target.value)
                       }
                     >
-                      <option value="all">Дата результата</option>
-                      <option value="today">Сегодня</option>
+                      <option value="all">Р”Р°С‚Р° СЂРµР·СѓР»СЊС‚Р°С‚Р°</option>
+                      <option value="today">РЎРµРіРѕРґРЅСЏ</option>
                     </select>
                   </label>
                 </div>
@@ -2573,27 +3324,27 @@ export function App() {
                       onClick={() => setResultsMachineFilter("all")}
                     >
                       <span>{resultsMachineFilter}</span>
-                      <span aria-hidden="true">×</span>
+                      <span aria-hidden="true">Г—</span>
                     </button>
                   </div>
                 ) : null}
 
                 <section className="results-table-card">
                   <header className="results-table-card__header">
-                    <h2>История запусков</h2>
+                    <h2>РСЃС‚РѕСЂРёСЏ Р·Р°РїСѓСЃРєРѕРІ</h2>
 
-                    <span className="results-table-card__caption">Поиск выполняется через верхнюю панель</span>
+                    <span className="results-table-card__caption">РџРѕРёСЃРє РІС‹РїРѕР»РЅСЏРµС‚СЃСЏ С‡РµСЂРµР· РІРµСЂС…РЅСЋСЋ РїР°РЅРµР»СЊ</span>
                   </header>
 
                   <table className="results-table-card__grid">
                     <thead>
                       <tr>
-                        <th>Название</th>
-                        <th>Статус</th>
-                        <th>Машина</th>
-                        <th>Команда</th>
-                        <th>Дата результата</th>
-                        <th>Действия</th>
+                        <th>РќР°Р·РІР°РЅРёРµ</th>
+                        <th>РЎС‚Р°С‚СѓСЃ</th>
+                        <th>РњР°С€РёРЅР°</th>
+                        <th>РљРѕРјР°РЅРґР°</th>
+                        <th>Р”Р°С‚Р° СЂРµР·СѓР»СЊС‚Р°С‚Р°</th>
+                        <th>Р”РµР№СЃС‚РІРёСЏ</th>
                       </tr>
                     </thead>
 
@@ -2635,7 +3386,7 @@ export function App() {
                                     openTaskLogs(row.taskId, row.machineId)
                                   }
                                 >
-                                  Смотреть логи
+                                  РЎРјРѕС‚СЂРµС‚СЊ Р»РѕРіРё
                                 </button>
                               </div>
                             </td>
@@ -2644,7 +3395,7 @@ export function App() {
                       ) : (
                         <tr>
                           <td colSpan={6}>
-                            Нет результатов для выбранных фильтров
+                            РќРµС‚ СЂРµР·СѓР»СЊС‚Р°С‚РѕРІ РґР»СЏ РІС‹Р±СЂР°РЅРЅС‹С… С„РёР»СЊС‚СЂРѕРІ
                           </td>
                         </tr>
                       )}
@@ -2904,12 +3655,12 @@ export function App() {
               </div>
             </section>
           ) : workspaceTab === "reports" ? (
-            <section className="reports-dashboard" aria-label="Отчеты">
+            <section className="reports-dashboard" aria-label="Отчёты">
               {renderWorkspaceTopbar()}
 
               <div className="reports-dashboard__body">
                 <header className="reports-dashboard__header">
-                  <h1>Отчеты и статистика</h1>
+                  <h1>Отчёты и статистика</h1>
 
                   <button
                     type="button"
@@ -2926,193 +3677,29 @@ export function App() {
                   </button>
                 </header>
 
-                <div className="reports-dashboard__filters">
-                  <label className="reports-filter reports-filter--period">
-                    <select
-                      value={reportPeriod}
-                      onChange={(event) =>
-                        setReportPeriod(event.target.value as ReportPeriod)
-                      }
-                    >
-                      <option value="day">Период</option>
-                      <option value="week">Неделя</option>
-                      <option value="month">Месяц</option>
-                      <option value="all">Все время</option>
-                    </select>
-                  </label>
-
-                  <label className="reports-filter reports-filter--machine">
-                    <select
-                      value={reportMachine}
-                      onChange={(event) => setReportMachine(event.target.value)}
-                    >
-                      <option value="all">Все машины</option>
-                      {reportMachineOptions.map((machine) => (
-                        <option key={machine.id} value={machine.id}>
-                          {machine.label}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-
-                  <label className="reports-filter reports-filter--template">
-                    <select
-                      value={reportTemplate}
-                      onChange={(event) =>
-                        setReportTemplate(event.target.value)
-                      }
-                    >
-                      <option value="all">Все шаблоны</option>
-                      {reportTemplateOptions.map((template) => (
-                        <option key={template} value={template}>
-                          {template}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-
-                  <label className="reports-filter reports-filter--team">
-                    <select
-                      value={reportTeam}
-                      onChange={(event) => setReportTeam(event.target.value)}
-                    >
-                      <option value="all">Все команды</option>
-                      {reportTeamOptions.map((team) => (
-                        <option key={team} value={team}>
-                          {team}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                </div>
-
-                <div className="reports-dashboard__stats">
-                  <article className="reports-stat-card">
-                    <header>
-                      <p>Средняя длительность</p>
-                      <Clock3 size={24} />
-                    </header>
-                    <strong>
-                      {formatDurationLong(reportStats.averageDurationMs)}
-                    </strong>
-                    <p className="reports-stat-card__trend reports-stat-card__trend--up">
-                      <ArrowUpRight size={20} />
-                      <span>{reportTrend.duration}</span>
-                    </p>
-                  </article>
-
-                  <article className="reports-stat-card">
-                    <header>
-                      <p>Активные машины</p>
-                      <Monitor size={24} />
-                    </header>
-                    <strong>{`${reportStats.activeMachines}/${reportStats.totalMachines}`}</strong>
-                    <p className="reports-stat-card__trend reports-stat-card__trend--up">
-                      <ArrowUpRight size={20} />
-                      <span>{reportTrend.machines}</span>
-                    </p>
-                  </article>
-
-                  <article className="reports-stat-card">
-                    <header>
-                      <p>Число ошибок</p>
-                      <AlertTriangle size={24} />
-                    </header>
-                    <strong>{`${reportStats.errorTasks}/${reportStats.totalTasks}`}</strong>
-                    <p className="reports-stat-card__trend reports-stat-card__trend--down">
-                      <ArrowDownRight size={20} />
-                      <span>{reportTrend.errors}</span>
-                    </p>
-                  </article>
-
-                  <article className="reports-stat-card">
-                    <header>
-                      <p>Процент успеха</p>
-                      <Percent size={24} />
-                    </header>
-                    <strong>{`${reportStats.successRate.toFixed(1)}%`}</strong>
-                    <p className="reports-stat-card__trend reports-stat-card__trend--up">
-                      <ArrowUpRight size={20} />
-                      <span>{reportTrend.success}</span>
-                    </p>
-                  </article>
-                </div>
-
-                <section className="reports-table-card">
-                  <header className="reports-table-card__header">
-                    <h2>Сводка по шаблонам и машинам с drill-down</h2>
-
-                    <span className="reports-table-card__caption">Поиск выполняется через верхнюю панель</span>
-                  </header>
-
-                  <table className="reports-table-card__grid">
-                    <thead>
-                      <tr>
-                        <th>Шаблон или задача</th>
-                        <th>Всего задач</th>
-                        <th>Успешно</th>
-                        <th>Ошибки</th>
-                        <th>Ср. длительность</th>
-                        <th>Действия</th>
-                      </tr>
-                    </thead>
-
-                    <tbody>
-                      {reportSummaryRows.length ? (
-                        reportSummaryRows.map((row) => (
-                          <tr key={row.id}>
-                            <td>
-                              <span className="reports-table-card__template">
-                                <img
-                                  src={getReportTemplateIcon(row.title)}
-                                  className={
-                                    row.title.trim().toLowerCase() === "db-sync"
-                                      ? "reports-table-card__template-icon--sync"
-                                      : undefined
-                                  }
-                                  alt=""
-                                  aria-hidden="true"
-                                />
-                                <span>{row.title}</span>
-                              </span>
-                            </td>
-                            <td>{row.totalTasks}</td>
-                            <td className="reports-table-card__success">
-                              {row.successCount}
-                            </td>
-                            <td className="reports-table-card__error">
-                              {row.errorCount}
-                            </td>
-                            <td>{formatDurationCompact(row.avgDurationMs)}</td>
-                            <td>
-                              <button
-                                type="button"
-                                className="reports-table-card__action"
-                                onClick={() => {
-                                  navigate(
-                                    row.actionLabel === "Смотреть логи"
-                                      ? logsPath()
-                                      : workspacePath("tasks"),
-                                  );
-                                }}
-                              >
-                                {row.actionLabel}
-                              </button>
-                            </td>
-                          </tr>
-                        ))
-                      ) : (
-                        <tr>
-                          <td colSpan={6}>Нет данных для выбранных фильтров</td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </section>
-
-                <span className="reports-dashboard__avatar" aria-hidden="true">
-                  <img src="/imya.png" alt="" />
-                </span>
+                <ReportsWorkspace
+                  reportPeriod={reportPeriod}
+                  reportMachine={reportMachine}
+                  reportTemplate={reportTemplate}
+                  reportTeam={reportTeam}
+                  machineOptions={reportMachineOptions}
+                  templateOptions={reportTemplateOptions}
+                  teamOptions={reportTeamOptions}
+                  stats={reportStats}
+                  trend={reportTrend}
+                  rows={reportSummaryRows}
+                  onPeriodChange={setReportPeriod}
+                  onMachineChange={setReportMachine}
+                  onTemplateChange={setReportTemplate}
+                  onTeamChange={setReportTeam}
+                  onAction={(row) => {
+                    navigate(
+                      row.actionLabel === "Смотреть логи"
+                        ? logsPath()
+                        : workspacePath("tasks"),
+                    );
+                  }}
+                />
               </div>
             </section>
           ) : workspaceTab === "install" ? (
@@ -3165,7 +3752,7 @@ export function App() {
                             type="button"
                             disabled={
                               card.id === "windows" &&
-                              action === "Desktop скоро"
+                              action === "Desktop СЃРєРѕСЂРѕ"
                             }
                             className={
                               index === card.activeActionIndex
@@ -3199,276 +3786,113 @@ export function App() {
               </div>
             </section>
           ) : workspaceTab === "profile" ? (
-            <section className="profile-dashboard" aria-label="Профиль">
+            <ProfileWorkspace
+              activeSection={activeProfileSection}
+              onNavigateSection={navigateProfileSection}
+            >
               {renderWorkspaceTopbar()}
-
-              <div className="profile-dashboard__body">
-                <aside className="profile-nav" aria-label="Разделы профиля">
-                  <h2>Профиль</h2>
-                  <div className="profile-nav__items">
-                    {profileSections.map((section) => (
-                      <button
-                        key={section.key}
-                        type="button"
-                        className={
-                          profileSection === section.key
-                            ? "profile-nav__item profile-nav__item--active"
-                            : "profile-nav__item"
-                        }
-                        onClick={() => setProfileSection(section.key)}
-                      >
-                        {section.label}
-                      </button>
-                    ))}
-                  </div>
-                </aside>
-
-                <div className="profile-main">
-                  {profileSection === "general" ? (
-                    <section className="profile-card profile-card--general">
-                      <header className="profile-card__header">
-                        <h3>Основная информация</h3>
-                        <p>Управление личными данными и настройками профиля</p>
-                      </header>
-
-                      <div className="profile-main-info">
-                        <span className="profile-avatar" aria-hidden="true">
-                          {profileAvatarUrl ? (
-                            <img
-                              src={profileAvatarUrl}
-                              alt=""
-                              aria-hidden="true"
-                            />
-                          ) : null}
-                        </span>
-                        <div className="profile-main-info__controls">
-                          <button
-                            type="button"
-                            className="profile-main-info__add"
-                            onClick={() =>
-                              profileAvatarInputRef.current?.click()
-                            }
-                          >
-                            Добавить +
-                          </button>
-                          <input
-                            ref={profileAvatarInputRef}
-                            type="file"
-                            accept="image/png,image/jpeg,image/jpg"
-                            className="profile-main-info__file"
-                            onChange={handleProfileAvatarChange}
-                          />
-                          <span className="profile-main-info__hint">
-                            Формат JPG, PNG
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="profile-fields profile-fields--two">
-                        <label className="profile-field">
-                          <span>Имя</span>
-                          <input
-                            type="text"
-                            value={profileFirstName}
-                            onChange={(event) =>
-                              setProfileFirstName(event.target.value)
-                            }
-                            placeholder="Имя"
-                          />
-                        </label>
-
-                        <label className="profile-field">
-                          <span>Фамилия</span>
-                          <input
-                            type="text"
-                            value={profileLastName}
-                            onChange={(event) =>
-                              setProfileLastName(event.target.value)
-                            }
-                            placeholder="Фамилия"
-                          />
-                        </label>
-                      </div>
-
-                      <label className="profile-field">
-                        <span>Электронная почта</span>
-                        <input
-                          type="email"
-                          value={profileDashboard?.email ?? ""}
-                          readOnly
-                        />
-                      </label>
-                    </section>
+                  <input
+                    ref={profileAvatarInputRef}
+                    type="file"
+                    accept="image/png,image/jpeg,image/jpg"
+                    className="profile-main-info__file"
+                    onChange={handleProfileAvatarChange}
+                  />
+                  {activeProfileSection === "general" && profileDetails ? (
+                    <ProfileGeneralSection
+                      profile={profileDetails}
+                      firstName={profileFirstName}
+                      lastName={profileLastName}
+                      avatarDataUrl={profileAvatarUrl}
+                      deletedMachineRetention={profileDeletedRetention}
+                      isSaving={isProfileSaving}
+                      notice={profileSaveNotice}
+                      error={profileSaveError}
+                      onFirstNameChange={setProfileFirstName}
+                      onLastNameChange={setProfileLastName}
+                      onRetentionChange={setProfileDeletedRetention}
+                      onAvatarPick={() => profileAvatarInputRef.current?.click()}
+                      onSubmit={handleProfileSave}
+                    />
                   ) : null}
 
-                  {profileSection === "security" ? (
-                    <section className="profile-card profile-card--security">
-                      <header className="profile-card__header">
-                        <h3>Безопасность</h3>
-                        <p>Пароль и двухфакторная аутентификация</p>
-                      </header>
-
-                      <label className="profile-field">
-                        <span>Текущий пароль</span>
-                        <input type="password" value="********" readOnly />
-                      </label>
-
-                      <div className="profile-security-row">
-                        <div>
-                          <div className="profile-security-row__title-line">
-                            <strong>Двухфакторная аутентификация</strong>
-                            {profileDashboard?.twoFactorEnabled ? (
-                              <span className="profile-security-row__badge">
-                                Подключена
-                              </span>
-                            ) : null}
-                          </div>
-                          <p>
-                            {profileDashboard?.twoFactorEnabled
-                              ? `Подключена (${profileDashboard.enabledTwoFactorMethods.join(", ") || "метод не указан"})`
-                              : "Не подключена"}
-                          </p>
-                        </div>
-
-                        <button
-                          type="button"
-                          className={
-                            profileDashboard?.twoFactorEnabled
-                              ? "profile-security-row__action profile-security-row__action--danger"
-                              : "profile-security-row__action"
-                          }
-                        >
-                          {profileDashboard?.twoFactorEnabled
-                            ? "Отключить"
-                            : "Подключить"}
-                        </button>
-                      </div>
-                    </section>
+                  {activeProfileSection === "security" && profileDetails ? (
+                    <ProfileSecuritySection
+                      profile={profileDetails}
+                      passwordForm={passwordForm}
+                      passwordIssues={passwordIssues}
+                      isPasswordSubmitting={isPasswordSubmitting}
+                      passwordNotice={passwordNotice}
+                      passwordError={passwordError}
+                      onPasswordFieldChange={handlePasswordFieldChange}
+                      onPasswordSubmit={handlePasswordSubmit}
+                      totpSetup={totpSetup}
+                      totpCode={totpCode}
+                      isTotpLoading={isTotpLoading}
+                      totpNotice={totpNotice}
+                      totpError={totpError}
+                      onTotpCodeChange={setTotpCode}
+                      onTotpStart={handleTotpStart}
+                      onTotpConfirm={handleTotpConfirm}
+                      onTotpDisable={handleTotpDisable}
+                      telegramSetupState={telegramSetupState}
+                      isTelegramLoading={isTelegramLoading}
+                      telegramNotice={telegramNotice}
+                      telegramError={telegramError}
+                      onTelegramLink={handleTelegramLink}
+                      onTelegramEnable={handleTelegramEnable}
+                      onTelegramDisable={handleTelegramDisable}
+                      onTelegramUnlink={handleTelegramUnlink}
+                    />
                   ) : null}
 
-                  {profileSection === "sessions" ? (
-                    <section className="profile-card profile-card--sessions">
-                      <header className="profile-card__header">
-                        <h3>Активные сессии</h3>
-                        <p>
-                          Показаны устройства, на которых выполнен вход в Ваш
-                          аккаунт.
-                        </p>
-                      </header>
-
-                      <div className="profile-sessions-list">
-                        {profileSessions.length ? (
-                          profileSessions.map((session) => (
-                            <article
-                              key={session.id}
-                              className="profile-session-row profile-session-row--current"
-                            >
-                              <div className="profile-session-row__content">
-                                <span
-                                  className="profile-session-row__icon profile-session-row__icon--current"
-                                  aria-hidden="true"
-                                >
-                                  {session.deviceLabel === "Браузер" ? (
-                                    <Smartphone size={20} />
-                                  ) : (
-                                    <Laptop size={20} />
-                                  )}
-                                </span>
-                                <div className="profile-session-row__meta">
-                                  <div className="profile-session-row__title-line">
-                                    <strong>{session.deviceLabel}</strong>
-                                    {session.isCurrent ? (
-                                      <span className="profile-session-row__current">
-                                        На этом устройстве
-                                      </span>
-                                    ) : null}
-                                  </div>
-                                  <p>{session.description}</p>
-                                </div>
-                              </div>
-
-                              <button
-                                type="button"
-                                className="profile-session-row__terminate"
-                                onClick={handleTerminateProfileSession}
-                              >
-                                Завершить
-                              </button>
-                            </article>
-                          ))
-                        ) : (
-                          <p className="profile-sessions-list__empty">
-                            Нет активных сессий
-                          </p>
-                        )}
-                      </div>
-                    </section>
+                  {activeProfileSection === "sessions" ? (
+                    <ProfileSessionsSection
+                      sessions={accountSessions}
+                      isLoading={isSessionsLoading}
+                      isRevoking={isSessionRevoking}
+                      notice={sessionsNotice}
+                      error={sessionsError}
+                      onRevoke={handleSessionRevoke}
+                    />
                   ) : null}
 
-                  {profileSection === "notifications" ? (
-                    <section className="profile-card profile-card--notifications">
-                      <header className="profile-card__header">
-                        <h3>Настройки уведомлений</h3>
-                        <p>Укажите уведомления, которые нужно отправлять</p>
-                      </header>
-
-                      <div className="profile-notifications">
-                        <label>
-                          <span>Выполнение задачи</span>
-                          <input
-                            type="checkbox"
-                            checked={profileNotifications.taskCompleted}
-                            onChange={(event) =>
-                              setProfileNotifications((current) => ({
-                                ...current,
-                                taskCompleted: event.target.checked,
-                              }))
-                            }
-                          />
-                        </label>
-
-                        <label>
-                          <span>Предупреждение</span>
-                          <input
-                            type="checkbox"
-                            checked={profileNotifications.warnings}
-                            onChange={(event) =>
-                              setProfileNotifications((current) => ({
-                                ...current,
-                                warnings: event.target.checked,
-                              }))
-                            }
-                          />
-                        </label>
-
-                        <label>
-                          <span>Отчет</span>
-                          <input
-                            type="checkbox"
-                            checked={profileNotifications.reports}
-                            onChange={(event) =>
-                              setProfileNotifications((current) => ({
-                                ...current,
-                                reports: event.target.checked,
-                              }))
-                            }
-                          />
-                        </label>
-                      </div>
-                    </section>
+                  {activeProfileSection === "notifications" ? (
+                    <ProfileNotificationsSection
+                      preferences={notificationPreferences}
+                      notifications={notificationFeed}
+                      unreadCount={unreadNotificationCount}
+                      isLoading={isNotificationsLoading}
+                      isSaving={isNotificationsSaving}
+                      notice={notificationsNotice}
+                      error={notificationsError}
+                      onToggle={handleNotificationToggle}
+                      onSave={handleNotificationPreferencesSave}
+                      onMarkRead={handleMarkNotificationRead}
+                      onMarkAllRead={handleMarkAllNotificationsRead}
+                      onNavigate={handleOpenNotificationTarget}
+                    />
                   ) : null}
 
-                  <footer className="profile-actions">
-                    <button type="button" className="profile-actions__cancel">
-                      Отмена
-                    </button>
-                    <button type="button" className="profile-actions__save">
-                      Сохранить
-                    </button>
-                  </footer>
-                </div>
-              </div>
-            </section>
+                  {activeProfileSection === "api-keys" ? (
+                    <ApiKeysWorkspace
+                      items={apiKeys}
+                      machineOptions={apiKeyMachineOptions}
+                      isLoading={isApiKeysLoading}
+                      isSubmitting={isApiKeySubmitting}
+                      isRevoking={isApiKeyRevoking}
+                      createForm={apiKeyForm}
+                      latestRawKey={latestApiKeySecret}
+                      notice={apiKeysNotice}
+                      error={apiKeysError}
+                      onFieldChange={handleApiKeyFieldChange}
+                      onToggleMachine={handleApiKeyMachineToggle}
+                      onCreate={handleApiKeyCreate}
+                      onRevoke={handleApiKeyRevoke}
+                    />
+                  ) : null}
+
+            </ProfileWorkspace>
           ) : selectedMachine ? (
             <section className="machine-details" aria-label="Карточка машины">
               {renderWorkspaceTopbar()}
@@ -3784,8 +4208,7 @@ export function App() {
               </div>
 
               <p className="install-guide-modal__hint">
-                На linux доступен только systemd сервис без графического
-                интерфейса
+                На Linux доступен только systemd-сервис без графического интерфейса
               </p>
             </section>
           </div>
@@ -3820,35 +4243,38 @@ export function App() {
 
               <label className="task-create-modal__field">
                 <span>Машина</span>
-                <select
+                <CustomSelect
                   value={taskMachineId}
-                  onChange={(event) => setTaskMachineId(event.target.value)}
-                >
-                  <option value="">Выбрать</option>
-                  {machineDashboardCards.map((machine) => (
-                    <option key={machine.id} value={machine.id}>
-                      {getMachineDisplayName(machine)}
-                    </option>
-                  ))}
-                </select>
+                  options={[
+                    { value: "", label: "Выбрать" },
+                    ...machineDashboardCards.map((machine) => ({
+                      value: machine.id,
+                      label: getMachineDisplayName(machine),
+                    })),
+                  ]}
+                  onChange={setTaskMachineId}
+                  ariaLabel="Выбор машины для задачи"
+                />
               </label>
 
               <label className="task-create-modal__field">
                 <span>Команда</span>
-                <select
+                <CustomSelect
                   value={taskCommand}
-                  onChange={(event) => setTaskCommand(event.target.value)}
+                  options={[
+                    {
+                      value: "",
+                      label: taskMachineId ? "Выбрать" : "Сначала выберите машину",
+                    },
+                    ...taskTemplateOptions.map((template) => ({
+                      value: template.templateKey,
+                      label: template.name,
+                    })),
+                  ]}
+                  onChange={setTaskCommand}
                   disabled={!taskMachineId || !taskTemplateOptions.length}
-                >
-                  <option value="">
-                    {taskMachineId ? "Выбрать" : "Сначала выберите машину"}
-                  </option>
-                  {taskTemplateOptions.map((template) => (
-                    <option key={template.templateKey} value={template.templateKey}>
-                      {template.name}
-                    </option>
-                  ))}
-                </select>
+                  ariaLabel="Выбор команды для задачи"
+                />
               </label>
 
               {selectedTaskTemplate ? (
@@ -3859,21 +4285,20 @@ export function App() {
                       className="task-create-modal__field"
                     >
                       <span>{parameter.label}</span>
-                      <select
+                      <CustomSelect
                         value={taskParamValues[parameter.key] ?? ""}
-                        onChange={(event) =>
+                        options={parameter.allowedValues.map((option) => ({
+                          value: option,
+                          label: option,
+                        }))}
+                        onChange={(value) =>
                           setTaskParamValues((current) => ({
                             ...current,
-                            [parameter.key]: event.target.value,
+                            [parameter.key]: value,
                           }))
                         }
-                      >
-                        {parameter.allowedValues.map((option) => (
-                          <option key={option} value={option}>
-                            {option}
-                          </option>
-                        ))}
-                      </select>
+                        ariaLabel={`Параметр ${parameter.label}`}
+                      />
                     </label>
                   ))}
                 </div>
@@ -3901,7 +4326,11 @@ export function App() {
             ? "Страница входа"
             : authMode === "register"
               ? "Страница регистрации"
-              : "Подтверждение входа"
+              : authMode === "forgot-password"
+                ? "Сброс пароля"
+                : authMode === "reset-password"
+                  ? "Обновление пароля"
+                  : "Подтверждение входа"
         }
       >
         <div className="auth-card__preview">
@@ -3922,7 +4351,7 @@ export function App() {
         <div className="auth-card__content">
           <header className="brand-block">
             <p className="brand-block__name">PREDICT MV</p>
-            <p className="brand-block__tagline">Любая валюта под рукой</p>
+            <p className="brand-block__tagline">Контроль инфраструктуры под рукой</p>
           </header>
 
           {authMode === "confirm" ? (
@@ -3945,15 +4374,16 @@ export function App() {
                   <div className="field__control field__control--centered">
                     <input
                       value={verificationCode}
-                      onChange={(event) =>
-                        setVerificationCode(event.target.value)
-                      }
+                      onChange={(event) => setVerificationCode(event.target.value)}
                       placeholder="Введите 6-значный код"
                       inputMode="numeric"
                       autoComplete="one-time-code"
                     />
                   </div>
                 </label>
+
+                {authNotice ? <p className="profile-card__notice">{authNotice}</p> : null}
+                {authError ? <p className="profile-card__error">{authError}</p> : null}
 
                 <button className="submit-button" type="submit">
                   <span>Подтвердить вход</span>
@@ -3962,7 +4392,7 @@ export function App() {
 
               <p className="confirm-panel__resend">
                 <span>Не приходит код?</span>{" "}
-                <button type="button">Отправить еще раз</button>
+                <button type="button">Отправить ещё раз</button>
               </p>
 
               <button
@@ -3979,16 +4409,140 @@ export function App() {
               <p className="confirm-panel__legal">
                 Нажимая кнопку "Подтвердить вход" выше, вы подтверждаете, что
                 ознакомились и согласны с{" "}
-                <a href="#terms">Условиями Пользования</a> и{" "}
-                <a href="#privacy">Политикой Конфиденциальности</a>
+                <a href="#terms">Условиями пользования</a> и{" "}
+                <a href="#privacy">Политикой конфиденциальности</a>
+              </p>
+            </section>
+          ) : authMode === "forgot-password" ? (
+            <section className="auth-panel">
+              <div className="auth-panel__heading">
+                <h1>Сброс пароля</h1>
+                <p>Введите email, и мы отправим письмо для восстановления доступа.</p>
+              </div>
+
+              <form className="auth-form" onSubmit={handleForgotPasswordSubmit}>
+                <label className="field">
+                  <span>Email</span>
+                  <div className="field__control">
+                    <Mail size={16} />
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(event) => setEmail(event.target.value)}
+                      placeholder="name@company.com"
+                      autoComplete="email"
+                    />
+                  </div>
+                </label>
+
+                {authNotice ? <p className="profile-card__notice">{authNotice}</p> : null}
+                {authError ? <p className="profile-card__error">{authError}</p> : null}
+
+                <button className="submit-button" type="submit">
+                  <span>Отправить письмо</span>
+                </button>
+              </form>
+
+              <p className="auth-panel__footer">
+                <button type="button" onClick={() => setAuthMode("login")}>
+                  Вернуться ко входу
+                </button>
+              </p>
+            </section>
+          ) : authMode === "reset-password" ? (
+            <section className="auth-panel">
+              <div className="auth-panel__heading">
+                <h1>Новый пароль</h1>
+                <p>Задайте новый пароль для аккаунта и подтвердите его.</p>
+              </div>
+
+              <form className="auth-form" onSubmit={handleResetPasswordSubmit}>
+                {!resetTokenFromUrl ? (
+                  <label className="field">
+                    <span>Токен сброса</span>
+                    <div className="field__control">
+                      <Shield size={16} />
+                      <input
+                        type="text"
+                        value={manualResetToken}
+                        onChange={(event) => setManualResetToken(event.target.value)}
+                        placeholder="Вставьте токен из письма"
+                      />
+                    </div>
+                  </label>
+                ) : null}
+
+                <label className="field">
+                  <span>Новый пароль</span>
+                  <div className="field__control field__control--password">
+                    <Lock size={16} />
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      value={password}
+                      onChange={(event) => setPassword(event.target.value)}
+                      placeholder="••••••••"
+                      autoComplete="new-password"
+                    />
+                    <button
+                      type="button"
+                      className="field__toggle"
+                      onClick={() => setShowPassword((current) => !current)}
+                      aria-label={showPassword ? "Скрыть пароль" : "Показать пароль"}
+                    >
+                      {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
+                </label>
+
+                <label className="field">
+                  <span>Подтвердите новый пароль</span>
+                  <div className="field__control field__control--password">
+                    <Lock size={16} />
+                    <input
+                      type={showConfirmPassword ? "text" : "password"}
+                      value={confirmPassword}
+                      onChange={(event) => setConfirmPassword(event.target.value)}
+                      placeholder="••••••••"
+                      autoComplete="new-password"
+                    />
+                    <button
+                      type="button"
+                      className="field__toggle"
+                      onClick={() => setShowConfirmPassword((current) => !current)}
+                      aria-label={
+                        showConfirmPassword ? "Скрыть пароль" : "Показать пароль"
+                      }
+                    >
+                      {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
+                </label>
+
+                {password ? (
+                  <ul className="profile-validation-list">
+                    {validatePasswordPolicy(password).map((issue) => (
+                      <li key={issue}>{issue}</li>
+                    ))}
+                  </ul>
+                ) : null}
+                {authNotice ? <p className="profile-card__notice">{authNotice}</p> : null}
+                {authError ? <p className="profile-card__error">{authError}</p> : null}
+
+                <button className="submit-button" type="submit">
+                  <span>Обновить пароль</span>
+                </button>
+              </form>
+
+              <p className="auth-panel__footer">
+                <button type="button" onClick={() => setAuthMode("login")}>
+                  Вернуться ко входу
+                </button>
               </p>
             </section>
           ) : (
             <section className="auth-panel">
               <div className="auth-panel__heading">
-                <h1>
-                  {authMode === "login" ? "Вход в аккаунт" : "Регистрация"}
-                </h1>
+                <h1>{authMode === "login" ? "Вход в аккаунт" : "Регистрация"}</h1>
                 <p>
                   {authMode === "login"
                     ? "Авторизуйтесь, чтобы продолжить"
@@ -4020,26 +4574,29 @@ export function App() {
                       value={password}
                       onChange={(event) => setPassword(event.target.value)}
                       placeholder="••••••••"
-                      autoComplete={
-                        authMode === "login"
-                          ? "current-password"
-                          : "new-password"
-                      }
+                      autoComplete={authMode === "login" ? "current-password" : "new-password"}
                     />
                     <button
                       type="button"
                       className="field__toggle"
                       onClick={() => setShowPassword((current) => !current)}
-                      aria-label={
-                        showPassword ? "Скрыть пароль" : "Показать пароль"
-                      }
+                      aria-label={showPassword ? "Скрыть пароль" : "Показать пароль"}
                     >
                       {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                     </button>
                   </div>
                 </label>
 
-                {authMode === "register" && (
+                {authMode === "login" ? (
+                  <p className="confirm-panel__resend">
+                    <span>Забыли пароль?</span>{" "}
+                    <button type="button" onClick={() => setAuthMode("forgot-password")}>
+                      Восстановить доступ
+                    </button>
+                  </p>
+                ) : null}
+
+                {authMode === "register" ? (
                   <>
                     <label className="field">
                       <span>Повторите пароль</span>
@@ -4048,29 +4605,19 @@ export function App() {
                         <input
                           type={showConfirmPassword ? "text" : "password"}
                           value={confirmPassword}
-                          onChange={(event) =>
-                            setConfirmPassword(event.target.value)
-                          }
+                          onChange={(event) => setConfirmPassword(event.target.value)}
                           placeholder="••••••••"
                           autoComplete="new-password"
                         />
                         <button
                           type="button"
                           className="field__toggle"
-                          onClick={() =>
-                            setShowConfirmPassword((current) => !current)
-                          }
+                          onClick={() => setShowConfirmPassword((current) => !current)}
                           aria-label={
-                            showConfirmPassword
-                              ? "Скрыть пароль"
-                              : "Показать пароль"
+                            showConfirmPassword ? "Скрыть пароль" : "Показать пароль"
                           }
                         >
-                          {showConfirmPassword ? (
-                            <EyeOff size={16} />
-                          ) : (
-                            <Eye size={16} />
-                          )}
+                          {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                         </button>
                       </div>
                     </label>
@@ -4079,21 +4626,18 @@ export function App() {
                       <input
                         type="checkbox"
                         checked={acceptTerms}
-                        onChange={(event) =>
-                          setAcceptTerms(event.target.checked)
-                        }
+                        onChange={(event) => setAcceptTerms(event.target.checked)}
                       />
-                      <span>
-                        Я даю согласие на обработку персональных данных
-                      </span>
+                      <span>Я даю согласие на обработку персональных данных</span>
                     </label>
                   </>
-                )}
+                ) : null}
+
+                {authNotice ? <p className="profile-card__notice">{authNotice}</p> : null}
+                {authError ? <p className="profile-card__error">{authError}</p> : null}
 
                 <button className="submit-button" type="submit">
-                  <span>
-                    {authMode === "login" ? "Войти" : "Зарегистрироваться"}
-                  </span>
+                  <span>{authMode === "login" ? "Войти" : "Зарегистрироваться"}</span>
                 </button>
               </form>
 
@@ -4133,3 +4677,4 @@ export function App() {
     </main>
   );
 }
+

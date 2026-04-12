@@ -36,7 +36,7 @@ export function MachineTaskComposer({
       {
         value: "",
         label: taskTemplateOptions.length
-          ? "Введите или выберите команду"
+          ? "Выберите разрешённую команду"
           : "Нет доступных команд",
       },
       ...taskTemplateOptions.map((template) => ({
@@ -55,7 +55,12 @@ export function MachineTaskComposer({
       data-testid="machine-task-composer-section"
     >
       <header className="machine-details__section-head">
-        <h2>Задача</h2>
+        <div>
+          <h2>Создать задачу</h2>
+          <p className="machine-details__section-note">
+            Команда формируется только из разрешённых шаблонов и параметров.
+          </p>
+        </div>
         <span className="machine-details__task-role">{taskRoleLabel}</span>
       </header>
 
@@ -81,9 +86,7 @@ export function MachineTaskComposer({
                     value: option,
                     label: option,
                   }))}
-                  onChange={(value) =>
-                    onTaskParameterChange(parameter.key, value)
-                  }
+                  onChange={(value) => onTaskParameterChange(parameter.key, value)}
                   ariaLabel={parameter.label}
                 />
               </label>
@@ -118,7 +121,7 @@ export function MachineTaskComposer({
             </div>
             <code>
               {taskPreviewCommand ||
-                "Выберите команду и параметры, чтобы увидеть итоговый запуск."}
+                "Выберите команду и параметры, чтобы увидеть итоговую строку запуска."}
             </code>
           </div>
 
@@ -143,8 +146,8 @@ export function MachineTaskComposer({
         <div className="machine-details__task-create-card">
           <strong>{machineName}</strong>
           <p className="machine-details__task-create-text">
-            Для этой машины доступен только выбор разрешённых сценариев от
-            администратора.
+            Для этой машины можно запускать только заранее разрешённые сценарии
+            от владельца или администратора.
           </p>
         </div>
       )}

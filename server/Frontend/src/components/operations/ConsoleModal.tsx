@@ -1,9 +1,14 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { X } from "lucide-react";
+
 import { api, type TaskDetailResponse, type TaskLogLineResponse } from "../../core";
 import { EmptyState } from "../primitives/EmptyState";
 import { ModalFrame } from "../primitives/ModalFrame";
 import { StatusBadge } from "../primitives/StatusBadge";
+import {
+  OperationConsole,
+  type OperationConsoleLine,
+} from "./console/OperationConsole";
 
 type ConsoleModalProps = {
   taskId: string;
@@ -17,6 +22,14 @@ function getTaskBadgeTone(
   if (status === "error") return "danger";
   if (status === "queued") return "neutral";
   return "warning";
+}
+
+function mapLogLineTone(
+  stream: TaskLogLineResponse["stream"],
+): "stdout" | "stderr" | "system" {
+  if (stream === "stderr") return "stderr";
+  if (stream === "system") return "system";
+  return "stdout";
 }
 
 export function ConsoleModal({
@@ -75,19 +88,52 @@ export function ConsoleModal({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [onClose]);
 
+  const consoleLines = useMemo(() => {
+    const items: OperationConsoleLine[] = lines.map((line) => ({
+      id: line.id,
+      tone: mapLogLineTone(line.stream),
+      timestamp: line.createdAt,
+      label: line.stream,
+      text: line.text,
+    }));
+
+    if (task) {
+      items.unshift({
+        id: `${task.id}:command`,
+        tone: "command",
+        label: "$",
+        text: task.renderedCommand,
+      });
+
+      if (lines.length === 0) {
+        items.push({
+          id: `${task.id}:empty`,
+          tone: "system",
+          label: "system",
+          text: "Логи для этой задачи пока не поступили.",
+        });
+      }
+    }
+
+    return items;
+  }, [lines, task]);
+
   return (
     <div
       className="operation-modal__overlay"
       role="presentation"
       onClick={onClose}
     >
-      <div className="operation-modal__container" onClick={(event) => event.stopPropagation()}>
+      <div
+        className="operation-modal__container"
+        onClick={(event) => event.stopPropagation()}
+      >
         <ModalFrame
           title={task?.title ?? "Логи задачи"}
           subtitle={
             task
-              ? `${task.machine} • ${task.renderedCommand}`
-              : "Загружаем задачу и её поток выполнения"
+              ? `${task.machine} • ${task.requestedBy}`
+              : "Загружаем задачу и её консольный вывод"
           }
           actions={
             <button
@@ -109,7 +155,7 @@ export function ConsoleModal({
               />
             </div>
             <div className="operation-modal__meta-item">
-              <span>Запустил</span>
+              <span>Отправил</span>
               <strong>{task?.requestedBy ?? "Нет данных"}</strong>
             </div>
             <div className="operation-modal__meta-item">
@@ -118,7 +164,7 @@ export function ConsoleModal({
             </div>
             <div className="operation-modal__meta-item">
               <span>Завершение</span>
-              <strong>{task?.completedAt ?? "Ещё выполняется"}</strong>
+              <strong>{task?.completedAt ?? "Задача ещё выполняется"}</strong>
             </div>
           </div>
 
@@ -130,43 +176,16 @@ export function ConsoleModal({
           ) : hasError ? (
             <EmptyState
               title="Не удалось открыть логи"
-              description="Backend не вернул детали этой задачи или доступ уже недоступен."
+              description="Backend не вернул детали этой задачи или доступ к ней уже закрыт."
             />
           ) : (
-            <div className="operation-console">
-              <div className="operation-console__header">
-                <span>{task?.machine ?? "Машина"}</span>
-                <span>{task?.templateKey ?? "Команда"}</span>
-              </div>
-              <div className="operation-console__body" role="log" aria-live="polite">
-                {task ? (
-                  <div className="operation-console__line operation-console__line--command">
-                    <span className="operation-console__prefix">$</span>
-                    <span className="operation-console__text">{task.renderedCommand}</span>
-                  </div>
-                ) : null}
-
-                {lines.length ? (
-                  lines.map((line) => (
-                    <div
-                      key={line.id}
-                      className={`operation-console__line operation-console__line--${line.stream}`}
-                    >
-                      <span className="operation-console__timestamp">{line.createdAt}</span>
-                      <span className="operation-console__channel">{line.stream}</span>
-                      <span className="operation-console__text">{line.text}</span>
-                    </div>
-                  ))
-                ) : (
-                  <div className="operation-console__line operation-console__line--system">
-                    <span className="operation-console__channel">system</span>
-                    <span className="operation-console__text">
-                      Логи для этой задачи пока не поступили.
-                    </span>
-                  </div>
-                )}
-              </div>
-            </div>
+            <OperationConsole
+              title={task?.machine ?? "Машина"}
+              subtitle={task?.templateKey ?? "Консоль"}
+              lines={consoleLines}
+              live
+              emptyMessage="Логи для этой задачи пока не поступили."
+            />
           )}
         </ModalFrame>
       </div>

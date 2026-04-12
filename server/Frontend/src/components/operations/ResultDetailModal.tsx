@@ -1,9 +1,15 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { X } from "lucide-react";
+
 import { api, type ResultDetailResponse, type TaskDetailResponse } from "../../core";
 import { EmptyState } from "../primitives/EmptyState";
 import { ModalFrame } from "../primitives/ModalFrame";
 import { StatusBadge } from "../primitives/StatusBadge";
+import {
+  OperationConsole,
+  type OperationConsoleBlock,
+  type OperationConsoleLine,
+} from "./console/OperationConsole";
 
 type ResultDetailModalProps = {
   resultId: string;
@@ -79,18 +85,70 @@ export function ResultDetailModal({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [onClose]);
 
+  const consoleLines = useMemo(() => {
+    if (!result) return [];
+
+    const items: OperationConsoleLine[] = [
+      {
+        id: `${result.id}:command`,
+        tone: "command",
+        label: "$",
+        text: result.shell.command,
+      },
+    ];
+
+    if (!result.shell.stdout && !result.shell.stderr) {
+      items.push({
+        id: `${result.id}:empty`,
+        tone: "system" as const,
+        label: "system",
+        text: "Команда завершилась без текстового вывода.",
+      });
+    }
+
+    return items;
+  }, [result]);
+
+  const consoleBlocks = useMemo(() => {
+    if (!result) return [];
+
+    const blocks: OperationConsoleBlock[] = [];
+
+    if (result.shell.stdout) {
+      blocks.push({
+        id: `${result.id}:stdout`,
+        title: "stdout",
+        text: result.shell.stdout,
+      });
+    }
+
+    if (result.shell.stderr) {
+      blocks.push({
+        id: `${result.id}:stderr`,
+        title: "stderr",
+        text: result.shell.stderr,
+        tone: "danger",
+      });
+    }
+
+    return blocks;
+  }, [result]);
+
   return (
     <div
       className="operation-modal__overlay"
       role="presentation"
       onClick={onClose}
     >
-      <div className="operation-modal__container" onClick={(event) => event.stopPropagation()}>
+      <div
+        className="operation-modal__container"
+        onClick={(event) => event.stopPropagation()}
+      >
         <ModalFrame
           title={task?.title ?? "Результат выполнения"}
           subtitle={
             task
-              ? `${task.machine} • ${task.renderedCommand}`
+              ? `${task.machine} • ${task.requestedBy}`
               : "Загружаем результат команды"
           }
           actions={
@@ -145,43 +203,13 @@ export function ResultDetailModal({
                 </section>
               ) : null}
 
-              <section className="operation-console">
-                <div className="operation-console__header">
-                  <span>{task?.machine ?? "Машина"}</span>
-                  <span>{result.parserKind}</span>
-                </div>
-                <div className="operation-console__body">
-                  <div className="operation-console__line operation-console__line--command">
-                    <span className="operation-console__prefix">$</span>
-                    <span className="operation-console__text">{result.shell.command}</span>
-                  </div>
-
-                  {result.shell.stdout ? (
-                    <div className="operation-console__block">
-                      <p className="operation-console__block-title">stdout</p>
-                      <pre className="operation-console__output">{result.shell.stdout}</pre>
-                    </div>
-                  ) : null}
-
-                  {result.shell.stderr ? (
-                    <div className="operation-console__block">
-                      <p className="operation-console__block-title">stderr</p>
-                      <pre className="operation-console__output operation-console__output--danger">
-                        {result.shell.stderr}
-                      </pre>
-                    </div>
-                  ) : null}
-
-                  {!result.shell.stdout && !result.shell.stderr ? (
-                    <div className="operation-console__line operation-console__line--system">
-                      <span className="operation-console__channel">system</span>
-                      <span className="operation-console__text">
-                        Команда завершилась без текстового вывода.
-                      </span>
-                    </div>
-                  ) : null}
-                </div>
-              </section>
+              <OperationConsole
+                title={task?.machine ?? "Машина"}
+                subtitle={result.parserKind}
+                lines={consoleLines}
+                blocks={consoleBlocks}
+                emptyMessage="Команда завершилась без текстового вывода."
+              />
 
               {result.parsedPayload ? (
                 <section className="operation-result__payload">

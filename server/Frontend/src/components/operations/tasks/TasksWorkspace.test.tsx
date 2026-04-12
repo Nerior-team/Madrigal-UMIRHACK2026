@@ -31,7 +31,7 @@ function createProps(): TasksWorkspaceProps {
     sections: [
       {
         key: "completed",
-        label: "Завершенные",
+        label: "Завершённые",
         cards: createTaskCards(7),
       },
       {

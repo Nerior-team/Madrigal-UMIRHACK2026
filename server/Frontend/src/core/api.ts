@@ -1,7 +1,9 @@
-import {
+﻿import {
+  formatMachineHeartbeatLabel,
   formatMoscowDateTime,
   normalizeMachineOsLabel,
   normalizeMachineTitle,
+  resolveMachineActivityStatus,
 } from "./ui";
 import { formatLogStreamLine } from "./logs";
 import { apiFetch } from "./http";
@@ -62,10 +64,14 @@ export interface MachineCardResponse {
   hostname: string;
   os: string;
   heartbeat: string;
+  lastHeartbeatAt?: string | null;
+  unpairedAt?: string | null;
   owner: string;
   myRole: string;
   initials?: string;
-  status: "online" | "running" | "offline";
+  backendStatus: "pending" | "online" | "offline";
+  hasActiveTask: boolean;
+  status: "online" | "running" | "offline" | "deleted";
   badgeTone: "violet" | "cyan" | "green";
 }
 
@@ -309,6 +315,7 @@ type BackendMachineSummary = {
   os_version?: string | null;
   status: BackendMachineStatus;
   last_heartbeat_at?: string | null;
+  unpaired_at?: string | null;
   owner_email: string;
   my_role: BackendMachineRole;
 };
@@ -352,7 +359,13 @@ type BackendTaskRead = {
   rendered_command?: string | null;
   status: BackendTaskLifecycle;
   requested_by_user_id: string;
+  requested_by_email?: string | null;
   created_at: string;
+  status_reason?: string | null;
+  cancelled_by_email?: string | null;
+  cancelled_by_role?: string | null;
+  cancel_requested_by_email?: string | null;
+  cancel_requested_by_role?: string | null;
   attempts: BackendTaskAttempt[];
 };
 
@@ -487,12 +500,10 @@ function extractDigits(value: string): string {
   return value.replace(/\D/g, "");
 }
 
-function mapMachineStatus(
-  status: BackendMachineStatus,
-): MachineCardResponse["status"] {
-  if (status === "online") return "online";
-  if (status === "pending") return "running";
-  return "offline";
+function hasActiveExecution(status: BackendTaskLifecycle): boolean {
+  return (
+    status === "dispatched" || status === "accepted" || status === "running"
+  );
 }
 
 function mapMachineBadgeTone(
@@ -506,7 +517,10 @@ function mapMachineBadgeTone(
 
 function mapMachineSummary(
   machine: BackendMachineSummary,
+  activeTaskMachineIds: Set<string> = new Set(),
 ): MachineCardResponse {
+  const hasActiveTask = activeTaskMachineIds.has(machine.id);
+
   return {
     id: machine.id,
     machine: normalizeMachineTitle(machine.display_name || machine.hostname),
@@ -516,10 +530,22 @@ function mapMachineSummary(
         ? `${machine.os_family} ${machine.os_version}`
         : machine.os_family,
     ),
-    heartbeat: formatMoscowDateTime(machine.last_heartbeat_at),
+    heartbeat: formatMachineHeartbeatLabel({
+      lastHeartbeatAt: machine.last_heartbeat_at,
+      unpairedAt: machine.unpaired_at,
+    }),
+    lastHeartbeatAt: machine.last_heartbeat_at ?? null,
+    unpairedAt: machine.unpaired_at ?? null,
     owner: machine.owner_email,
     myRole: mapAccessRoleLabel(machine.my_role),
-    status: mapMachineStatus(machine.status),
+    backendStatus: machine.status,
+    hasActiveTask,
+    status: resolveMachineActivityStatus({
+      backendStatus: machine.status,
+      lastHeartbeatAt: machine.last_heartbeat_at,
+      unpairedAt: machine.unpaired_at,
+      hasActiveTask,
+    }),
     badgeTone: mapMachineBadgeTone(machine.my_role),
   };
 }
@@ -556,6 +582,22 @@ function mapTask(
     presentation.group === "in_progress" || presentation.group === "queued"
       ? undefined
       : formatDateTime(lastAttempt?.finished_at ?? task.created_at);
+  const requestedBy =
+    task.requested_by_email ??
+    userEmailMap.get(task.requested_by_user_id) ??
+    task.requested_by_user_id;
+
+  let resultText = presentation.resultLabel;
+  let statusLabel = presentation.taskStatusLabel;
+
+  if (task.status === "cancelled" && task.cancelled_by_email) {
+    resultText = `Отменено: ${task.cancelled_by_email}`;
+    statusLabel = "Завершено администратором";
+  } else if (task.cancel_requested_by_email) {
+    resultText = `Запрошена отмена: ${task.cancel_requested_by_email}`;
+  } else if (task.status_reason) {
+    resultText = task.status_reason;
+  }
 
   return {
     id: task.id,
@@ -566,16 +608,15 @@ function mapTask(
     resultId: lastAttempt?.result_id ?? undefined,
     templateKey: task.template_key,
     renderedCommand: getTaskRenderedCommand(task),
-    requestedBy:
-      userEmailMap.get(task.requested_by_user_id) ?? task.requested_by_user_id,
+    requestedBy,
     taskNumber,
     title: taskTitle,
     startedAt,
     completedAt,
     serverNumber,
-    resultText: presentation.resultLabel,
+    resultText,
     resultColor: mapPresentationToResultColor(presentation.resultTone),
-    statusLabel: presentation.taskStatusLabel,
+    statusLabel,
     status: presentation.group,
   };
 }
@@ -654,9 +695,7 @@ function pickTaskEventDate(
 
 function pickTaskCreatedAtIso(task: BackendTaskRead): string {
   const latestAttempt = task.attempts[task.attempts.length - 1];
-  return (
-    latestAttempt?.started_at ?? latestAttempt?.queued_at ?? task.created_at
-  );
+  return latestAttempt?.started_at ?? latestAttempt?.queued_at ?? task.created_at;
 }
 
 function pickTaskDurationMs(task: BackendTaskRead): number | undefined {
@@ -699,13 +738,13 @@ function deriveNameFromEmail(email: string): {
   if (segments.length === 1) {
     return {
       firstName: capitalize(segments[0]),
-      lastName: "Фамилия",
+      lastName: "",
     };
   }
 
   return {
-    firstName: "Имя",
-    lastName: "Фамилия",
+    firstName: "",
+    lastName: "",
   };
 }
 
@@ -1006,7 +1045,7 @@ async function buildAccessDashboard(): Promise<AccessDashboardResponse> {
         role: `${mapAccessRoleLabel(entry.role)} (${entry.machineName})`,
         time: formatDateTime(entry.createdAt),
         actionText: entry.revokedAt
-          ? "потерял доступ для пользователя"
+          ? "отозвал доступ пользователю"
           : "выдал доступ пользователю",
         sortValue: entry.createdAt,
       };
@@ -1088,14 +1127,14 @@ export const api = {
   async getProfileDashboard(): Promise<ProfileDashboardResponse> {
     const response = await request<BackendMeResponse>("/auth/me");
     const { firstName, lastName } = deriveNameFromEmail(response.user.email);
-    const fullName = `${firstName} ${lastName}`.trim();
+    const fullName = `${firstName} ${lastName}`.trim() || response.user.email;
 
     return {
       userId: response.user.id,
       email: response.user.email,
       firstName,
       lastName,
-      fullName: fullName || "Имя Фамилия",
+      fullName,
       isActive: response.user.is_active,
       emailVerified: response.user.email_verified,
       sessionKind: response.session_kind,
@@ -1135,6 +1174,23 @@ export const api = {
     }).then(() => ({ requiresConfirmation: true }));
   },
 
+  forgotPassword(email: string): Promise<{ message: string }> {
+    return request<{ message: string }>("/auth/password/forgot", {
+      method: "POST",
+      body: JSON.stringify({ email }),
+    });
+  },
+
+  resetPassword(token: string, newPassword: string): Promise<{ message: string }> {
+    return request<{ message: string }>("/auth/password/reset", {
+      method: "POST",
+      body: JSON.stringify({
+        token,
+        new_password: newPassword,
+      }),
+    });
+  },
+
   async confirm(
     email: string,
     code: string,
@@ -1169,7 +1225,16 @@ export const api = {
 
   async getMachines(): Promise<MachineCardResponse[]> {
     const machines = await request<BackendMachineSummary[]>("/machines");
-    return machines.map(mapMachineSummary);
+    const tasks = await loadMachineTasks(machines.map((machine) => machine.id));
+    const activeTaskMachineIds = new Set(
+      tasks
+        .filter((task) => hasActiveExecution(task.status))
+        .map((task) => task.machine_id),
+    );
+
+    return machines.map((machine) =>
+      mapMachineSummary(machine, activeTaskMachineIds),
+    );
   },
 
   async confirmMachineRegistration(input: {
@@ -1242,11 +1307,18 @@ export const api = {
 
   async getHomeDashboard(): Promise<HomeDashboardResponse> {
     const machines = await request<BackendMachineSummary[]>("/machines");
-    const machineCards = machines.map(mapMachineSummary);
     const machineMap = new Map(
       machines.map((machine) => [machine.id, machine]),
     );
     const tasks = await loadMachineTasks(machines.map((machine) => machine.id));
+    const activeTaskMachineIds = new Set(
+      tasks
+        .filter((task) => hasActiveExecution(task.status))
+        .map((task) => task.machine_id),
+    );
+    const machineCards = machines.map((machine) =>
+      mapMachineSummary(machine, activeTaskMachineIds),
+    );
     const userEmailMap = await loadUserEmailMap(
       machines.map((machine) => machine.id),
     );
@@ -1287,7 +1359,7 @@ export const api = {
           accent: "green",
           progress: onlineProgress,
           progressLeft: "Онлайн",
-          progressRight: "Офлайн",
+          progressRight: "Оффлайн",
         },
         {
           id: "tasks",
@@ -1377,6 +1449,21 @@ export const api = {
     const presentation = getTaskPresentation(task.status);
     const lastAttempt = task.attempts[task.attempts.length - 1];
 
+    const requestedBy =
+      task.requested_by_email ??
+      userEmailMap.get(task.requested_by_user_id) ??
+      task.requested_by_user_id;
+    const statusLabel =
+      task.status === "cancelled" && task.cancelled_by_email
+        ? "Завершено администратором"
+        : presentation.taskStatusLabel;
+    const resultText =
+      task.status === "cancelled" && task.cancelled_by_email
+        ? `Отменено: ${task.cancelled_by_email}`
+        : task.cancel_requested_by_email
+          ? `Запрошена отмена: ${task.cancel_requested_by_email}`
+          : task.status_reason || presentation.resultLabel;
+
     return {
       id: task.id,
       machineId: task.machine_id,
@@ -1386,11 +1473,10 @@ export const api = {
       title: task.template_name,
       templateKey: task.template_key,
       renderedCommand: getTaskRenderedCommand(task),
-      requestedBy:
-        userEmailMap.get(task.requested_by_user_id) ?? task.requested_by_user_id,
+      requestedBy,
       status: presentation.group,
-      statusLabel: presentation.taskStatusLabel,
-      resultText: presentation.resultLabel,
+      statusLabel,
+      resultText,
       startedAt: formatDateTime(
         lastAttempt?.started_at ?? lastAttempt?.queued_at ?? task.created_at,
       ),
@@ -1537,6 +1623,11 @@ export const api = {
       machines.map((machine) => machine.id),
     );
     const tasks = await loadMachineTasks(machines.map((machine) => machine.id));
+    const activeTaskMachineIds = new Set(
+      tasks
+        .filter((task) => hasActiveExecution(task.status))
+        .map((task) => task.machine_id),
+    );
 
     const reportTasks = tasks
       .map((task) => {
@@ -1547,7 +1638,14 @@ export const api = {
           machine: normalizeMachineTitle(
             machine?.display_name || machine?.hostname || task.machine_id,
           ),
-          machineStatus: machine ? mapMachineStatus(machine.status) : "offline",
+          machineStatus: machine
+            ? resolveMachineActivityStatus({
+                backendStatus: machine.status,
+                lastHeartbeatAt: machine.last_heartbeat_at,
+                unpairedAt: machine.unpaired_at,
+                hasActiveTask: activeTaskMachineIds.has(task.machine_id),
+              })
+            : "offline",
           templateName: task.template_name,
           requestedBy:
             userEmailMap.get(task.requested_by_user_id) ??
@@ -1691,7 +1789,7 @@ export const api = {
           resource: machine.display_name || machine.hostname,
           status: status.status,
           statusTone: status.statusTone,
-          action: entry.revoked_at ? "-" : "Отозвать",
+          action: entry.revoked_at ? "-" : "РћС‚РѕР·РІР°С‚СЊ",
         };
       });
 
@@ -1718,25 +1816,25 @@ export const api = {
       metrics: [
         {
           id: "users_total",
-          title: "Всего пользователей",
+          title: "Р’СЃРµРіРѕ РїРѕР»СЊР·РѕРІР°С‚РµР»РµР№",
           value: String(uniqueUsers.size),
           tone: "highlight",
         },
         {
           id: "admins_total",
-          title: "Администраторов",
+          title: "РђРґРјРёРЅРёСЃС‚СЂР°С‚РѕСЂРѕРІ",
           value: String(uniqueAdmins.size),
           tone: "default",
         },
         {
           id: "agents_total",
-          title: "Всего агентов",
+          title: "Р’СЃРµРіРѕ Р°РіРµРЅС‚РѕРІ",
           value: String(machines.length),
           tone: "default",
         },
         {
           id: "agents_online",
-          title: "Онлайн",
+          title: "РћРЅР»Р°Р№РЅ",
           value: String(agentsOnline),
           tone: "default",
         },
@@ -1806,3 +1904,4 @@ export const api = {
     );
   },
 };
+
