@@ -40,6 +40,7 @@ class MachineSummary(BaseModel):
     os_version: str | None
     status: MachineStatus
     last_heartbeat_at: datetime | None
+    unpaired_at: datetime | None = None
     owner_email: str
     my_role: MachineAccessRole
 

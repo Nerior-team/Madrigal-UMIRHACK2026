@@ -1,9 +1,23 @@
-import {
+﻿import {
+  formatMachineHeartbeatLabel,
   formatMoscowDateTime,
   normalizeMachineOsLabel,
   normalizeMachineTitle,
+  resolveMachineActivityStatus,
 } from "./ui";
 import { formatLogStreamLine } from "./logs";
+import { apiFetch } from "./http";
+import { getTaskPresentation, type BackendTaskLifecycle } from "./operations";
+import {
+  buildAccessMetrics,
+  getAccessRowCapabilities,
+  getAssignableRoles,
+  getInviteStatusPresentation,
+  sortAccessEntries,
+  type AccessActorRole,
+  type AccessEntryLike,
+  type InviteLike,
+} from "./access";
 
 export interface AuthResponse {
   token?: string;
@@ -50,10 +64,14 @@ export interface MachineCardResponse {
   hostname: string;
   os: string;
   heartbeat: string;
+  lastHeartbeatAt?: string | null;
+  unpairedAt?: string | null;
   owner: string;
   myRole: string;
   initials?: string;
-  status: "online" | "running" | "offline";
+  backendStatus: "pending" | "online" | "offline";
+  hasActiveTask: boolean;
+  status: "online" | "running" | "offline" | "deleted";
   badgeTone: "violet" | "cyan" | "green";
 }
 
@@ -62,14 +80,20 @@ export interface TaskCardResponse {
   machineId: string;
   machine: string;
   templateKey: string;
+  resultId?: string;
+  renderedCommand: string;
+  requestedBy: string;
   taskNumber: string;
   title: string;
   startedAt: string;
+  startedAtIso: string;
   completedAt?: string;
+  completedAtIso?: string;
   serverNumber: string;
   resultText: string;
-  resultColor: "green" | "yellow" | "red";
-  status: "completed" | "in_progress" | "error";
+  resultColor: "green" | "yellow" | "red" | "gray";
+  statusLabel: string;
+  status: "queued" | "completed" | "in_progress" | "error";
 }
 
 export interface AccessDashboardResponse {
@@ -79,15 +103,43 @@ export interface AccessDashboardResponse {
     value: string;
     tone?: "default" | "highlight";
   }>;
+  machines: Array<{
+    id: string;
+    resource: string;
+    role: string;
+    roleValue: "viewer" | "admin" | "operator" | "owner";
+    canInvite: boolean;
+    availableRoleValues: Array<"viewer" | "admin" | "operator">;
+  }>;
   users: Array<{
     id: string;
+    accessId: string;
+    machineId: string;
     email: string;
     role: string;
+    roleValue: "viewer" | "admin" | "operator" | "owner";
     roleTone: "viewer" | "admin" | "operator" | "owner";
     resource: string;
     status: string;
     statusTone: "active" | "pending";
     action: string;
+    canManage: boolean;
+    canRevoke: boolean;
+    isCreatorOwner: boolean;
+    availableRoleValues: Array<"viewer" | "admin" | "operator">;
+  }>;
+  invites: Array<{
+    id: string;
+    inviteId: string;
+    machineId: string;
+    email: string;
+    role: string;
+    roleValue: "viewer" | "admin" | "operator" | "owner";
+    resource: string;
+    status: string;
+    statusTone: "active" | "pending" | "muted";
+    createdAt: string;
+    expiresAt: string;
   }>;
   activity: Array<{
     id: string;
@@ -105,6 +157,7 @@ export interface LogsDashboardResponse {
     taskId: string;
     machineId: string;
     taskTitle: string;
+    renderedCommand: string;
     machine: string;
     action: string;
     email: string;
@@ -143,15 +196,57 @@ export interface ReportsDashboardResponse {
 export interface ResultsDashboardResponse {
   rows: Array<{
     id: string;
+    taskId: string;
     machineId: string;
     title: string;
     statusLabel: string;
-    statusTone: "success" | "error" | "cancelled";
+    statusTone: "success" | "error" | "cancelled" | "pending";
     machine: string;
     command: string;
     resultAt: string;
     resultAtIso: string;
   }>;
+}
+
+export interface TaskDetailResponse {
+  id: string;
+  machineId: string;
+  machine: string;
+  title: string;
+  templateKey: string;
+  renderedCommand: string;
+  requestedBy: string;
+  status: TaskCardResponse["status"];
+  statusLabel: string;
+  resultText: string;
+  startedAt: string;
+  completedAt?: string;
+}
+
+export interface TaskLogLineResponse {
+  id: string;
+  attemptId: string;
+  stream: "stdout" | "stderr" | "system";
+  sequence: number;
+  text: string;
+  createdAt: string;
+  createdAtIso: string;
+}
+
+export interface ResultDetailResponse {
+  id: string;
+  taskId: string;
+  parserKind: string;
+  summary?: string | null;
+  parsedPayload?: Record<string, unknown> | null;
+  createdAt: string;
+  shell: {
+    command: string;
+    stdout: string;
+    stderr: string;
+    exitCode: number;
+    durationMs: number;
+  };
 }
 
 export interface ProfileDashboardResponse {
@@ -170,6 +265,7 @@ export interface ProfileDashboardResponse {
 export interface CommandTemplateParameter {
   key: string;
   label: string;
+  type?: string;
   allowedValues: string[];
 }
 
@@ -182,6 +278,22 @@ export interface CommandTemplateOption {
   commandPattern: string;
   parameters: CommandTemplateParameter[];
   parserKind: string;
+  isBuiltin: boolean;
+  isEnabled: boolean;
+}
+
+export interface CommandTemplateMutationInput {
+  name: string;
+  description?: string | null;
+  runner: string;
+  commandPattern: string;
+  parserKind: string;
+  parameters: Array<{
+    key: string;
+    label: string;
+    allowedValues: string[];
+  }>;
+  isEnabled?: boolean;
 }
 
 type BackendSessionKind = "web" | "desktop" | "cli";
@@ -206,6 +318,11 @@ type BackendMeResponse = {
   enabled_two_factor_methods: string[];
 };
 
+type BackendReauthResponse = {
+  reauth_token: string;
+  expires_at: string;
+};
+
 type BackendMachineStatus = "pending" | "online" | "offline";
 type BackendMachineRole = "owner" | "admin" | "operator" | "viewer";
 
@@ -217,8 +334,13 @@ type BackendMachineSummary = {
   os_version?: string | null;
   status: BackendMachineStatus;
   last_heartbeat_at?: string | null;
+  unpaired_at?: string | null;
   owner_email: string;
   my_role: BackendMachineRole;
+};
+
+type BackendMachineDetail = BackendMachineSummary & {
+  creator_user_id: string;
 };
 
 type BackendCommandTemplateRead = {
@@ -231,24 +353,24 @@ type BackendCommandTemplateRead = {
   parameters: Array<{
     key: string;
     label: string;
+    type: string;
     allowed_values: string[];
   }>;
   parser_kind: string;
+  is_builtin: boolean;
+  is_enabled: boolean;
 };
 
-type BackendTaskStatus =
-  | "queued"
-  | "dispatched"
-  | "accepted"
-  | "running"
-  | "succeeded"
-  | "failed"
-  | "cancelled";
-
 type BackendTaskAttempt = {
+  id: string;
+  status: BackendTaskLifecycle;
   queued_at?: string;
+  dispatched_at?: string | null;
+  accepted_at?: string | null;
   started_at?: string | null;
   finished_at?: string | null;
+  cancel_requested_at?: string | null;
+  result_id?: string | null;
 };
 
 type BackendTaskRead = {
@@ -257,10 +379,47 @@ type BackendTaskRead = {
   template_key: string;
   template_name: string;
   rendered_command?: string | null;
-  status: BackendTaskStatus;
+  status: BackendTaskLifecycle;
   requested_by_user_id: string;
+  requested_by_email?: string | null;
   created_at: string;
+  status_reason?: string | null;
+  cancelled_by_email?: string | null;
+  cancelled_by_role?: string | null;
+  cancel_requested_by_email?: string | null;
+  cancel_requested_by_role?: string | null;
   attempts: BackendTaskAttempt[];
+};
+
+type BackendResultHistoryEntryRead = {
+  id: string;
+  task_id: string;
+  attempt_id: string;
+  machine_id: string;
+  template_key: string;
+  template_name: string;
+  parser_kind: string;
+  summary?: string | null;
+  exit_code: number;
+  duration_ms: number;
+  created_at: string;
+};
+
+type BackendResultRead = {
+  id: string;
+  task_id: string;
+  attempt_id: string;
+  parser_kind: string;
+  summary?: string | null;
+  parsed_payload?: Record<string, unknown> | null;
+  shell: {
+    command: string;
+    stdout: string;
+    stderr: string;
+    exit_code: number;
+    duration_ms: number;
+  };
+  created_at: string;
 };
 
 type BackendTaskLogStream = "stdout" | "stderr" | "system";
@@ -285,40 +444,32 @@ type BackendMachineAccessEntry = {
   is_creator_owner: boolean;
 };
 
-const API_BASE_URL = (
-  import.meta.env.VITE_API_BASE_URL ?? "/api/v1"
-).replace(/\/$/, "");
-const AUTH_CLIENT_KIND: BackendSessionKind = "desktop";
+type BackendMachineInviteStatus =
+  | "pending"
+  | "accepted"
+  | "expired"
+  | "invalidated";
 
-const AUTH_TOKEN_KEY = "umirhack-auth-token";
+type BackendMachineInviteRead = {
+  id: string;
+  email: string;
+  role: BackendMachineRole;
+  status: BackendMachineInviteStatus;
+  created_at: string;
+  expires_at: string;
+  invited_by_user_id: string;
+};
 
-function readAuthToken(): string {
-  try {
-    return window.localStorage.getItem(AUTH_TOKEN_KEY) ?? "";
-  } catch {
-    return "";
-  }
-}
+type AssignableAccessRole = "viewer" | "admin" | "operator";
 
-function persistAuthToken(token?: string): void {
-  if (!token) return;
-  try {
-    window.localStorage.setItem(AUTH_TOKEN_KEY, token);
-  } catch {
-    // Ignore storage failures and continue with in-memory session.
-  }
-}
+const AUTH_CLIENT_KIND: BackendSessionKind = "web";
 
 function clearPersistedAuthToken(): void {
-  try {
-    window.localStorage.removeItem(AUTH_TOKEN_KEY);
-  } catch {
-    // Ignore storage failures and continue with in-memory session.
-  }
+  // Cookie sessions are owned by the backend and cleared through /auth/logout.
 }
 
 function hasPersistedAuthToken(): boolean {
-  return Boolean(readAuthToken());
+  return true;
 }
 
 function formatDateTime(value?: string | null): string {
@@ -371,12 +522,36 @@ function extractDigits(value: string): string {
   return value.replace(/\D/g, "");
 }
 
-function mapMachineStatus(
-  status: BackendMachineStatus,
-): MachineCardResponse["status"] {
-  if (status === "online") return "online";
-  if (status === "pending") return "running";
-  return "offline";
+function resolveMachineDisplayName(
+  machine: BackendMachineSummary | undefined,
+  fallbackMachineId: string,
+): string {
+  return normalizeMachineTitle(
+    machine?.display_name || machine?.hostname || "Неизвестная машина",
+  );
+}
+
+function resolveUserDisplayName(
+  email: string | null | undefined,
+  fallbackUserId?: string | null,
+): string {
+  const normalizedEmail = email?.trim();
+  if (normalizedEmail) {
+    return normalizedEmail;
+  }
+
+  const normalizedFallback = fallbackUserId?.trim();
+  if (!normalizedFallback) {
+    return "Неизвестный пользователь";
+  }
+
+  return `Пользователь ${normalizedFallback.slice(0, 6)}`;
+}
+
+function hasActiveExecution(status: BackendTaskLifecycle): boolean {
+  return (
+    status === "dispatched" || status === "accepted" || status === "running"
+  );
 }
 
 function mapMachineBadgeTone(
@@ -390,7 +565,10 @@ function mapMachineBadgeTone(
 
 function mapMachineSummary(
   machine: BackendMachineSummary,
+  activeTaskMachineIds: Set<string> = new Set(),
 ): MachineCardResponse {
+  const hasActiveTask = activeTaskMachineIds.has(machine.id);
+
   return {
     id: machine.id,
     machine: normalizeMachineTitle(machine.display_name || machine.hostname),
@@ -400,89 +578,102 @@ function mapMachineSummary(
         ? `${machine.os_family} ${machine.os_version}`
         : machine.os_family,
     ),
-    heartbeat: formatMoscowDateTime(machine.last_heartbeat_at),
+    heartbeat: formatMachineHeartbeatLabel({
+      lastHeartbeatAt: machine.last_heartbeat_at,
+      unpairedAt: machine.unpaired_at,
+    }),
+    lastHeartbeatAt: machine.last_heartbeat_at ?? null,
+    unpairedAt: machine.unpaired_at ?? null,
     owner: machine.owner_email,
     myRole: mapAccessRoleLabel(machine.my_role),
-    status: mapMachineStatus(machine.status),
+    backendStatus: machine.status,
+    hasActiveTask,
+    status: resolveMachineActivityStatus({
+      backendStatus: machine.status,
+      lastHeartbeatAt: machine.last_heartbeat_at,
+      unpairedAt: machine.unpaired_at,
+      hasActiveTask,
+    }),
     badgeTone: mapMachineBadgeTone(machine.my_role),
   };
 }
 
-function mapTaskStatus(status: BackendTaskStatus): TaskCardResponse["status"] {
-  if (status === "succeeded") return "completed";
-  if (status === "failed" || status === "cancelled") return "error";
-  return "in_progress";
-}
-
-function mapTaskResultColor(
-  status: TaskCardResponse["status"],
+function mapPresentationToResultColor(
+  tone: ReturnType<typeof getTaskPresentation>["resultTone"],
 ): TaskCardResponse["resultColor"] {
-  if (status === "completed") return "green";
-  if (status === "error") return "red";
-  return "yellow";
-}
-
-function mapTaskResultText(status: TaskCardResponse["status"]): string {
-  if (status === "completed") return "Задача завершена";
-  if (status === "error") return "Задача завершилась ошибкой";
-  return "Задача выполняется";
-}
-
-function mapResultStatus(
-  status: BackendTaskStatus,
-): ResultsDashboardResponse["rows"][number]["statusTone"] {
-  if (status === "succeeded") return "success";
-  if (status === "failed") return "error";
-  return "cancelled";
-}
-
-function mapResultStatusLabel(status: BackendTaskStatus): string {
-  if (status === "succeeded") return "Выполнено";
-  if (status === "failed") return "Ошибка";
-  if (status === "cancelled") return "Отменено";
-  return "В процессе";
+  if (tone === "success") return "green";
+  if (tone === "warning") return "yellow";
+  if (tone === "danger") return "red";
+  return "gray";
 }
 
 function mapTask(
   task: BackendTaskRead,
   machineMap: Map<string, BackendMachineSummary>,
+  userEmailMap: Map<string, string>,
 ): TaskCardResponse {
-  const mappedStatus = mapTaskStatus(task.status);
-  const resultColor = mapTaskResultColor(mappedStatus);
-  const resultText = mapTaskResultText(mappedStatus);
+  const presentation = getTaskPresentation(task.status);
   const lastAttempt = task.attempts[task.attempts.length - 1];
 
-  const machineDigits = extractDigits(task.machine_id);
-  const serverNumber = machineDigits || task.machine_id.slice(0, 6);
   const taskDigits = extractDigits(task.id);
   const taskNumber = taskDigits || task.id.slice(0, 6);
 
   const machine = machineMap.get(task.machine_id);
   const taskTitle = machine ? `${task.template_name}` : task.template_name;
 
-  const startedAt = formatDateTime(
-    lastAttempt?.started_at ?? lastAttempt?.queued_at ?? task.created_at,
-  );
-  const completedAt =
-    mappedStatus === "in_progress"
+  const startedAtIso =
+    lastAttempt?.started_at ?? lastAttempt?.queued_at ?? task.created_at;
+  const startedAt = formatDateTime(startedAtIso);
+  const completedAtIso =
+    presentation.group === "in_progress" || presentation.group === "queued"
       ? undefined
-      : formatDateTime(lastAttempt?.finished_at ?? task.created_at);
+      : lastAttempt?.finished_at ?? task.created_at;
+  const completedAt =
+    completedAtIso == null ? undefined : formatDateTime(completedAtIso);
+  const requestedBy = resolveUserDisplayName(
+    task.requested_by_email ?? userEmailMap.get(task.requested_by_user_id),
+    task.requested_by_user_id,
+  );
+
+  let resultText = presentation.resultLabel;
+  let statusLabel = presentation.taskStatusLabel;
+
+  if (task.status === "cancelled" && task.cancelled_by_email) {
+    resultText = formatTaskActorAction(
+      "Отменил",
+      task.cancelled_by_role,
+      task.cancelled_by_email,
+    );
+    statusLabel = "Отменено";
+  } else if (task.cancel_requested_by_email) {
+    resultText = formatTaskActorAction(
+      "Запросил отмену",
+      task.cancel_requested_by_role,
+      task.cancel_requested_by_email,
+    );
+  } else if (task.status_reason) {
+    resultText = task.status_reason;
+  }
 
   return {
     id: task.id,
     machineId: task.machine_id,
-    machine: normalizeMachineTitle(
-      machine?.display_name || machine?.hostname || task.machine_id,
-    ),
+    machine: resolveMachineDisplayName(machine, task.machine_id),
+    resultId: lastAttempt?.result_id ?? undefined,
     templateKey: task.template_key,
+    renderedCommand: getTaskRenderedCommand(task),
+    requestedBy,
     taskNumber,
     title: taskTitle,
     startedAt,
+    startedAtIso,
     completedAt,
-    serverNumber,
+    completedAtIso,
+    serverNumber: extractDigits(task.machine_id) || task.machine_id.slice(0, 6),
     resultText,
-    resultColor,
-    status: mappedStatus,
+    resultColor: mapPresentationToResultColor(presentation.resultTone),
+    statusLabel,
+    status: presentation.group,
   };
 }
 
@@ -491,6 +682,23 @@ function mapAccessRoleLabel(role: BackendMachineRole): string {
   if (role === "admin") return "Администратор";
   if (role === "operator") return "Оператор";
   return "Наблюдатель";
+}
+
+function mapTaskActorRoleLabel(role?: string | null): string {
+  if (role === "owner") return "владелец";
+  if (role === "admin") return "администратор";
+  if (role === "operator") return "оператор";
+  if (role === "viewer") return "наблюдатель";
+  return "пользователь";
+}
+
+function formatTaskActorAction(
+  prefix: string,
+  role?: string | null,
+  email?: string | null,
+): string {
+  const roleLabel = mapTaskActorRoleLabel(role);
+  return email ? `${prefix} ${roleLabel} • ${email}` : `${prefix} ${roleLabel}`;
 }
 
 function mapAccessRoleTone(
@@ -513,18 +721,26 @@ function mapAccessStatus(entry: BackendMachineAccessEntry): {
   return { status: "Активен", statusTone: "active" };
 }
 
-function mapLogTone(
-  status: TaskCardResponse["status"],
-): LogsDashboardResponse["entries"][number]["tone"] {
-  if (status === "completed") return "success";
-  if (status === "error") return "critical";
-  return "warning";
+function getMachineResource(machine: BackendMachineSummary): string {
+  return normalizeMachineTitle(machine.display_name || machine.hostname);
 }
 
-function mapLogStatusLabel(status: TaskCardResponse["status"]): string {
-  if (status === "completed") return "Завершено";
-  if (status === "error") return "Критично";
-  return "Требует внимания";
+function mapAssignableAccessRoles(
+  actorRole: BackendMachineRole,
+): AssignableAccessRole[] {
+  return getAssignableRoles(actorRole as AccessActorRole).filter(
+    (role): role is AssignableAccessRole => role !== "owner",
+  );
+}
+
+function mapLogTone(
+  status: BackendTaskLifecycle,
+): LogsDashboardResponse["entries"][number]["tone"] {
+  return getTaskPresentation(status).logTone;
+}
+
+function mapLogStatusLabel(status: BackendTaskLifecycle): string {
+  return getTaskPresentation(status).taskStatusLabel;
 }
 
 function shortenText(text: string, maxLength = 96): string {
@@ -552,9 +768,7 @@ function pickTaskEventDate(
 
 function pickTaskCreatedAtIso(task: BackendTaskRead): string {
   const latestAttempt = task.attempts[task.attempts.length - 1];
-  return (
-    latestAttempt?.started_at ?? latestAttempt?.queued_at ?? task.created_at
-  );
+  return latestAttempt?.started_at ?? latestAttempt?.queued_at ?? task.created_at;
 }
 
 function pickTaskDurationMs(task: BackendTaskRead): number | undefined {
@@ -597,38 +811,18 @@ function deriveNameFromEmail(email: string): {
   if (segments.length === 1) {
     return {
       firstName: capitalize(segments[0]),
-      lastName: "Фамилия",
+      lastName: "",
     };
   }
 
   return {
-    firstName: "Имя",
-    lastName: "Фамилия",
+    firstName: "",
+    lastName: "",
   };
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const token = readAuthToken();
-
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    ...init,
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(init?.headers ?? {}),
-    },
-  });
-
-  if (!response.ok) {
-    const message = await response.text();
-    throw new Error(message || `API request failed: ${response.status}`);
-  }
-
-  if (response.status === 204) {
-    return undefined as T;
-  }
-
-  return (await response.json()) as T;
+  return apiFetch<T>(path, init);
 }
 
 async function loadMachineTasks(
@@ -687,6 +881,56 @@ async function loadTaskLogs(
   return logsByTask;
 }
 
+async function loadMachineResults(
+  machineIds: string[],
+): Promise<BackendResultHistoryEntryRead[]> {
+  if (!machineIds.length) return [];
+
+  const settled = await Promise.allSettled(
+    machineIds.map((machineId) =>
+      request<BackendResultHistoryEntryRead[]>(
+        `/machines/${encodeURIComponent(machineId)}/results`,
+      ),
+    ),
+  );
+
+  const results = settled
+    .filter(
+      (result): result is PromiseFulfilledResult<BackendResultHistoryEntryRead[]> =>
+        result.status === "fulfilled",
+    )
+    .flatMap((result) => result.value);
+
+  return results.sort(
+    (a, b) =>
+      new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+  );
+}
+
+async function loadMachineInvites(
+  machineIds: string[],
+): Promise<Map<string, BackendMachineInviteRead[]>> {
+  if (!machineIds.length) return new Map();
+
+  const settled = await Promise.allSettled(
+    machineIds.map((machineId) =>
+      request<BackendMachineInviteRead[]>(
+        `/machines/${encodeURIComponent(machineId)}/invites`,
+      ).then((invites) => [machineId, invites] as const),
+    ),
+  );
+
+  const invitesByMachine = new Map<string, BackendMachineInviteRead[]>();
+  for (const result of settled) {
+    if (result.status !== "fulfilled") continue;
+
+    const [machineId, invites] = result.value;
+    invitesByMachine.set(machineId, invites);
+  }
+
+  return invitesByMachine;
+}
+
 function getTaskRenderedCommand(task: BackendTaskRead): string {
   return task.rendered_command?.trim() || task.template_name;
 }
@@ -718,6 +962,237 @@ async function loadUserEmailMap(
   return emailMap;
 }
 
+async function buildAccessDashboard(): Promise<AccessDashboardResponse> {
+  const [machines, me] = await Promise.all([
+    request<BackendMachineSummary[]>("/machines"),
+    request<BackendMeResponse>("/auth/me"),
+  ]);
+  const machineIds = machines.map((machine) => machine.id);
+  const machineMap = new Map(machines.map((machine) => [machine.id, machine]));
+
+  const [accessSettled, invitesByMachine] = await Promise.all([
+    Promise.allSettled(
+      machines.map((machine) =>
+        request<BackendMachineAccessEntry[]>(
+          `/machines/${encodeURIComponent(machine.id)}/access`,
+        ).then((entries) => ({ machine, entries })),
+      ),
+    ),
+    loadMachineInvites(machineIds),
+  ]);
+
+  const accessEntries = accessSettled
+    .filter(
+      (
+        result,
+      ): result is PromiseFulfilledResult<{
+        machine: BackendMachineSummary;
+        entries: BackendMachineAccessEntry[];
+      }> => result.status === "fulfilled",
+    )
+    .flatMap((result) =>
+      result.value.entries.map((entry) => ({
+        id: entry.id,
+        machineId: result.value.machine.id,
+        machineName: getMachineResource(result.value.machine),
+        userId: entry.user_id,
+        email: entry.email,
+        role: entry.role as AccessActorRole,
+        createdAt: entry.created_at,
+        revokedAt: entry.revoked_at ?? null,
+        isCreatorOwner: entry.is_creator_owner,
+      })),
+    );
+
+  const inviteEntries = [...invitesByMachine.entries()].flatMap(
+    ([machineId, machineInvites]) => {
+      const machine = machineMap.get(machineId);
+      if (!machine) return [];
+
+      return machineInvites.map((invite) => ({
+        id: invite.id,
+        machineId,
+        machineName: getMachineResource(machine),
+        email: invite.email,
+        role: invite.role as AccessActorRole,
+        status: invite.status,
+        expiresAt: invite.expires_at,
+      })) satisfies InviteLike[];
+    },
+  );
+
+  const knownUserEmails = new Map<string, string>([[me.user.id, me.user.email]]);
+  const accessById = new Map<string, BackendMachineAccessEntry>();
+  for (const result of accessSettled) {
+    if (result.status !== "fulfilled") continue;
+
+    for (const entry of result.value.entries) {
+      knownUserEmails.set(entry.user_id, entry.email);
+      accessById.set(entry.id, entry);
+    }
+  }
+
+  const activeEntries = accessEntries.filter((entry) => !entry.revokedAt);
+  const uniqueAdmins = new Set(
+    activeEntries
+      .filter((entry) => entry.role === "admin")
+      .map((entry) => entry.userId),
+  );
+  const baseMetrics = buildAccessMetrics(accessEntries, inviteEntries);
+
+  const users = sortAccessEntries(accessEntries).map((entry) => {
+    const machine = machineMap.get(entry.machineId);
+    const rawEntry = accessById.get(entry.id);
+    if (!machine || !rawEntry) {
+      throw new Error(`Access row ${entry.id} is missing machine context.`);
+    }
+
+    const capabilities = getAccessRowCapabilities({
+      actorRole: machine.my_role as AccessActorRole,
+      actorUserId: me.user.id,
+      entry,
+    });
+    const status = mapAccessStatus(rawEntry);
+
+    return {
+      id: `${entry.machineId}_${entry.id}`,
+      accessId: entry.id,
+      machineId: entry.machineId,
+      email: entry.email,
+      role: mapAccessRoleLabel(entry.role),
+      roleValue: entry.role,
+      roleTone: mapAccessRoleTone(entry.role),
+      resource: entry.machineName,
+      status: status.status,
+      statusTone: status.statusTone,
+      action: capabilities.canManage ? "Управлять" : "-",
+      canManage: capabilities.canManage,
+      canRevoke: capabilities.canRevoke,
+      isCreatorOwner: entry.isCreatorOwner,
+      availableRoleValues: capabilities.assignableRoles.filter(
+        (role): role is AssignableAccessRole => role !== "owner",
+      ),
+    };
+  });
+
+  const invites = [...invitesByMachine.entries()]
+    .flatMap(([machineId, machineInvites]) => {
+      const machine = machineMap.get(machineId);
+      if (!machine) return [];
+
+      return machineInvites.map((invite) => {
+        const presentation = getInviteStatusPresentation(invite.status);
+        return {
+          id: `${machineId}_${invite.id}`,
+          inviteId: invite.id,
+          machineId,
+          email: invite.email,
+          role: mapAccessRoleLabel(invite.role),
+          roleValue: invite.role,
+          resource: getMachineResource(machine),
+          status: presentation.label,
+          statusTone: presentation.tone,
+          createdAt: formatDateTime(invite.created_at),
+          expiresAt: formatDateTime(invite.expires_at),
+          createdAtIso: invite.created_at,
+        };
+      });
+    })
+    .sort(
+      (left, right) =>
+        new Date(right.createdAtIso).getTime() -
+        new Date(left.createdAtIso).getTime(),
+    )
+    .map(({ createdAtIso: _createdAtIso, ...invite }) => invite);
+
+  const activity = [
+    ...accessEntries.map((entry) => {
+      const rawEntry = accessById.get(entry.id);
+      const grantedByUserId = rawEntry?.granted_by_user_id ?? null;
+      return {
+        id: `access_${entry.machineId}_${entry.id}`,
+        actor: grantedByUserId
+          ? knownUserEmails.get(grantedByUserId) ?? "Система"
+          : "Система",
+        email: entry.email,
+        role: `${mapAccessRoleLabel(entry.role)} (${entry.machineName})`,
+        time: formatDateTime(entry.createdAt),
+        actionText: entry.revokedAt
+          ? "отозвал доступ пользователю"
+          : "выдал доступ пользователю",
+        sortValue: entry.createdAt,
+      };
+    }),
+    ...[...invitesByMachine.entries()].flatMap(([machineId, machineInvites]) => {
+      const machine = machineMap.get(machineId);
+      if (!machine) return [];
+
+      return machineInvites.map((invite) => ({
+        id: `invite_${machineId}_${invite.id}`,
+        actor: knownUserEmails.get(invite.invited_by_user_id) ?? "Система",
+        email: invite.email,
+        role: `${mapAccessRoleLabel(invite.role)} (${getMachineResource(machine)})`,
+        time: formatDateTime(invite.created_at),
+        actionText:
+          invite.status === "pending"
+            ? "отправил приглашение пользователю"
+            : "обновил статус приглашения для",
+        sortValue: invite.created_at,
+      }));
+    }),
+  ]
+    .sort(
+      (left, right) =>
+        new Date(right.sortValue).getTime() - new Date(left.sortValue).getTime(),
+    )
+    .slice(0, 8)
+    .map(({ sortValue: _sortValue, ...item }) => item);
+
+  const machinesForInvites = machines
+    .map((machine) => ({
+      id: machine.id,
+      resource: getMachineResource(machine),
+      role: mapAccessRoleLabel(machine.my_role),
+      roleValue: machine.my_role,
+      canInvite: machine.my_role === "owner" || machine.my_role === "admin",
+      availableRoleValues: mapAssignableAccessRoles(machine.my_role),
+    }))
+    .filter((machine) => machine.canInvite);
+
+  return {
+    metrics: [
+      baseMetrics.find((metric) => metric.id === "users_total") ?? {
+        id: "users_total",
+        title: "Всего пользователей",
+        value: "0",
+        tone: "highlight",
+      },
+      {
+        id: "admins_total",
+        title: "Администраторов",
+        value: String(uniqueAdmins.size),
+        tone: "default",
+      },
+      {
+        id: "agents_total",
+        title: "Всего машин",
+        value: String(machines.length),
+        tone: "default",
+      },
+      baseMetrics.find((metric) => metric.id === "invites_pending") ?? {
+        id: "invites_pending",
+        title: "Ожидают приглашение",
+        value: "0",
+        tone: "default",
+      },
+    ],
+    machines: machinesForInvites,
+    users,
+    invites,
+    activity,
+  };
+}
+
 export const api = {
   hasPersistedAuthToken,
   clearPersistedAuthToken,
@@ -725,14 +1200,14 @@ export const api = {
   async getProfileDashboard(): Promise<ProfileDashboardResponse> {
     const response = await request<BackendMeResponse>("/auth/me");
     const { firstName, lastName } = deriveNameFromEmail(response.user.email);
-    const fullName = `${firstName} ${lastName}`.trim();
+    const fullName = `${firstName} ${lastName}`.trim() || response.user.email;
 
     return {
       userId: response.user.id,
       email: response.user.email,
       firstName,
       lastName,
-      fullName: fullName || "Имя Фамилия",
+      fullName,
       isActive: response.user.is_active,
       emailVerified: response.user.email_verified,
       sessionKind: response.session_kind,
@@ -758,9 +1233,7 @@ export const api = {
       };
     }
 
-    const token = response.tokens?.access_token;
-    persistAuthToken(token);
-    return { token };
+    return {};
   },
 
   register(email: string, password: string): Promise<AuthResponse> {
@@ -772,6 +1245,23 @@ export const api = {
         client_kind: AUTH_CLIENT_KIND,
       }),
     }).then(() => ({ requiresConfirmation: true }));
+  },
+
+  forgotPassword(email: string): Promise<{ message: string }> {
+    return request<{ message: string }>("/auth/password/forgot", {
+      method: "POST",
+      body: JSON.stringify({ email }),
+    });
+  },
+
+  resetPassword(token: string, newPassword: string): Promise<{ message: string }> {
+    return request<{ message: string }>("/auth/password/reset", {
+      method: "POST",
+      body: JSON.stringify({
+        token,
+        new_password: newPassword,
+      }),
+    });
   },
 
   async confirm(
@@ -797,14 +1287,45 @@ export const api = {
           }),
         });
 
-    const token = response.tokens?.access_token;
-    persistAuthToken(token);
-    return { token };
+    return {};
+  },
+
+  logout(): Promise<void> {
+    return request("/auth/logout", {
+      method: "POST",
+    });
   },
 
   async getMachines(): Promise<MachineCardResponse[]> {
     const machines = await request<BackendMachineSummary[]>("/machines");
-    return machines.map(mapMachineSummary);
+    const tasks = await loadMachineTasks(machines.map((machine) => machine.id));
+    const activeTaskMachineIds = new Set(
+      tasks
+        .filter((task) => hasActiveExecution(task.status))
+        .map((task) => task.machine_id),
+    );
+
+    return machines.map((machine) =>
+      mapMachineSummary(machine, activeTaskMachineIds),
+    );
+  },
+
+  async confirmMachineRegistration(input: {
+    deviceCode: string;
+    displayName?: string;
+  }): Promise<MachineCardResponse> {
+    const response = await request<{ machine: BackendMachineDetail }>(
+      "/machines/registrations/confirm",
+      {
+        method: "POST",
+        body: JSON.stringify({
+          device_code: input.deviceCode.trim().toUpperCase(),
+          display_name: input.displayName?.trim() || undefined,
+        }),
+      },
+    );
+
+    return mapMachineSummary(response.machine);
   },
 
   async getMachineCommandTemplates(
@@ -814,20 +1335,120 @@ export const api = {
       `/machines/${encodeURIComponent(machineId)}/commands/templates`,
     );
 
-      return templates.map((template) => ({
-        id: template.id,
-        templateKey: template.template_key,
-        name: template.name,
-        description: template.description,
-        runner: template.runner,
-        commandPattern: template.command_pattern,
-        parserKind: template.parser_kind,
-        parameters: template.parameters.map((parameter) => ({
-          key: parameter.key,
-          label: parameter.label,
+    return templates.map((template) => ({
+      id: template.id,
+      templateKey: template.template_key,
+      name: template.name,
+      description: template.description,
+      runner: template.runner,
+      commandPattern: template.command_pattern,
+      parserKind: template.parser_kind,
+      parameters: template.parameters.map((parameter) => ({
+        key: parameter.key,
+        label: parameter.label,
+        type: parameter.type,
         allowedValues: parameter.allowed_values,
       })),
+      isBuiltin: template.is_builtin,
+      isEnabled: template.is_enabled,
     }));
+  },
+
+  async createMachineCommandTemplate(
+    machineId: string,
+    input: CommandTemplateMutationInput,
+  ): Promise<CommandTemplateOption> {
+    const template = await request<BackendCommandTemplateRead>(
+      `/machines/${encodeURIComponent(machineId)}/commands/templates`,
+      {
+        method: "POST",
+        body: JSON.stringify({
+          name: input.name.trim(),
+          description: input.description?.trim() || null,
+          runner: input.runner,
+          command_pattern: input.commandPattern.trim(),
+          parser_kind: input.parserKind,
+          parameters: input.parameters.map((parameter) => ({
+            key: parameter.key,
+            label: parameter.label,
+            type: "enum",
+            allowed_values: parameter.allowedValues,
+          })),
+        }),
+      },
+    );
+
+    return {
+      id: template.id,
+      templateKey: template.template_key,
+      name: template.name,
+      description: template.description,
+      runner: template.runner,
+      commandPattern: template.command_pattern,
+      parserKind: template.parser_kind,
+      parameters: template.parameters.map((parameter) => ({
+        key: parameter.key,
+        label: parameter.label,
+        type: parameter.type,
+        allowedValues: parameter.allowed_values,
+      })),
+      isBuiltin: template.is_builtin,
+      isEnabled: template.is_enabled,
+    };
+  },
+
+  async updateMachineCommandTemplate(
+    machineId: string,
+    templateId: string,
+    input: CommandTemplateMutationInput,
+  ): Promise<CommandTemplateOption> {
+    const template = await request<BackendCommandTemplateRead>(
+      `/machines/${encodeURIComponent(machineId)}/commands/templates/${encodeURIComponent(templateId)}`,
+      {
+        method: "PATCH",
+        body: JSON.stringify({
+          name: input.name.trim(),
+          description: input.description?.trim() || null,
+          runner: input.runner,
+          command_pattern: input.commandPattern.trim(),
+          parser_kind: input.parserKind,
+          parameters: input.parameters.map((parameter) => ({
+            key: parameter.key,
+            label: parameter.label,
+            type: "enum",
+            allowed_values: parameter.allowedValues,
+          })),
+          is_enabled: input.isEnabled,
+        }),
+      },
+    );
+
+    return {
+      id: template.id,
+      templateKey: template.template_key,
+      name: template.name,
+      description: template.description,
+      runner: template.runner,
+      commandPattern: template.command_pattern,
+      parserKind: template.parser_kind,
+      parameters: template.parameters.map((parameter) => ({
+        key: parameter.key,
+        label: parameter.label,
+        type: parameter.type,
+        allowedValues: parameter.allowed_values,
+      })),
+      isBuiltin: template.is_builtin,
+      isEnabled: template.is_enabled,
+    };
+  },
+
+  async deleteMachineCommandTemplate(machineId: string, templateId: string): Promise<void> {
+    await request(
+      `/machines/${encodeURIComponent(machineId)}/commands/templates/${encodeURIComponent(templateId)}`,
+      {
+        method: "DELETE",
+      },
+    );
   },
 
   async createTask(input: {
@@ -859,15 +1480,24 @@ export const api = {
 
   async getHomeDashboard(): Promise<HomeDashboardResponse> {
     const machines = await request<BackendMachineSummary[]>("/machines");
-    const machineCards = machines.map(mapMachineSummary);
     const machineMap = new Map(
       machines.map((machine) => [machine.id, machine]),
     );
     const tasks = await loadMachineTasks(machines.map((machine) => machine.id));
+    const activeTaskMachineIds = new Set(
+      tasks
+        .filter((task) => hasActiveExecution(task.status))
+        .map((task) => task.machine_id),
+    );
+    const machineCards = machines.map((machine) =>
+      mapMachineSummary(machine, activeTaskMachineIds),
+    );
     const userEmailMap = await loadUserEmailMap(
       machines.map((machine) => machine.id),
     );
-    const taskCards = tasks.map((task) => mapTask(task, machineMap));
+    const taskCards = tasks.map((task) =>
+      mapTask(task, machineMap, userEmailMap),
+    );
 
     const onlineCount = machineCards.filter(
       (machine) => machine.status === "online",
@@ -902,7 +1532,7 @@ export const api = {
           accent: "green",
           progress: onlineProgress,
           progressLeft: "Онлайн",
-          progressRight: "Офлайн",
+          progressRight: "Оффлайн",
         },
         {
           id: "tasks",
@@ -943,27 +1573,22 @@ export const api = {
           ago: "Недавно",
         })),
       tasks: tasks.slice(0, 8).map((task) => {
-        const mappedStatus = mapTaskStatus(task.status);
-        const machineDigits = extractDigits(task.machine_id);
-        const serverNumber = machineDigits || task.machine_id.slice(0, 6);
+        const presentation = getTaskPresentation(task.status);
         const lastAttempt = task.attempts[task.attempts.length - 1];
         const createdAt = formatDateTime(
           lastAttempt?.started_at ?? lastAttempt?.queued_at ?? task.created_at,
         );
+        const machine = machineMap.get(task.machine_id);
 
         return {
           id: extractDigits(task.id) || task.id.slice(0, 6),
-          machine: `Сервер №${serverNumber}`,
-          status:
-            mappedStatus === "completed"
-              ? "Завершено"
-              : mappedStatus === "error"
-                ? "Ошибка"
-                : "В процессе",
+          machine: resolveMachineDisplayName(machine, task.machine_id),
+          status: presentation.taskStatusLabel,
           createdAt,
-          sender:
-            userEmailMap.get(task.requested_by_user_id) ??
+          sender: resolveUserDisplayName(
+            userEmailMap.get(task.requested_by_user_id),
             task.requested_by_user_id,
+          ),
         };
       }),
     };
@@ -975,8 +1600,85 @@ export const api = {
       machines.map((machine) => [machine.id, machine]),
     );
     const tasks = await loadMachineTasks(machines.map((machine) => machine.id));
+    const userEmailMap = await loadUserEmailMap(
+      machines.map((machine) => machine.id),
+    );
 
-    return tasks.map((task) => mapTask(task, machineMap));
+    return tasks.map((task) => mapTask(task, machineMap, userEmailMap));
+  },
+
+  async getTask(taskId: string): Promise<TaskDetailResponse> {
+    const task = await request<BackendTaskRead>(
+      `/tasks/${encodeURIComponent(taskId)}`,
+    );
+    const [machines, userEmailMap] = await Promise.all([
+      request<BackendMachineSummary[]>("/machines"),
+      loadUserEmailMap([task.machine_id]),
+    ]);
+    const machine = machines.find((item) => item.id === task.machine_id);
+    const presentation = getTaskPresentation(task.status);
+    const lastAttempt = task.attempts[task.attempts.length - 1];
+
+    const requestedBy = resolveUserDisplayName(
+      task.requested_by_email ?? userEmailMap.get(task.requested_by_user_id),
+      task.requested_by_user_id,
+    );
+    const statusLabel =
+      task.status === "cancelled" && task.cancelled_by_email
+        ? "Отменено"
+        : presentation.taskStatusLabel;
+    const resultText =
+      task.status === "cancelled" && task.cancelled_by_email
+        ? formatTaskActorAction(
+            "Отменил",
+            task.cancelled_by_role,
+            task.cancelled_by_email,
+          )
+        : task.cancel_requested_by_email
+          ? formatTaskActorAction(
+              "Запросил отмену",
+              task.cancel_requested_by_role,
+              task.cancel_requested_by_email,
+            )
+          : task.status_reason || presentation.resultLabel;
+
+    return {
+      id: task.id,
+      machineId: task.machine_id,
+      machine: resolveMachineDisplayName(machine, task.machine_id),
+      title: task.template_name,
+      templateKey: task.template_key,
+      renderedCommand: getTaskRenderedCommand(task),
+      requestedBy,
+      status: presentation.group,
+      statusLabel,
+      resultText,
+      startedAt: formatDateTime(
+        lastAttempt?.started_at ?? lastAttempt?.queued_at ?? task.created_at,
+      ),
+      completedAt:
+        lastAttempt?.finished_at != null
+          ? formatDateTime(lastAttempt.finished_at)
+          : undefined,
+    };
+  },
+
+  async getTaskLogs(taskId: string): Promise<TaskLogLineResponse[]> {
+    const logs = await request<BackendTaskLogEntry[]>(
+      `/tasks/${encodeURIComponent(taskId)}/logs`,
+    );
+
+    return [...logs]
+      .sort((left, right) => left.sequence - right.sequence)
+      .map((entry) => ({
+        id: entry.id,
+        attemptId: entry.attempt_id,
+        stream: entry.stream,
+        sequence: entry.sequence,
+        text: entry.chunk,
+        createdAt: formatDateTime(entry.created_at),
+        createdAtIso: entry.created_at,
+      }));
   },
 
   async getLogsDashboard(): Promise<LogsDashboardResponse> {
@@ -994,9 +1696,8 @@ export const api = {
 
     const entries = recentTasks
       .map((task) => {
-        const mappedStatus = mapTaskStatus(task.status);
-        const tone = mapLogTone(mappedStatus);
-        const status = mapLogStatusLabel(mappedStatus);
+        const tone = mapLogTone(task.status);
+        const status = mapLogStatusLabel(task.status);
         const machine = machineMap.get(task.machine_id);
         const taskLogs = logsByTask.get(task.id) ?? [];
         const latestLog = taskLogs[taskLogs.length - 1];
@@ -1010,13 +1711,12 @@ export const api = {
           taskId: task.id,
           machineId: task.machine_id,
           taskTitle: task.template_name,
-          machine: normalizeMachineTitle(
-            machine?.display_name || machine?.hostname || task.machine_id,
-          ),
+          machine: resolveMachineDisplayName(machine, task.machine_id),
           action,
-          email:
-            userEmailMap.get(task.requested_by_user_id) ??
+          email: resolveUserDisplayName(
+            userEmailMap.get(task.requested_by_user_id),
             task.requested_by_user_id,
+          ),
           status,
           tone,
           createdAt: formatDateTime(createdAtIso),
@@ -1032,9 +1732,7 @@ export const api = {
 
     const streamItems = recentTasks.flatMap((task) => {
       const machine = machineMap.get(task.machine_id);
-      const machineLabel = normalizeMachineTitle(
-        machine?.display_name || machine?.hostname || task.machine_id,
-      );
+      const machineLabel = resolveMachineDisplayName(machine, task.machine_id);
       const taskLogs = logsByTask.get(task.id) ?? [];
       const taskStartedAt = pickTaskCreatedAtIso(task);
       const items: LogsDashboardResponse["streamItems"] = [
@@ -1083,7 +1781,7 @@ export const api = {
       );
 
     return {
-      entries: entries.map(({ createdAtIso, renderedCommand, ...entry }) => entry),
+      entries: entries.map(({ createdAtIso, ...entry }) => entry),
       streamItems,
       streamLines,
     };
@@ -1098,6 +1796,11 @@ export const api = {
       machines.map((machine) => machine.id),
     );
     const tasks = await loadMachineTasks(machines.map((machine) => machine.id));
+    const activeTaskMachineIds = new Set(
+      tasks
+        .filter((task) => hasActiveExecution(task.status))
+        .map((task) => task.machine_id),
+    );
 
     const reportTasks = tasks
       .map((task) => {
@@ -1105,15 +1808,21 @@ export const api = {
         return {
           id: task.id,
           machineId: task.machine_id,
-          machine: normalizeMachineTitle(
-            machine?.display_name || machine?.hostname || task.machine_id,
-          ),
-          machineStatus: machine ? mapMachineStatus(machine.status) : "offline",
+          machine: resolveMachineDisplayName(machine, task.machine_id),
+          machineStatus: machine
+            ? resolveMachineActivityStatus({
+                backendStatus: machine.status,
+                lastHeartbeatAt: machine.last_heartbeat_at,
+                unpairedAt: machine.unpaired_at,
+                hasActiveTask: activeTaskMachineIds.has(task.machine_id),
+              })
+            : "offline",
           templateName: task.template_name,
-          requestedBy:
-            userEmailMap.get(task.requested_by_user_id) ??
+          requestedBy: resolveUserDisplayName(
+            userEmailMap.get(task.requested_by_user_id),
             task.requested_by_user_id,
-          status: mapTaskStatus(task.status),
+          ),
+          status: getTaskPresentation(task.status).group,
           createdAtIso: pickTaskCreatedAtIso(task),
           durationMs: pickTaskDurationMs(task),
         };
@@ -1133,29 +1842,27 @@ export const api = {
       machines.map((machine) => [machine.id, machine]),
     );
     const tasks = await loadMachineTasks(machines.map((machine) => machine.id));
+    const taskMap = new Map(tasks.map((task) => [task.id, task]));
+    const results = await loadMachineResults(machines.map((machine) => machine.id));
 
-    const rows = tasks
-      .map((task) => {
-        const machine = machineMap.get(task.machine_id);
-        const latestAttempt = task.attempts[task.attempts.length - 1];
-        const resultAtIso =
-          latestAttempt?.finished_at ??
-          latestAttempt?.started_at ??
-          latestAttempt?.queued_at ??
-          task.created_at;
+    const rows = results
+      .map((result) => {
+        const machine = machineMap.get(result.machine_id);
+        const task = taskMap.get(result.task_id);
+        const statusTone: ResultsDashboardResponse["rows"][number]["statusTone"] =
+          result.exit_code === 0 ? "success" : "error";
 
         return {
-          id: task.id,
-          machineId: task.machine_id,
-          title: task.template_name,
-          statusLabel: mapResultStatusLabel(task.status),
-          statusTone: mapResultStatus(task.status),
-          machine: normalizeMachineTitle(
-            machine?.display_name || machine?.hostname || task.machine_id,
-          ),
-          command: getTaskRenderedCommand(task),
-          resultAt: formatResultDateTime(resultAtIso),
-          resultAtIso,
+          id: result.id,
+          taskId: result.task_id,
+          machineId: result.machine_id,
+          title: result.template_name,
+          statusLabel: statusTone === "success" ? "Выполнено" : "Ошибка",
+          statusTone,
+          machine: resolveMachineDisplayName(machine, result.machine_id),
+          command: task ? getTaskRenderedCommand(task) : result.template_name,
+          resultAt: formatResultDateTime(result.created_at),
+          resultAtIso: result.created_at,
         };
       })
       .sort(
@@ -1166,7 +1873,32 @@ export const api = {
     return { rows };
   },
 
+  async getResult(resultId: string): Promise<ResultDetailResponse> {
+    const result = await request<BackendResultRead>(
+      `/results/${encodeURIComponent(resultId)}`,
+    );
+
+    return {
+      id: result.id,
+      taskId: result.task_id,
+      parserKind: result.parser_kind,
+      summary: result.summary,
+      parsedPayload: result.parsed_payload ?? null,
+      createdAt: formatDateTime(result.created_at),
+      shell: {
+        command: result.shell.command,
+        stdout: result.shell.stdout,
+        stderr: result.shell.stderr,
+        exitCode: result.shell.exit_code,
+        durationMs: result.shell.duration_ms,
+      },
+    };
+  },
+
   async getAccessDashboard(): Promise<AccessDashboardResponse> {
+    return buildAccessDashboard();
+
+    /*
     const machines = await request<BackendMachineSummary[]>("/machines");
 
     const accessSettled = await Promise.allSettled(
@@ -1280,5 +2012,66 @@ export const api = {
       users,
       activity,
     };
+    */
+  },
+
+  async reauth(password: string): Promise<string> {
+    const response = await request<BackendReauthResponse>("/auth/re-auth", {
+      method: "POST",
+      body: JSON.stringify({ password }),
+    });
+
+    return response.reauth_token;
+  },
+
+  async createMachineInvite(input: {
+    machineId: string;
+    email: string;
+    role: AssignableAccessRole;
+    reauthToken: string;
+  }): Promise<void> {
+    await request(`/machines/${encodeURIComponent(input.machineId)}/invites`, {
+      method: "POST",
+      body: JSON.stringify({
+        email: input.email,
+        role: input.role,
+        reauth_token: input.reauthToken,
+      }),
+    });
+  },
+
+  async updateMachineAccessRole(input: {
+    machineId: string;
+    accessId: string;
+    role: AssignableAccessRole;
+    reauthToken: string;
+  }): Promise<void> {
+    await request(
+      `/machines/${encodeURIComponent(input.machineId)}/access/${encodeURIComponent(input.accessId)}/role`,
+      {
+        method: "POST",
+        body: JSON.stringify({
+          role: input.role,
+          reauth_token: input.reauthToken,
+        }),
+      },
+    );
+  },
+
+  async revokeMachineAccess(input: {
+    machineId: string;
+    accessId: string;
+    reauthToken: string;
+  }): Promise<void> {
+    await request(
+      `/machines/${encodeURIComponent(input.machineId)}/access/${encodeURIComponent(input.accessId)}/revoke`,
+      {
+        method: "POST",
+        body: JSON.stringify({
+          reauth_token: input.reauthToken,
+        }),
+      },
+    );
   },
 };
+

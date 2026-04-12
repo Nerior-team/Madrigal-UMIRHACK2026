@@ -36,6 +36,20 @@ def create_machine_invite(
     )
 
 
+@router.get("/machines/{machine_id}/invites", response_model=list[MachineInviteRead])
+def list_machine_invites(
+    machine_id: str,
+    current_user=Depends(get_current_user),
+    access_repository: Annotated[AccessRepository, Depends(get_access_repository)] = None,
+    machine_repository: Annotated[MachineRepository, Depends(get_machine_repository)] = None,
+    auth_repository: Annotated[AuthRepository, Depends(get_repository)] = None,
+):
+    return AccessService(access_repository, machine_repository, auth_repository).list_invites(
+        machine_id=machine_id,
+        actor_user_id=current_user.id,
+    )
+
+
 @router.get("/invites/{invite_token}", response_model=MachineInvitePreview)
 def get_invite_preview(
     invite_token: str,

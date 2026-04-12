@@ -1,4 +1,10 @@
-export type AuthRouteMode = "login" | "register" | "confirm";
+export type AuthRouteMode =
+  | "login"
+  | "register"
+  | "confirm"
+  | "forgot-password"
+  | "reset-password";
+
 export type WorkspaceRouteTab =
   | "home"
   | "machines"
@@ -9,36 +15,64 @@ export type WorkspaceRouteTab =
   | "reports"
   | "install"
   | "profile";
+
 export type MachineRouteTab = "dashboard" | "tasks" | "results" | "logs";
 
-export type AppRoute =
-  | {
-      section: "auth";
-      authMode: AuthRouteMode;
-    }
-  | {
-      section: "workspace";
-      workspaceTab: WorkspaceRouteTab;
-      machineId?: string;
-      machineTab?: MachineRouteTab;
-      logMachineId?: string;
-      logTaskId?: string;
-    };
+export type AppRouteModal =
+  | { kind: "machine-task-logs"; taskId: string }
+  | { kind: "machine-result"; resultId: string }
+  | { kind: "task-logs"; taskId: string }
+  | { kind: "result-detail"; resultId: string };
 
-const WORKSPACE_PATHS: Record<Exclude<WorkspaceRouteTab, "home" | "machines">, string> =
-  {
-    tasks: "/tasks",
-    results: "/results",
-    logs: "/logs",
-    access: "/access",
-    reports: "/reports",
-    install: "/install",
-    profile: "/profile",
-  };
+export type AuthAppRoute = {
+  section: "auth";
+  authMode: AuthRouteMode;
+};
+
+export type WorkspaceAppRoute = {
+  section: "workspace";
+  workspaceTab: WorkspaceRouteTab;
+  machineId?: string;
+  machineTab?: MachineRouteTab;
+  logMachineId?: string;
+  logTaskId?: string;
+  taskId?: string;
+  resultId?: string;
+  isAddMachine?: boolean;
+  profileSection?: "general" | "security" | "sessions" | "notifications" | "api-keys";
+  modal?: AppRouteModal;
+};
+
+export type AppRoute = AuthAppRoute | WorkspaceAppRoute;
+
+const AUTH_PATHS: Record<AuthRouteMode, string> = {
+  login: "/login",
+  register: "/register",
+  confirm: "/confirm",
+  "forgot-password": "/forgot-password",
+  "reset-password": "/reset-password",
+};
+
+const WORKSPACE_PATHS: Record<
+  Exclude<WorkspaceRouteTab, "home" | "machines" | "profile">,
+  string
+> = {
+  tasks: "/tasks",
+  results: "/results",
+  logs: "/logs",
+  access: "/access",
+  reports: "/reports",
+  install: "/install",
+};
+
+export function authPath(mode: AuthRouteMode): string {
+  return AUTH_PATHS[mode];
+}
 
 export function workspacePath(tab: WorkspaceRouteTab): string {
-  if (tab === "home") return "/";
+  if (tab === "home") return "/dashboard";
   if (tab === "machines") return "/machines";
+  if (tab === "profile") return "/profile";
   return WORKSPACE_PATHS[tab];
 }
 
@@ -52,6 +86,57 @@ export function machinePath(
   }
 
   return `/machines/${encodedMachineId}/${tab}`;
+}
+
+export function addMachinePath(): string {
+  return "/machines/add";
+}
+
+export function profileApiKeysPath(): string {
+  return "/profile/api-keys";
+}
+
+export function profilePath(
+  section: "general" | "security" | "sessions" | "notifications" | "api-keys" = "general",
+): string {
+  switch (section) {
+    case "security":
+      return "/profile/security";
+    case "sessions":
+      return "/profile/sessions";
+    case "notifications":
+      return "/profile/notifications";
+    case "api-keys":
+      return "/profile/api-keys";
+    default:
+      return "/profile";
+  }
+}
+
+export function taskPath(taskId: string): string {
+  return `/tasks/${encodeURIComponent(taskId)}`;
+}
+
+export function taskLogsPath(taskId: string): string {
+  return `/tasks/${encodeURIComponent(taskId)}/logs`;
+}
+
+export function resultPath(resultId: string): string {
+  return `/results/${encodeURIComponent(resultId)}`;
+}
+
+export function machineTaskLogsPath(
+  machineId: string,
+  taskId: string,
+): string {
+  return `/machines/${encodeURIComponent(machineId)}/logs/${encodeURIComponent(taskId)}`;
+}
+
+export function machineResultPath(
+  machineId: string,
+  resultId: string,
+): string {
+  return `/machines/${encodeURIComponent(machineId)}/results/${encodeURIComponent(resultId)}`;
 }
 
 export function logsPath(filters?: {
@@ -69,16 +154,45 @@ export function resolveAppRoute(pathname: string, search = ""): AppRoute {
   const normalizedPath =
     pathname && pathname !== "/" ? pathname.replace(/\/+$/, "") : pathname || "/";
 
-  if (normalizedPath === "/login") {
-    return { section: "auth", authMode: "login" };
+  if (normalizedPath === "/" || normalizedPath === "/dashboard" || normalizedPath === "/home") {
+    return { section: "workspace", workspaceTab: "home" };
   }
 
-  if (normalizedPath === "/register") {
-    return { section: "auth", authMode: "register" };
+  const authEntry = (Object.entries(AUTH_PATHS) as Array<[AuthRouteMode, string]>).find(
+    ([, routePath]) => routePath === normalizedPath,
+  );
+  if (authEntry) {
+    return { section: "auth", authMode: authEntry[0] };
   }
 
-  if (normalizedPath === "/confirm") {
-    return { section: "auth", authMode: "confirm" };
+  if (normalizedPath === "/machines") {
+    return { section: "workspace", workspaceTab: "machines" };
+  }
+
+  if (normalizedPath === "/machines/add") {
+    return {
+      section: "workspace",
+      workspaceTab: "machines",
+      isAddMachine: true,
+    };
+  }
+
+  const machineModalMatch = normalizedPath.match(
+    /^\/machines\/([^/]+)\/(logs|results)\/([^/]+)$/,
+  );
+  if (machineModalMatch) {
+    const machineId = decodeURIComponent(machineModalMatch[1]);
+    const entityId = decodeURIComponent(machineModalMatch[3]);
+    return {
+      section: "workspace",
+      workspaceTab: "machines",
+      machineId,
+      machineTab: "dashboard",
+      modal:
+        machineModalMatch[2] === "logs"
+          ? { kind: "machine-task-logs", taskId: entityId }
+          : { kind: "machine-result", resultId: entityId },
+    };
   }
 
   const machineMatch = normalizedPath.match(
@@ -93,16 +207,79 @@ export function resolveAppRoute(pathname: string, search = ""): AppRoute {
     };
   }
 
-  if (normalizedPath === "/" || normalizedPath === "/home") {
-    return { section: "workspace", workspaceTab: "home" };
+  const taskLogsMatch = normalizedPath.match(/^\/tasks\/([^/]+)\/logs$/);
+  if (taskLogsMatch) {
+    return {
+      section: "workspace",
+      workspaceTab: "tasks",
+      taskId: decodeURIComponent(taskLogsMatch[1]),
+      modal: { kind: "task-logs", taskId: decodeURIComponent(taskLogsMatch[1]) },
+    };
   }
 
-  if (normalizedPath === "/machines") {
-    return { section: "workspace", workspaceTab: "machines" };
+  const taskMatch = normalizedPath.match(/^\/tasks\/([^/]+)$/);
+  if (taskMatch) {
+    return {
+      section: "workspace",
+      workspaceTab: "tasks",
+      taskId: decodeURIComponent(taskMatch[1]),
+    };
+  }
+
+  const resultMatch = normalizedPath.match(/^\/results\/([^/]+)$/);
+  if (resultMatch) {
+    return {
+      section: "workspace",
+      workspaceTab: "results",
+      resultId: decodeURIComponent(resultMatch[1]),
+      modal: { kind: "result-detail", resultId: decodeURIComponent(resultMatch[1]) },
+    };
+  }
+
+  if (normalizedPath === "/profile") {
+    return {
+      section: "workspace",
+      workspaceTab: "profile",
+      profileSection: "general",
+    };
+  }
+
+  if (normalizedPath === "/profile/security") {
+    return {
+      section: "workspace",
+      workspaceTab: "profile",
+      profileSection: "security",
+    };
+  }
+
+  if (normalizedPath === "/profile/sessions") {
+    return {
+      section: "workspace",
+      workspaceTab: "profile",
+      profileSection: "sessions",
+    };
+  }
+
+  if (normalizedPath === "/profile/notifications") {
+    return {
+      section: "workspace",
+      workspaceTab: "profile",
+      profileSection: "notifications",
+    };
+  }
+
+  if (normalizedPath === "/profile/api-keys") {
+    return {
+      section: "workspace",
+      workspaceTab: "profile",
+      profileSection: "api-keys",
+    };
   }
 
   const workspaceEntry = (
-    Object.entries(WORKSPACE_PATHS) as Array<[Exclude<WorkspaceRouteTab, "home" | "machines">, string]>
+    Object.entries(WORKSPACE_PATHS) as Array<
+      [Exclude<WorkspaceRouteTab, "home" | "machines" | "profile">, string]
+    >
   ).find(([, routePath]) => routePath === normalizedPath);
 
   if (workspaceEntry) {

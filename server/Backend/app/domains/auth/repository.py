@@ -108,6 +108,16 @@ class AuthRepository:
     def get_session_by_refresh_hash(self, refresh_token_hash: str) -> UserSession | None:
         return self.db.scalar(select(UserSession).where(UserSession.refresh_token_hash == refresh_token_hash))
 
+    def list_user_sessions(self, *, user_id: str) -> list[UserSession]:
+        return list(
+            self.db.scalars(
+                select(UserSession).where(UserSession.user_id == user_id).order_by(UserSession.issued_at.desc())
+            )
+        )
+
+    def get_session_by_id_for_user(self, *, session_id: str, user_id: str) -> UserSession | None:
+        return self.db.scalar(select(UserSession).where(UserSession.id == session_id, UserSession.user_id == user_id))
+
     def revoke_session(self, session: UserSession, *, revoked_at: datetime) -> None:
         session.revoked_at = revoked_at
         self.db.add(session)

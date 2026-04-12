@@ -1,3 +1,4 @@
+from app.core.config import get_settings
 from app.core.exceptions import AppError
 from app.domains.access.repository import AccessRepository
 from app.domains.access.roles import ensure_can_view_machine
@@ -5,6 +6,8 @@ from app.domains.machines.repository import MachineRepository
 from app.domains.metrics.rating import build_agent_rating
 from app.domains.metrics.repository import MetricsRepository
 from app.domains.metrics.schemas import MachineMetricsRead
+from app.domains.machines.status import resolve_machine_status
+from app.shared.time import utc_now
 
 
 class MetricsService:
@@ -19,6 +22,7 @@ class MetricsService:
         self.machine_repository = machine_repository
         self.access_repository = access_repository
         self.metrics_repository = metrics_repository or MetricsRepository(machine_repository.db)
+        self.settings = get_settings()
 
     def get_machine_metrics(self, *, actor_user_id: str, machine_id: str) -> MachineMetricsRead:
         machine = self.machine_repository.get_machine(machine_id)
@@ -32,7 +36,12 @@ class MetricsService:
         snapshot = self.metrics_repository.build_machine_snapshot(machine_id)
         return MachineMetricsRead(
             machine_id=machine.id,
-            status=machine.status,
+            status=resolve_machine_status(
+                stored_status=machine.status,
+                last_heartbeat_at=machine.last_heartbeat_at,
+                now=utc_now(),
+                stale_minutes=self.settings.machine_heartbeat_stale_minutes,
+            ),
             last_heartbeat_at=machine.last_heartbeat_at,
             total_tasks=snapshot.total_tasks,
             succeeded_tasks=snapshot.succeeded_tasks,

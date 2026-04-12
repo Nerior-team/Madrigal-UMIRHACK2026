@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from datetime import timedelta
 
+from app.core.config import get_settings
 from app.core.exceptions import AppError
 from app.core.security import generate_session_token, hash_token
 from app.domains.access.repository import AccessRepository
@@ -26,11 +27,12 @@ from app.domains.machines.schemas import (
     MachineRegistrationStartResponse,
     MachineSummary,
 )
+from app.domains.machines.status import resolve_machine_status
 from app.infra.observability.audit import record_audit_event
 from app.realtime.broker import operator_feed
 from app.realtime.events import operator_event
 from app.realtime.task_stream import notify_access_revoked
-from app.shared.enums import AuditStatus, MachineAccessRole, MachineStatus
+from app.shared.enums import AuditStatus, DeletedMachineRetention, MachineAccessRole, MachineStatus
 from app.shared.time import has_expired, utc_now
 
 
@@ -44,6 +46,15 @@ class MachineService:
     def __init__(self, machine_repository: MachineRepository, access_repository: AccessRepository) -> None:
         self.machine_repository = machine_repository
         self.access_repository = access_repository
+        self.settings = get_settings()
+
+    def _effective_machine_status(self, *, stored_status: MachineStatus, last_heartbeat_at):
+        return resolve_machine_status(
+            stored_status=stored_status,
+            last_heartbeat_at=last_heartbeat_at,
+            now=utc_now(),
+            stale_minutes=self.settings.machine_heartbeat_stale_minutes,
+        )
 
     def _publish_operator_event(self, *, event_type: str, machine_id: str, payload: dict) -> None:
         operator_feed.publish(operator_event(event_type=event_type, machine_id=machine_id, payload=payload))
@@ -169,8 +180,13 @@ class MachineService:
         self.machine_repository.commit()
         return MachineRegistrationCompleteResponse(machine_id=registration.machine_id, machine_token=raw_machine_token)
 
-    def list_for_user(self, *, actor_user_id: str) -> list[MachineSummary]:
-        rows = self.machine_repository.list_for_user(actor_user_id)
+    def list_for_user(
+        self,
+        *,
+        actor_user_id: str,
+        retention: DeletedMachineRetention = DeletedMachineRetention.MONTH,
+    ) -> list[MachineSummary]:
+        rows = self.machine_repository.list_for_user(actor_user_id, retention=retention)
         return [
             MachineSummary(
                 id=row.machine.id,
@@ -178,16 +194,26 @@ class MachineService:
                 hostname=row.machine.hostname,
                 os_family=row.machine.os_family,
                 os_version=row.machine.os_version,
-                status=row.machine.status,
+                status=self._effective_machine_status(
+                    stored_status=row.machine.status,
+                    last_heartbeat_at=row.machine.last_heartbeat_at,
+                ),
                 last_heartbeat_at=row.machine.last_heartbeat_at,
+                unpaired_at=row.unpaired_at,
                 owner_email=row.owner_email,
                 my_role=row.my_role,
             )
             for row in rows
         ]
 
-    def get_detail_for_user(self, *, machine_id: str, actor_user_id: str) -> MachineDetail:
-        rows = self.machine_repository.list_for_user(actor_user_id)
+    def get_detail_for_user(
+        self,
+        *,
+        machine_id: str,
+        actor_user_id: str,
+        retention: DeletedMachineRetention,
+    ) -> MachineDetail:
+        rows = self.machine_repository.list_for_user(actor_user_id, retention=retention)
         for row in rows:
             if row.machine.id == machine_id:
                 return MachineDetail(
@@ -196,8 +222,12 @@ class MachineService:
                     hostname=row.machine.hostname,
                     os_family=row.machine.os_family,
                     os_version=row.machine.os_version,
-                    status=row.machine.status,
+                    status=self._effective_machine_status(
+                        stored_status=row.machine.status,
+                        last_heartbeat_at=row.machine.last_heartbeat_at,
+                    ),
                     last_heartbeat_at=row.machine.last_heartbeat_at,
+                    unpaired_at=row.unpaired_at,
                     owner_email=row.owner_email,
                     my_role=row.my_role,
                     creator_user_id=row.creator_user_id,

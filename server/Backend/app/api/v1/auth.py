@@ -10,10 +10,11 @@ from app.api.deps import (
     get_repository,
 )
 from app.core.config import get_settings
-from app.core.security import access_token_ttl, generate_signed_csrf_token
+from app.core.security import generate_signed_csrf_token, web_session_ttl
 from app.domains.auth.repository import AuthRepository
 from app.domains.auth.schemas import (
     AuthSessionResponse,
+    ChangePasswordRequest,
     ForgotPasswordRequest,
     LoginTelegramRequest,
     LoginRequest,
@@ -25,6 +26,8 @@ from app.domains.auth.schemas import (
     RefreshRequest,
     RegisterRequest,
     ResetPasswordRequest,
+    SessionRead,
+    SessionRevokeResponse,
     TOTPDisableRequest,
     TOTPSetupConfirmRequest,
     TOTPSetupStartRequest,
@@ -49,7 +52,7 @@ def _set_web_cookie(response: Response, access_token: str) -> None:
         secure=settings.backend_cookie_secure,
         samesite="strict",
         path="/",
-        max_age=int(access_token_ttl().total_seconds()),
+        max_age=int(web_session_ttl().total_seconds()),
     )
 
 
@@ -62,7 +65,7 @@ def _set_csrf_cookie(response: Response) -> None:
         secure=settings.backend_cookie_secure,
         samesite="strict",
         path="/",
-        max_age=int(access_token_ttl().total_seconds()),
+        max_age=int(web_session_ttl().total_seconds()),
     )
 
 
@@ -196,6 +199,16 @@ def reset_password(
     return AuthService(repository).reset_password(payload, client)
 
 
+@router.post("/password/change", response_model=MessageResponse)
+def change_password(
+    payload: ChangePasswordRequest,
+    repository: Annotated[AuthRepository, Depends(get_repository)],
+    current_user=Depends(get_current_user),
+    client=Depends(build_client_context),
+):
+    return AuthService(repository).change_password(user=current_user, payload=payload, client=client)
+
+
 @router.post("/2fa/totp/setup/start", response_model=TOTPSetupStartResponse)
 def start_totp_setup(
     payload: TOTPSetupStartRequest,
@@ -263,3 +276,32 @@ def reauth(
     client=Depends(build_client_context),
 ):
     return AuthService(repository).reauth(user=current_user, payload=payload, client=client)
+
+
+@router.get("/sessions", response_model=list[SessionRead])
+def list_sessions(
+    repository: Annotated[AuthRepository, Depends(get_repository)],
+    current_user=Depends(get_current_user),
+    current_session=Depends(get_current_session),
+):
+    return AuthService(repository).list_sessions(user=current_user, current_session=current_session)
+
+
+@router.delete("/sessions/{session_id}", response_model=SessionRevokeResponse)
+def revoke_session(
+    session_id: str,
+    response: Response,
+    repository: Annotated[AuthRepository, Depends(get_repository)],
+    current_user=Depends(get_current_user),
+    current_session=Depends(get_current_session),
+    client=Depends(build_client_context),
+):
+    result = AuthService(repository).revoke_session_by_id(
+        user=current_user,
+        current_session=current_session,
+        session_id=session_id,
+        client=client,
+    )
+    if result.revoked_current_session:
+        _clear_web_cookie(response)
+    return result

@@ -1,8 +1,17 @@
 from dataclasses import dataclass
+from datetime import timedelta
 
 from app.core.config import get_settings
 from app.core.exceptions import AppError
-from app.core.security import generate_session_token, hash_password, hash_token, normalize_email, reauth_ttl, verify_password
+from app.core.security import (
+    generate_session_token,
+    hash_password,
+    hash_token,
+    normalize_email,
+    reauth_ttl,
+    validate_password_policy,
+    verify_password,
+)
 from app.domains.access.repository import AccessRepository
 from app.domains.auth import login as login_flow
 from app.domains.auth import password_reset as password_reset_flow
@@ -12,6 +21,7 @@ from app.domains.auth.repository import AuthRepository
 from app.domains.auth.throttle import AuthThrottleService
 from app.domains.auth.schemas import (
     AuthSessionResponse,
+    ChangePasswordRequest,
     ForgotPasswordRequest,
     LoginTelegramRequest,
     LoginRequest,
@@ -23,6 +33,8 @@ from app.domains.auth.schemas import (
     RefreshRequest,
     RegisterRequest,
     ResetPasswordRequest,
+    SessionRead,
+    SessionRevokeResponse,
     TOTPDisableRequest,
     TOTPSetupConfirmRequest,
     TOTPSetupStartRequest,
@@ -37,12 +49,16 @@ from app.domains.commands.repository import CommandRepository
 from app.domains.integrations.telegram.repository import TelegramRepository
 from app.domains.integrations.telegram.service import TelegramClientContext, TelegramIntegrationService
 from app.domains.machines.repository import MachineRepository
+from app.domains.notifications.repository import NotificationRepository
+from app.domains.notifications.service import NotificationPublishRequest, NotificationService
+from app.domains.profile.repository import ProfileRepository
+from app.domains.profile.service import build_full_name
 from app.domains.reports.repository import ReportsRepository
 from app.domains.results.repository import ResultRepository
 from app.domains.tasks.repository import TaskRepository
 from app.infra.email.client import get_mail_transport
 from app.infra.observability.audit import record_audit_event
-from app.shared.enums import AuditStatus, AuthChallengeKind, SessionKind, TwoFactorMethod
+from app.shared.enums import AuditStatus, AuthChallengeKind, NotificationLevel, NotificationTopic, SessionKind, TwoFactorMethod
 from app.shared.time import utc_now
 
 
@@ -55,6 +71,7 @@ class ClientContext:
 class AuthService:
     def __init__(self, repository: AuthRepository) -> None:
         self.repository = repository
+        self.profile_repository = ProfileRepository(repository.db)
         self.mailer = get_mail_transport()
         self.throttle = AuthThrottleService()
         db = repository.db
@@ -67,6 +84,22 @@ class AuthService:
             task_repository=TaskRepository(db),
             result_repository=ResultRepository(db),
             reports_repository=ReportsRepository(db),
+        )
+        self.notification_service = NotificationService(
+            notification_repository=NotificationRepository(db),
+            telegram_repository=TelegramRepository(db),
+        )
+
+    def _notify_security(self, *, user_id: str, title: str, message: str, action_url: str = "/profile/security") -> None:
+        self.notification_service.publish(
+            NotificationPublishRequest(
+                user_id=user_id,
+                topic=NotificationTopic.SECURITY,
+                level=NotificationLevel.INFO,
+                title=title,
+                message=message,
+                action_url=action_url,
+            )
         )
 
     def register(self, payload: RegisterRequest, client: ClientContext) -> MessageResponse:
@@ -200,11 +233,22 @@ class AuthService:
 
     def me(self, *, user, session) -> MeResponse:
         settings = self.repository.get_or_create_two_factor_settings(user.id)
+        profile = self.profile_repository.get_or_create_profile(user.id)
         return MeResponse(
             user=UserRead.model_validate(user),
+            session_id=session.id,
             session_kind=session.session_kind,
             two_factor_enabled=bool(settings.totp_enabled or settings.telegram_enabled),
             enabled_two_factor_methods=enabled_two_factor_methods(settings),
+            first_name=profile.first_name,
+            last_name=profile.last_name,
+            full_name=build_full_name(
+                first_name=profile.first_name,
+                last_name=profile.last_name,
+                fallback_email=user.email,
+            ),
+            avatar_data_url=profile.avatar_data_url,
+            deleted_machine_retention=profile.deleted_machine_retention,
         )
 
     def refresh(self, payload: RefreshRequest, client: ClientContext) -> tuple[AuthSessionResponse, str | None]:
@@ -262,6 +306,7 @@ class AuthService:
         user = self.repository.get_user_by_id(reset.user_id)
         if user is None:
             raise AppError("user_not_found", "Пользователь не найден.", 404)
+        validate_password_policy(payload.new_password)
         user.password_hash = hash_password(payload.new_password)
         reset.consumed_at = utc_now()
         self.repository.save(user)
@@ -277,6 +322,89 @@ class AuthService:
         )
         self.repository.commit()
         return MessageResponse(message="Пароль обновлён.")
+
+    def change_password(self, *, user, payload: ChangePasswordRequest, client: ClientContext) -> MessageResponse:
+        if payload.new_password != payload.confirm_password:
+            raise AppError("password_confirm_mismatch", "Подтверждение нового пароля не совпадает.", 400)
+        if not verify_password(payload.current_password, user.password_hash):
+            raise AppError("password_current_invalid", "Текущий пароль введён неверно.", 401)
+        validate_password_policy(payload.new_password)
+        user.password_hash = hash_password(payload.new_password)
+        self.repository.save(user)
+        self.repository.revoke_user_sessions(user_id=user.id, revoked_at=utc_now())
+        record_audit_event(
+            self.repository,
+            user_id=user.id,
+            action="auth.password_changed",
+            status=AuditStatus.SUCCESS,
+            ip_address=client.ip_address,
+            user_agent=client.user_agent,
+        )
+        self._notify_security(
+            user_id=user.id,
+            title="Пароль изменён",
+            message="Пароль аккаунта был успешно изменён.",
+        )
+        self.repository.commit()
+        return MessageResponse(message="Пароль обновлён. Войди заново на остальных устройствах.")
+
+    def _build_session_read(self, *, session, current_session) -> SessionRead:
+        restricted_until = current_session.issued_at + timedelta(hours=24)
+        can_revoke_other_sessions = utc_now() >= restricted_until
+        is_current = session.id == current_session.id
+        return SessionRead(
+            id=session.id,
+            session_kind=session.session_kind,
+            issued_at=session.issued_at,
+            last_seen_at=session.last_seen_at,
+            access_expires_at=session.access_expires_at,
+            ip_address=session.ip_address,
+            user_agent=session.user_agent,
+            is_current=is_current,
+            can_be_revoked=is_current or can_revoke_other_sessions,
+            revoke_restricted_until=None if (is_current or can_revoke_other_sessions) else restricted_until,
+        )
+
+    def list_sessions(self, *, user, current_session) -> list[SessionRead]:
+        sessions = self.repository.list_user_sessions(user_id=user.id)
+        return [
+            self._build_session_read(session=item, current_session=current_session)
+            for item in sessions
+            if item.revoked_at is None
+        ]
+
+    def revoke_session_by_id(self, *, user, current_session, session_id: str, client: ClientContext) -> SessionRevokeResponse:
+        session = self.repository.get_session_by_id_for_user(session_id=session_id, user_id=user.id)
+        if session is None or session.revoked_at is not None:
+            raise AppError("session_not_found", "Сессия не найдена.", 404)
+        revoking_current_session = session.id == current_session.id
+        if not revoking_current_session and utc_now() < current_session.issued_at + timedelta(hours=24):
+            raise AppError(
+                "session_revoke_restricted",
+                "Новая сессия не может завершать другие сессии в течение первых 24 часов.",
+                403,
+            )
+        self.repository.revoke_session(session, revoked_at=utc_now())
+        record_audit_event(
+            self.repository,
+            user_id=user.id,
+            action="auth.session_revoked",
+            status=AuditStatus.SUCCESS,
+            ip_address=client.ip_address,
+            user_agent=client.user_agent,
+            details={"session_id": session.id, "revoked_current_session": revoking_current_session},
+        )
+        self._notify_security(
+            user_id=user.id,
+            title="Сессия завершена",
+            message="Одна из активных сессий была завершена вручную.",
+            action_url="/profile/sessions",
+        )
+        self.repository.commit()
+        return SessionRevokeResponse(
+            message="Сессия завершена.",
+            revoked_current_session=revoking_current_session,
+        )
 
     def start_totp_setup(self, *, user, payload: TOTPSetupStartRequest, client: ClientContext):
         response = totp_flow.start_totp_setup(repository=self.repository, user=user, password=payload.password)
@@ -301,6 +429,11 @@ class AuthService:
             ip_address=client.ip_address,
             user_agent=client.user_agent,
         )
+        self._notify_security(
+            user_id=user.id,
+            title="TOTP включён",
+            message="Для аккаунта был включён второй фактор через TOTP.",
+        )
         self.repository.commit()
         return MessageResponse(message="TOTP включён.")
 
@@ -313,6 +446,11 @@ class AuthService:
             status=AuditStatus.SUCCESS,
             ip_address=client.ip_address,
             user_agent=client.user_agent,
+        )
+        self._notify_security(
+            user_id=user.id,
+            title="TOTP отключён",
+            message="Второй фактор через TOTP был отключён.",
         )
         self.repository.commit()
         return MessageResponse(message="TOTP выключен.")
@@ -327,6 +465,11 @@ class AuthService:
             ip_address=client.ip_address,
             user_agent=client.user_agent,
             details={"linked": profile.linked},
+        )
+        self._notify_security(
+            user_id=user.id,
+            title="Настройка Telegram 2FA",
+            message="Запущена настройка второго фактора через Telegram.",
         )
         self.repository.commit()
         return TelegramSetupStartResponse(
@@ -350,6 +493,11 @@ class AuthService:
             reauth_token=payload.reauth_token,
             client=TelegramClientContext(ip_address=client.ip_address, user_agent=client.user_agent),
         )
+        self._notify_security(
+            user_id=user.id,
+            title="Telegram 2FA включён",
+            message="Для аккаунта был включён второй фактор через Telegram.",
+        )
         return MessageResponse(message="Telegram 2FA включена.")
 
     def disable_telegram(
@@ -363,6 +511,11 @@ class AuthService:
             actor_user=user,
             reauth_token=payload.reauth_token,
             client=TelegramClientContext(ip_address=client.ip_address, user_agent=client.user_agent),
+        )
+        self._notify_security(
+            user_id=user.id,
+            title="Telegram 2FA отключён",
+            message="Второй фактор через Telegram был отключён.",
         )
         return MessageResponse(message="Telegram 2FA выключена.")
 

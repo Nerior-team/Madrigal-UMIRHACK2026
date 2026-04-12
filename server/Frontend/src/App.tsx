@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+﻿import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
   AlertTriangle,
@@ -11,40 +11,116 @@ import {
   Mail,
   Monitor,
   Percent,
-  Plus,
   RefreshCw,
   Search,
   Shield,
   Smartphone,
   Laptop,
-  X,
 } from "lucide-react";
 import {
   api,
+  accountApi,
+  type AccessDashboardResponse,
+  type AccountMachineScopeOption,
+  type AccountNotification,
+  type AccountProfileDetails,
+  type AccountSession,
+  type ApiKeyExpiryPreset,
+  type ApiKeyPermission,
+  type ApiKeyRead,
   type CommandTemplateOption,
+  type DeletedMachineRetention,
   type LogsDashboardResponse,
   type ProfileDashboardResponse,
   type ResultsDashboardResponse,
   type ReportsDashboardResponse,
+  type TaskCardResponse,
+  type TotpSetupStart,
 } from "./core";
+import { ApiError } from "./core/http";
 import {
   matchesSearchQuery,
   normalizeMachineTitle,
 } from "./core/ui";
 import {
+  getRetentionLabel,
+  getSessionKindLabel,
+  summarizeSession,
+  validatePasswordPolicy,
+} from "./core/account-ui";
+import {
+  authPath,
+  addMachinePath,
   logsPath,
+  machineResultPath,
+  machineTaskLogsPath,
   machinePath,
+  profileApiKeysPath,
+  profilePath,
   resolveAppRoute,
+  resultPath,
+  taskLogsPath,
+  taskPath,
   workspacePath,
 } from "./core/routes";
 import {
   buildTaskPreview,
   getTaskPreviewShellLabel,
 } from "./core/task-preview";
+import { buildTaskSections } from "./core/operations";
+import { buildLogsScopeSummary } from "./core/logs";
+import {
+  buildResultsFilterOptions,
+  filterResultRows,
+  type ResultDateRange,
+  type ResultStatusTone,
+} from "./core/results";
+import {
+  bootstrapAuthSession,
+} from "./app/auth-session";
+import {
+  applyThemeMode,
+  resolveInitialThemeMode,
+  THEME_STORAGE_KEY,
+  type ThemeMode,
+} from "./app/theme";
+import { Sidebar } from "./components/layout/Sidebar";
+import { Topbar } from "./components/layout/Topbar";
+import {
+  getSearchMatches,
+  type SearchMatch,
+  type SearchTarget,
+} from "./core/search";
+import { ConsoleModal } from "./components/operations/ConsoleModal";
+import { LogsWorkspace } from "./components/operations/logs/LogsWorkspace";
+import { ResultDetailModal } from "./components/operations/ResultDetailModal";
+import { AddMachineCard } from "./components/operations/machine/AddMachineCard";
+import { MachineWorkspace } from "./components/operations/machine/MachineWorkspace";
+import { ReportsWorkspace } from "./components/operations/reports/ReportsWorkspace";
+import { InviteAccessModal } from "./components/access/InviteAccessModal";
+import { ManageAccessModal } from "./components/access/ManageAccessModal";
+import { ResultsWorkspace } from "./components/operations/results/ResultsWorkspace";
+import { TasksWorkspace } from "./components/operations/tasks/TasksWorkspace";
+import { TaskCreateModal } from "./components/operations/tasks/TaskCreateModal";
+import { ProfileWorkspace } from "./components/profile/ProfileWorkspace";
+import { CustomSelect } from "./components/primitives/CustomSelect";
+import { ProfileGeneralSection } from "./components/profile/ProfileGeneralSection";
+import { ProfileSecuritySection } from "./components/profile/ProfileSecuritySection";
+import { ProfileSessionsSection } from "./components/profile/ProfileSessionsSection";
+import { ProfileNotificationsSection } from "./components/profile/ProfileNotificationsSection";
+import { ApiKeysWorkspace } from "./components/profile/ApiKeysWorkspace";
+import { EmptyState } from "./components/primitives/EmptyState";
+import type { ProfileSectionKey } from "./components/profile/types";
 
 const apiClient = api;
+const AGENT_PAIR_COMMAND = "predict pair --backend-url https://nerior.store";
 
-type AuthMode = "login" | "register" | "confirm";
+type AuthMode =
+  | "login"
+  | "register"
+  | "confirm"
+  | "forgot-password"
+  | "reset-password";
 type AppScreen = "auth" | "machines";
 type WorkspaceTab =
   | "home"
@@ -56,10 +132,8 @@ type WorkspaceTab =
   | "reports"
   | "install"
   | "profile";
-type MachineDetailTab = "dashboard" | "logs" | "tasks" | "results";
-type ProfileSection = "general" | "security" | "sessions" | "notifications";
 
-type MachineCardStatus = "online" | "running" | "offline";
+type MachineCardStatus = "online" | "running" | "offline" | "deleted";
 
 type MachineDashboardCard = {
   id: string;
@@ -114,52 +188,15 @@ type HomeTaskRow = {
   sender: string;
 };
 
-type TaskCard = {
-  id: string;
-  machineId: string;
-  machine: string;
-  templateKey: string;
-  taskNumber: string;
-  title: string;
-  startedAt: string;
-  completedAt?: string;
-  serverNumber: string;
-  resultText: string;
-  resultColor: "green" | "yellow" | "red";
-  status: "completed" | "in_progress" | "error";
-};
+type TaskCard = TaskCardResponse;
 
 type TaskFilterStatus = "all" | TaskCard["status"];
 
-type AccessRoleTone = "viewer" | "admin" | "operator" | "owner";
-type AccessStatusTone = "active" | "pending";
-
-type AccessSummaryCard = {
-  id: string;
-  title: string;
-  value: string;
-  tone?: "default" | "highlight";
-};
-
-type AccessUserRow = {
-  id: string;
-  email: string;
-  role: string;
-  roleTone: AccessRoleTone;
-  resource: string;
-  status: string;
-  statusTone: AccessStatusTone;
-  action: string;
-};
-
-type AccessActivityItem = {
-  id: string;
-  actor: string;
-  email: string;
-  role: string;
-  time: string;
-  actionText: string;
-};
+type AccessSummaryCard = AccessDashboardResponse["metrics"][number];
+type AccessUserRow = AccessDashboardResponse["users"][number];
+type AccessInviteRow = AccessDashboardResponse["invites"][number];
+type AccessActivityItem = AccessDashboardResponse["activity"][number];
+type AccessManageableMachine = AccessDashboardResponse["machines"][number];
 
 type LogStatusTone = "success" | "warning" | "critical";
 type LogEntry = LogsDashboardResponse["entries"][number];
@@ -185,9 +222,31 @@ type ReportComparisonStats = {
   successRate: number;
 };
 
-type ResultStatusTone = "success" | "error" | "cancelled";
-
 type ResultHistoryRow = ResultsDashboardResponse["rows"][number];
+
+function getDateRangeStart(value: string): Date | null {
+  if (!value) return null;
+  const date = new Date(`${value}T00:00:00`);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function getDateRangeEnd(value: string): Date | null {
+  if (!value) return null;
+  const date = new Date(`${value}T23:59:59.999`);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function matchesIsoDateRange(value: string, range: ResultDateRange): boolean {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return false;
+  }
+
+  const rangeStart = getDateRangeStart(range.from);
+  const rangeEnd = getDateRangeEnd(range.to);
+
+  return (!rangeStart || date >= rangeStart) && (!rangeEnd || date <= rangeEnd);
+}
 
 function getReportComparisonStats(
   tasks: ReportTaskItem[],
@@ -225,25 +284,14 @@ const machineStatusSections = [
   { key: "online", label: "Онлайн" },
   { key: "running", label: "Выполняют задачу" },
   { key: "offline", label: "Оффлайн" },
+  { key: "deleted", label: "Удалённые" },
 ] as const;
-
-const taskStatusSections = [
-  { key: "completed", label: "Завершенные" },
-  { key: "in_progress", label: "В процессе" },
-  { key: "error", label: "Ошибки" },
-] as const;
-
-const machineDetailTabs: Array<{ key: MachineDetailTab; label: string }> = [
-  { key: "dashboard", label: "Дашборд" },
-  { key: "logs", label: "Логи" },
-  { key: "tasks", label: "Задачи" },
-  { key: "results", label: "Результаты" },
-];
 
 const machineStatusLabelByStatus: Record<MachineCardStatus, string> = {
   online: "Онлайн",
   running: "Выполняет задачу",
   offline: "Оффлайн",
+  deleted: "Удалена",
 };
 
 function getMachineDisplayName(card: MachineDashboardCard): string {
@@ -295,7 +343,7 @@ const menuItems: MenuItem[] = [
   { label: "Результаты", iconSrc: "/res.png", tab: "results" },
   { label: "Логи", iconSrc: "/logs.png", tab: "logs" },
   { label: "Доступ", iconSrc: "/access.png", tab: "access" },
-  { label: "Отчеты", iconSrc: "/otch.png", tab: "reports" },
+  { label: "Отчёты", iconSrc: "/otch.png", tab: "reports" },
 ];
 
 const WINDOWS_DAEMON_INSTALL_URL =
@@ -339,7 +387,7 @@ const installCards: Array<{
     versions: ["Windows 10 x64", "Windows 11 x64"],
     actions: ["Скачать установщик", "Desktop скоро"],
     activeActionIndex: 0,
-    hint: "Сейчас доступен daemon-установщик. Desktop-клиент подключим сразу после сборки отдельного артефакта",
+    hint: "Сейчас доступен daemon-установщик. Desktop-клиент подключим сразу после сборки отдельного артефакта.",
   },
   {
     id: "linux",
@@ -347,7 +395,7 @@ const installCards: Array<{
     versions: ["Ubuntu 22.04+ x86_64", "Debian 12+ x86_64"],
     actions: ["Команды установки", "Скачать архив"],
     activeActionIndex: 0,
-    hint: "На Linux ставится только systemd-сервис без графического клиента",
+    hint: "На Linux ставится только systemd-сервис без графического клиента.",
   },
 ];
 
@@ -371,7 +419,7 @@ const SIDEBAR_ACTIVE_TOP_BY_TAB: Record<WorkspaceTab, number> = {
   profile: 516,
 };
 
-const profileSections: Array<{ key: ProfileSection; label: string }> = [
+const profileSections: Array<{ key: Exclude<ProfileSectionKey, "api-keys">; label: string }> = [
   { key: "general", label: "Основная информация" },
   { key: "security", label: "Безопасность" },
   { key: "sessions", label: "Активные сессии" },
@@ -458,12 +506,6 @@ function renderLinuxInstallCommandTokens(commandLine: string) {
   return <span className="install-guide-modal__cmd-value">{commandLine}</span>;
 }
 
-function mapSessionKindLabel(sessionKind: "web" | "desktop" | "cli"): string {
-  if (sessionKind === "web") return "Браузер";
-  if (sessionKind === "desktop") return "Desktop";
-  return "CLI";
-}
-
 export function App() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -473,14 +515,18 @@ export function App() {
   );
   const screen: AppScreen = route.section === "auth" ? "auth" : "machines";
   const authMode: AuthMode =
-    route.section === "auth" ? route.authMode : "login";
+    route.section === "auth"
+      ? route.authMode
+      : "login";
   const workspaceTab: WorkspaceTab =
     route.section === "workspace" ? route.workspaceTab : "machines";
+  const isAddMachineRoute =
+    route.section === "workspace" && route.workspaceTab === "machines"
+      ? Boolean(route.isAddMachine)
+      : false;
   const selectedMachineId = route.section === "workspace" ? route.machineId ?? null : null;
-  const machineDetailTab: MachineDetailTab =
-    route.section === "workspace" && route.machineId
-      ? route.machineTab ?? "dashboard"
-      : "dashboard";
+  const selectedMachineRouteTab =
+    route.section === "workspace" ? route.machineTab ?? "dashboard" : "dashboard";
   const logContext = useMemo(
     () =>
       route.section === "workspace" && route.workspaceTab === "logs"
@@ -491,7 +537,24 @@ export function App() {
         : { machineId: null, taskId: null },
     [route],
   );
+  const modalReturnTo =
+    typeof location.state === "object" &&
+    location.state !== null &&
+    "returnTo" in location.state &&
+    typeof (location.state as { returnTo?: unknown }).returnTo === "string"
+      ? ((location.state as { returnTo: string }).returnTo)
+      : null;
   const [sessionReady, setSessionReady] = useState(false);
+  const [themeMode, setThemeMode] = useState<ThemeMode>(() => {
+    if (typeof window === "undefined") {
+      return "light";
+    }
+
+    return resolveInitialThemeMode(
+      window.localStorage.getItem(THEME_STORAGE_KEY),
+      window.matchMedia?.("(prefers-color-scheme: dark)").matches ?? false,
+    );
+  });
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -512,10 +575,32 @@ export function App() {
   const [accessSummaryCards, setAccessSummaryCards] = useState<
     AccessSummaryCard[]
   >([]);
+  const [accessMachines, setAccessMachines] = useState<AccessManageableMachine[]>(
+    [],
+  );
   const [accessUserRows, setAccessUserRows] = useState<AccessUserRow[]>([]);
+  const [accessInviteRows, setAccessInviteRows] = useState<AccessInviteRow[]>(
+    [],
+  );
   const [accessActivityItems, setAccessActivityItems] = useState<
     AccessActivityItem[]
   >([]);
+  const [accessNotice, setAccessNotice] = useState<string | null>(null);
+  const [accessError, setAccessError] = useState<string | null>(null);
+  const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
+  const [inviteMachineId, setInviteMachineId] = useState("");
+  const [inviteRole, setInviteRole] = useState<"viewer" | "admin" | "operator">(
+    "viewer",
+  );
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [invitePassword, setInvitePassword] = useState("");
+  const [isInviteSubmitting, setIsInviteSubmitting] = useState(false);
+  const [manageAccessRowId, setManageAccessRowId] = useState<string | null>(null);
+  const [manageRole, setManageRole] = useState<"viewer" | "admin" | "operator">(
+    "viewer",
+  );
+  const [managePassword, setManagePassword] = useState("");
+  const [isManageSubmitting, setIsManageSubmitting] = useState(false);
   const [logEntries, setLogEntries] = useState<LogEntry[]>([]);
   const [logStreamItems, setLogStreamItems] = useState<LogStreamItem[]>([]);
   const [workspaceSearchQuery, setWorkspaceSearchQuery] = useState("");
@@ -524,7 +609,10 @@ export function App() {
   >("all");
   const [resultsMachineFilter, setResultsMachineFilter] = useState("all");
   const [resultsCommandFilter, setResultsCommandFilter] = useState("all");
-  const [resultsDateFilter, setResultsDateFilter] = useState("all");
+  const [resultsDateRange, setResultsDateRange] = useState<ResultDateRange>({
+    from: "",
+    to: "",
+  });
   const [resultHistoryRows, setResultHistoryRows] = useState<
     ResultHistoryRow[]
   >([]);
@@ -536,17 +624,90 @@ export function App() {
   const [isReportsRefreshing, setIsReportsRefreshing] = useState(false);
   const [profileDashboard, setProfileDashboard] =
     useState<ProfileDashboardResponse | null>(null);
-  const [profileSection, setProfileSection] =
-    useState<ProfileSection>("general");
+  const [profileDetails, setProfileDetails] =
+    useState<AccountProfileDetails | null>(null);
   const [profileFirstName, setProfileFirstName] = useState("");
   const [profileLastName, setProfileLastName] = useState("");
-  const [profileNotifications, setProfileNotifications] = useState({
-    taskCompleted: false,
-    warnings: true,
-    reports: true,
+  const [profileDeletedRetention, setProfileDeletedRetention] =
+    useState<DeletedMachineRetention>("month");
+  const [profileSaveNotice, setProfileSaveNotice] = useState<string | null>(null);
+  const [profileSaveError, setProfileSaveError] = useState<string | null>(null);
+  const [isProfileSaving, setIsProfileSaving] = useState(false);
+  const [notificationPreferences, setNotificationPreferences] = useState<
+    Record<"tasks" | "warnings" | "reports" | "security", {
+      topic: "tasks" | "warnings" | "reports" | "security";
+      siteEnabled: boolean;
+      telegramEnabled: boolean;
+    }>
+  >({
+    tasks: { topic: "tasks", siteEnabled: true, telegramEnabled: false },
+    warnings: { topic: "warnings", siteEnabled: true, telegramEnabled: true },
+      reports: { topic: "reports", siteEnabled: true, telegramEnabled: false },
+      security: { topic: "security", siteEnabled: true, telegramEnabled: true },
+    });
+  const [notificationFeed, setNotificationFeed] = useState<AccountNotification[]>([]);
+  const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [notificationsNotice, setNotificationsNotice] = useState<string | null>(null);
+  const [notificationsError, setNotificationsError] = useState<string | null>(null);
+  const [isNotificationsLoading, setIsNotificationsLoading] = useState(false);
+  const [isNotificationsSaving, setIsNotificationsSaving] = useState(false);
+  const [accountSessions, setAccountSessions] = useState<AccountSession[]>([]);
+  const [sessionsNotice, setSessionsNotice] = useState<string | null>(null);
+  const [sessionsError, setSessionsError] = useState<string | null>(null);
+  const [isSessionsLoading, setIsSessionsLoading] = useState(false);
+  const [isSessionRevoking, setIsSessionRevoking] = useState(false);
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+  });
+  const [passwordNotice, setPasswordNotice] = useState<string | null>(null);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [isPasswordSubmitting, setIsPasswordSubmitting] = useState(false);
+  const [totpSetup, setTotpSetup] = useState<TotpSetupStart | null>(null);
+  const [totpCode, setTotpCode] = useState("");
+  const [totpNotice, setTotpNotice] = useState<string | null>(null);
+  const [totpError, setTotpError] = useState<string | null>(null);
+  const [isTotpLoading, setIsTotpLoading] = useState(false);
+  const [telegramSetupState, setTelegramSetupState] = useState<{
+    linkUrl?: string | null;
+    reason?: string | null;
+  } | null>(null);
+  const [telegramNotice, setTelegramNotice] = useState<string | null>(null);
+  const [telegramError, setTelegramError] = useState<string | null>(null);
+  const [isTelegramLoading, setIsTelegramLoading] = useState(false);
+  const [apiKeys, setApiKeys] = useState<ApiKeyRead[]>([]);
+  const [apiKeyMachineOptions, setApiKeyMachineOptions] = useState<AccountMachineScopeOption[]>([]);
+  const [apiKeysNotice, setApiKeysNotice] = useState<string | null>(null);
+  const [apiKeysError, setApiKeysError] = useState<string | null>(null);
+  const [isApiKeysLoading, setIsApiKeysLoading] = useState(false);
+  const [isApiKeySubmitting, setIsApiKeySubmitting] = useState(false);
+  const [isApiKeyRevoking, setIsApiKeyRevoking] = useState(false);
+  const [latestApiKeySecret, setLatestApiKeySecret] = useState<string | null>(null);
+  const [apiKeyForm, setApiKeyForm] = useState<{
+    name: string;
+    permission: ApiKeyPermission;
+    expiryPreset: ApiKeyExpiryPreset;
+    machineIds: string[];
+    templateKeysText: string;
+    reauthPassword: string;
+  }>({
+    name: "",
+    permission: "read",
+    expiryPreset: "month",
+    machineIds: [],
+    templateKeysText: "",
+    reauthPassword: "",
   });
   const [taskFilterStatus, setTaskFilterStatus] =
     useState<TaskFilterStatus>("all");
+  const [taskFilterMachine, setTaskFilterMachine] = useState("all");
+  const [taskFilterTemplate, setTaskFilterTemplate] = useState("all");
+  const [taskDateRange, setTaskDateRange] = useState<ResultDateRange>({
+    from: "",
+    to: "",
+  });
   const [logFilterTone, setLogFilterTone] = useState<"all" | LogStatusTone>(
     "all",
   );
@@ -563,6 +724,10 @@ export function App() {
     {},
   );
   const [taskUseSudo, setTaskUseSudo] = useState(false);
+  const [addMachineCode, setAddMachineCode] = useState("");
+  const [addMachineDisplayName, setAddMachineDisplayName] = useState("");
+  const [isAddMachineSubmitting, setIsAddMachineSubmitting] = useState(false);
+  const [addMachineError, setAddMachineError] = useState<string | null>(null);
   const profileAvatarInputRef = useRef<HTMLInputElement | null>(null);
   const [registeredEmail, setRegisteredEmail] = useState(() => {
     try {
@@ -573,6 +738,14 @@ export function App() {
       return "";
     }
   });
+  const [authNotice, setAuthNotice] = useState<string | null>(null);
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [manualResetToken, setManualResetToken] = useState("");
+  const resetTokenFromUrl = useMemo(
+    () => new URLSearchParams(location.search).get("token")?.trim() ?? "",
+    [location.search],
+  );
+  const resolvedResetToken = resetTokenFromUrl || manualResetToken.trim();
 
   const setScreen = (nextScreen: AppScreen) => {
     if (nextScreen === "auth") {
@@ -584,13 +757,9 @@ export function App() {
   };
 
   const setAuthMode = (nextMode: AuthMode) => {
-    navigate(
-      nextMode === "login"
-        ? "/login"
-        : nextMode === "register"
-          ? "/register"
-          : "/confirm",
-    );
+    setAuthNotice(null);
+    setAuthError(null);
+    navigate(authPath(nextMode));
   };
 
   const setWorkspaceTab = (nextTab: WorkspaceTab) => {
@@ -601,51 +770,112 @@ export function App() {
     navigate(machineId ? machinePath(machineId) : workspacePath("machines"));
   };
 
-  const setMachineDetailTab = (nextTab: MachineDetailTab) => {
-    if (!selectedMachineId) return;
-    navigate(machinePath(selectedMachineId, nextTab));
-  };
-
-  const openMachine = (machineId: string, tab: MachineDetailTab = "dashboard") => {
+  const openMachine = (
+    machineId: string,
+    tab: "dashboard" | "tasks" | "results" | "logs" = "dashboard",
+  ) => {
     navigate(machinePath(machineId, tab));
   };
 
   const openTaskLogs = (taskId: string, machineId: string) => {
-    navigate(logsPath({ machineId, taskId }));
+    if (workspaceTab === "machines" && selectedMachineId === machineId) {
+      navigate(machineTaskLogsPath(machineId, taskId), {
+        state: { returnTo: machinePath(machineId) },
+      });
+      return;
+    }
+
+    navigate(taskLogsPath(taskId), {
+      state: { returnTo: `${location.pathname}${location.search}` },
+    });
+  };
+
+  const openResultDetail = (resultId: string, machineId: string) => {
+    if (workspaceTab === "machines" && selectedMachineId === machineId) {
+      navigate(machineResultPath(machineId, resultId), {
+        state: { returnTo: machinePath(machineId) },
+      });
+      return;
+    }
+
+    navigate(resultPath(resultId), {
+      state: { returnTo: `${location.pathname}${location.search}` },
+    });
+  };
+
+  const closeRouteModal = () => {
+    if (route.section !== "workspace" || !route.modal) {
+      return;
+    }
+
+    if (modalReturnTo) {
+      navigate(modalReturnTo);
+      return;
+    }
+
+    if (
+      route.modal.kind === "machine-task-logs" ||
+      route.modal.kind === "machine-result"
+    ) {
+      navigate(
+        route.machineId ? machinePath(route.machineId) : workspacePath("machines"),
+      );
+      return;
+    }
+
+    if (route.modal.kind === "task-logs") {
+      navigate(workspacePath("tasks"));
+      return;
+    }
+
+    navigate(workspacePath("results"));
   };
 
   const profileDisplayName = useMemo(() => {
-    if (!profileDashboard) return "Имя Фамилия";
+    if (!profileDashboard) return "Профиль";
     const trimmed = profileDashboard.fullName.trim();
-    return trimmed || "Имя Фамилия";
+    return trimmed || profileDashboard.email || "Профиль";
   }, [profileDashboard]);
+
+  const effectiveProfileDisplayName = useMemo(() => {
+    const candidate = profileDetails?.fullName || profileDetails?.email || profileDisplayName;
+    const trimmed = candidate.trim();
+    return trimmed || "Профиль";
+  }, [profileDetails, profileDisplayName]);
+
+  const activeProfileSection: ProfileSectionKey =
+    route.section === "workspace" && route.workspaceTab === "profile"
+      ? route.profileSection ?? "general"
+      : "general";
+
+  const passwordIssues = useMemo(
+    () =>
+      passwordForm.newPassword
+        ? validatePasswordPolicy(passwordForm.newPassword)
+        : [],
+    [passwordForm.newPassword],
+  );
 
   useEffect(() => {
     let cancelled = false;
 
     const bootstrapSession = async () => {
-      if (!apiClient.hasPersistedAuthToken()) {
-        if (cancelled) return;
-        setProfileDashboard(null);
-        setSessionReady(true);
-        if (route.section === "workspace") {
-          navigate("/login", { replace: true });
-        }
-        return;
-      }
-
       try {
-        const profile = await apiClient.getProfileDashboard();
+        const profile = await bootstrapAuthSession();
         if (cancelled) return;
 
         setProfileDashboard(profile);
         setSessionReady(true);
 
-        if (route.section === "auth" && route.authMode !== "confirm") {
+        if (profile && route.section === "auth" && route.authMode !== "confirm") {
           navigate(workspacePath("machines"), { replace: true });
+          return;
+        }
+
+        if (!profile && route.section === "workspace") {
+          navigate("/login", { replace: true });
         }
       } catch {
-        apiClient.clearPersistedAuthToken();
         if (cancelled) return;
         setProfileDashboard(null);
         setSessionReady(true);
@@ -662,18 +892,10 @@ export function App() {
     };
   }, [navigate, route.section, route.section === "auth" ? route.authMode : ""]);
 
-  const profileSessions = useMemo(() => {
-    if (!profileDashboard) return [];
-
-    return [
-      {
-        id: `${profileDashboard.userId}_${profileDashboard.sessionKind}`,
-        deviceLabel: mapSessionKindLabel(profileDashboard.sessionKind),
-        description: profileDashboard.email,
-        isCurrent: true,
-      },
-    ];
-  }, [profileDashboard]);
+  useEffect(() => {
+    applyThemeMode(themeMode, document.documentElement);
+    window.localStorage.setItem(THEME_STORAGE_KEY, themeMode);
+  }, [themeMode]);
 
   useEffect(() => {
     if (!profileDashboard) return;
@@ -682,8 +904,110 @@ export function App() {
   }, [profileDashboard]);
 
   useEffect(() => {
+    if (!profileDetails) return;
+    setProfileFirstName(profileDetails.firstName);
+    setProfileLastName(profileDetails.lastName);
+    setProfileDeletedRetention(profileDetails.deletedMachineRetention);
+    setProfileAvatarUrl(profileDetails.avatarDataUrl ?? null);
+  }, [profileDetails]);
+
+  useEffect(() => {
+    if (!profileDashboard) {
+      setNotificationFeed([]);
+      setUnreadNotificationCount(0);
+      return;
+    }
+
+    let cancelled = false;
+    setIsNotificationsLoading(true);
+
+    accountApi
+      .listNotifications()
+      .then((response) => {
+        if (cancelled) return;
+        setNotificationFeed(response.items);
+        setUnreadNotificationCount(response.unreadCount);
+      })
+      .catch(() => {
+        if (cancelled) return;
+      })
+      .finally(() => {
+        if (cancelled) return;
+        setIsNotificationsLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [profileDashboard]);
+
+  useEffect(() => {
+    if (workspaceTab !== "profile" || !profileDashboard) {
+      return;
+    }
+
+    let cancelled = false;
+    setIsSessionsLoading(true);
+    setIsApiKeysLoading(true);
+    setIsNotificationsLoading(true);
+
+    Promise.all([
+      accountApi.getProfileDetails(),
+      accountApi.listSessions(),
+      accountApi.getNotificationPreferences(),
+      accountApi.listNotifications(),
+      accountApi.listApiKeys(),
+      accountApi.listMachineScopeOptions(),
+    ])
+      .then(
+        ([profile, sessions, preferences, notifications, apiKeyItems, machineOptions]) => {
+          if (cancelled) return;
+          setProfileDetails(profile);
+          setProfileDashboard((current) =>
+            current
+              ? {
+                  ...current,
+                  firstName: profile.firstName,
+                  lastName: profile.lastName,
+                  fullName: profile.fullName,
+                }
+              : current,
+          );
+          setAccountSessions(sessions);
+          setNotificationPreferences(preferences);
+          setNotificationFeed(notifications.items);
+          setUnreadNotificationCount(notifications.unreadCount);
+          setApiKeys(apiKeyItems);
+          setApiKeyMachineOptions(machineOptions);
+        },
+      )
+      .catch(() => {
+        if (cancelled) return;
+      })
+      .finally(() => {
+        if (cancelled) return;
+        setIsSessionsLoading(false);
+        setIsApiKeysLoading(false);
+        setIsNotificationsLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [profileDashboard, workspaceTab]);
+
+  useEffect(() => {
     setWorkspaceSearchQuery("");
-  }, [workspaceTab, selectedMachineId, machineDetailTab]);
+  }, [workspaceTab, selectedMachineId]);
+
+  useEffect(() => {
+    if (isAddMachineRoute) {
+      return;
+    }
+
+    setAddMachineError(null);
+    setIsAddMachineSubmitting(false);
+  }, [isAddMachineRoute]);
 
   useEffect(() => {
     if (!machineDashboardCards.length) {
@@ -724,9 +1048,13 @@ export function App() {
       .then((templates) => {
         if (cancelled) return;
         setTaskTemplateOptions(templates);
-        const fallbackTemplateKey = templates[0]?.templateKey ?? "";
+        const fallbackTemplateKey =
+          templates.find((template) => template.isEnabled)?.templateKey ?? "";
         setTaskCommand((current) =>
-          current && templates.some((template) => template.templateKey === current)
+          current &&
+          templates.some(
+            (template) => template.templateKey === current && template.isEnabled,
+          )
             ? current
             : fallbackTemplateKey,
         );
@@ -742,11 +1070,36 @@ export function App() {
     };
   }, [taskMachineId]);
 
+  const runnableTaskTemplateOptions = useMemo(
+    () => taskTemplateOptions.filter((template) => template.isEnabled),
+    [taskTemplateOptions],
+  );
+
+  useEffect(() => {
+    if (!runnableTaskTemplateOptions.length) {
+      if (taskCommand) {
+        setTaskCommand("");
+      }
+      return;
+    }
+
+    if (
+      taskCommand &&
+      runnableTaskTemplateOptions.some(
+        (template) => template.templateKey === taskCommand,
+      )
+    ) {
+      return;
+    }
+
+    setTaskCommand(runnableTaskTemplateOptions[0]?.templateKey ?? "");
+  }, [runnableTaskTemplateOptions, taskCommand]);
+
   useEffect(() => {
     setTaskParamValues((current) => {
       if (!taskCommand) return {};
 
-      const template = taskTemplateOptions.find(
+      const template = runnableTaskTemplateOptions.find(
         (option) => option.templateKey === taskCommand,
       );
       if (!template) return {};
@@ -765,7 +1118,7 @@ export function App() {
 
       return nextValues;
     });
-  }, [taskCommand, taskTemplateOptions]);
+  }, [taskCommand, runnableTaskTemplateOptions]);
 
   const visibleLogEntries = useMemo(() => {
     const byTone =
@@ -800,6 +1153,33 @@ export function App() {
       ),
     [logContext.machineId, logContext.taskId, logStreamItems, workspaceSearchQuery],
   );
+
+  const logScopeSummary = useMemo(() => {
+    const machineName =
+      (logContext.machineId
+        ? machineDashboardCards.find((machine) => machine.id === logContext.machineId)
+            ?.machine ?? visibleLogEntries[0]?.machine ?? null
+        : null) ?? null;
+    const taskTitle =
+      (logContext.taskId
+        ? visibleLogEntries.find((entry) => entry.taskId === logContext.taskId)
+            ?.taskTitle ??
+          visibleLogStreamItems.find((item) => item.taskId === logContext.taskId)
+            ?.title ??
+          null
+        : null) ?? null;
+
+    return buildLogsScopeSummary({
+      machine: machineName,
+      taskTitle,
+    });
+  }, [
+    logContext.machineId,
+    logContext.taskId,
+    machineDashboardCards,
+    visibleLogEntries,
+    visibleLogStreamItems,
+  ]);
 
   const logStatusStats = useMemo(
     () => ({
@@ -1077,23 +1457,86 @@ export function App() {
     [machineDashboardCards, workspaceSearchQuery],
   );
 
-  const taskStatusGroups = useMemo(
+  const taskMachineOptions = useMemo(
+    () => [
+      { value: "all", label: "Все машины" },
+      ...[...new Set(taskCards.map((task) => task.machine))]
+        .sort((left, right) => left.localeCompare(right, "ru"))
+        .map((value) => ({ value, label: value })),
+    ],
+    [taskCards],
+  );
+
+  const taskTypeFilterOptions = useMemo(() => {
+    const uniqueTemplates = new Map<string, string>();
+
+    taskCards.forEach((task) => {
+      if (!uniqueTemplates.has(task.templateKey)) {
+        uniqueTemplates.set(task.templateKey, task.title);
+      }
+    });
+
+    return [
+      { value: "all", label: "Все типы задач" },
+      ...[...uniqueTemplates.entries()]
+        .sort((left, right) => left[1].localeCompare(right[1], "ru"))
+        .map(([value, label]) => ({
+          value,
+          label: label === value ? label : `${label} • ${value}`,
+        })),
+    ];
+  }, [taskCards]);
+
+  useEffect(() => {
+    if (
+      taskFilterMachine !== "all" &&
+      !taskMachineOptions.some((option) => option.value === taskFilterMachine)
+    ) {
+      setTaskFilterMachine("all");
+    }
+  }, [taskFilterMachine, taskMachineOptions]);
+
+  useEffect(() => {
+    if (
+      taskFilterTemplate !== "all" &&
+      !taskTypeFilterOptions.some((option) => option.value === taskFilterTemplate)
+    ) {
+      setTaskFilterTemplate("all");
+    }
+  }, [taskFilterTemplate, taskTypeFilterOptions]);
+
+  const filteredTaskCards = useMemo(
     () =>
-      taskStatusSections.map((section) => ({
-        ...section,
-        cards: taskCards.filter(
-          (task) =>
-            task.status === section.key &&
-            matchesSearchQuery(workspaceSearchQuery, [
-              task.taskNumber,
-              task.title,
-              task.machine,
-              task.serverNumber,
-              task.resultText,
-            ]),
-        ),
-      })),
-    [taskCards, workspaceSearchQuery],
+      taskCards.filter(
+        (task) =>
+          matchesSearchQuery(workspaceSearchQuery, [
+            task.taskNumber,
+            task.title,
+            task.machine,
+            task.serverNumber,
+            task.templateKey,
+            task.renderedCommand,
+            task.requestedBy,
+            task.resultText,
+            task.statusLabel,
+          ]) &&
+          (taskFilterMachine === "all" || task.machine === taskFilterMachine) &&
+          (taskFilterTemplate === "all" ||
+            task.templateKey === taskFilterTemplate) &&
+          matchesIsoDateRange(task.startedAtIso, taskDateRange),
+      ),
+    [
+      taskCards,
+      taskDateRange,
+      taskFilterMachine,
+      taskFilterTemplate,
+      workspaceSearchQuery,
+    ],
+  );
+
+  const taskStatusGroups = useMemo(
+    () => buildTaskSections(filteredTaskCards),
+    [filteredTaskCards],
   );
 
   const visibleTaskStatusGroups = useMemo(
@@ -1180,9 +1623,11 @@ export function App() {
 
   const selectedTaskTemplate = useMemo(
     () =>
-      taskTemplateOptions.find((template) => template.templateKey === taskCommand) ??
+      runnableTaskTemplateOptions.find(
+        (template) => template.templateKey === taskCommand,
+      ) ??
       null,
-    [taskCommand, taskTemplateOptions],
+    [runnableTaskTemplateOptions, taskCommand],
   );
 
   const selectedTaskMachine = useMemo(
@@ -1224,6 +1669,15 @@ export function App() {
     [selectedMachine],
   );
 
+  const selectedMachineCanManageCommands = useMemo(
+    () =>
+      selectedMachine
+        ? selectedMachine.myRole === "Владелец" ||
+          selectedMachine.myRole === "Администратор"
+        : false,
+    [selectedMachine],
+  );
+
   const canSubmitTask =
     Boolean(taskMachineId) &&
     Boolean(taskCommand) &&
@@ -1245,61 +1699,102 @@ export function App() {
     [accessUserRows, workspaceSearchQuery],
   );
 
-  const resultsMachineOptions = useMemo(
+  const visibleAccessInvites = useMemo(
     () =>
-      [...new Set(resultHistoryRows.map((row) => row.machine))].sort((a, b) =>
-        a.localeCompare(b, "ru"),
-      ),
-    [resultHistoryRows],
+      accessInviteRows
+        .filter((row) =>
+          matchesSearchQuery(workspaceSearchQuery, [
+            row.email,
+            row.role,
+            row.resource,
+            row.status,
+          ]),
+        )
+        .slice(0, ACCESS_ROWS_LIMIT),
+    [accessInviteRows, workspaceSearchQuery],
   );
 
+  const selectedInviteMachine = useMemo(
+    () =>
+      accessMachines.find((machine) => machine.id === inviteMachineId) ??
+      accessMachines[0] ??
+      null,
+    [accessMachines, inviteMachineId],
+  );
+
+  const inviteMachineOptions = useMemo(
+    () =>
+      accessMachines.map((machine) => ({
+        value: machine.id,
+        label: `${machine.resource} • ${machine.role}`,
+      })),
+    [accessMachines],
+  );
+
+  const inviteRoleOptions = useMemo(
+    () =>
+      (selectedInviteMachine?.availableRoleValues ?? []).map((role) => ({
+        value: role,
+        label:
+          role === "admin"
+            ? "Администратор"
+            : role === "operator"
+              ? "Оператор"
+              : "Наблюдатель",
+      })),
+    [selectedInviteMachine],
+  );
+
+  const selectedManageRow = useMemo(
+    () =>
+      accessUserRows.find((row) => row.id === manageAccessRowId) ?? null,
+    [accessUserRows, manageAccessRowId],
+  );
+
+  const manageRoleOptions = useMemo(
+    () =>
+      (selectedManageRow?.availableRoleValues ?? []).map((role) => ({
+        value: role,
+        label:
+          role === "admin"
+            ? "Администратор"
+            : role === "operator"
+              ? "Оператор"
+              : "Наблюдатель",
+      })),
+    [selectedManageRow],
+  );
+
+  const resultsFilterOptions = useMemo(
+    () => buildResultsFilterOptions(resultHistoryRows),
+    [resultHistoryRows],
+  );
+  const resultsMachineOptions = useMemo(
+    () =>
+      resultsFilterOptions.machineOptions
+        .filter((option) => option.value !== "all")
+        .map((option) => option.value),
+    [resultsFilterOptions],
+  );
   const resultsCommandOptions = useMemo(
     () =>
-      [...new Set(resultHistoryRows.map((row) => row.command))].sort((a, b) =>
-        a.localeCompare(b, "ru"),
-      ),
-    [resultHistoryRows],
+      resultsFilterOptions.commandOptions
+        .filter((option) => option.value !== "all")
+        .map((option) => option.value),
+    [resultsFilterOptions],
   );
 
   const visibleResultRows = useMemo(() => {
-    const now = new Date();
-    const todayY = now.getFullYear();
-    const todayM = now.getMonth();
-    const todayD = now.getDate();
-
-    return resultHistoryRows.filter((row) => {
-      const byStatus =
-        resultsStatusFilter === "all" || row.statusTone === resultsStatusFilter;
-      const byMachine =
-        resultsMachineFilter === "all" || row.machine === resultsMachineFilter;
-      const byCommand =
-        resultsCommandFilter === "all" || row.command === resultsCommandFilter;
-      const byDate =
-        resultsDateFilter === "all" ||
-        (resultsDateFilter === "today" &&
-          (() => {
-            const resultDate = new Date(row.resultAtIso);
-            return (
-              !Number.isNaN(resultDate.getTime()) &&
-              resultDate.getFullYear() === todayY &&
-              resultDate.getMonth() === todayM &&
-              resultDate.getDate() === todayD
-            );
-          })());
-      const bySearch =
-        matchesSearchQuery(workspaceSearchQuery, [
-          row.title,
-          row.machine,
-          row.command,
-          row.resultAt,
-          row.statusLabel,
-        ]);
-
-      return byStatus && byMachine && byCommand && byDate && bySearch;
+    return filterResultRows(resultHistoryRows, {
+      status: resultsStatusFilter,
+      machine: resultsMachineFilter,
+      command: resultsCommandFilter,
+      searchQuery: workspaceSearchQuery,
+      dateRange: resultsDateRange,
     });
   }, [
     resultsCommandFilter,
-    resultsDateFilter,
+    resultsDateRange,
     resultsMachineFilter,
     resultHistoryRows,
     resultsStatusFilter,
@@ -1332,10 +1827,7 @@ export function App() {
     const loadAccessDashboard = async () => {
       if (workspaceTab !== "access") return;
 
-      const accessDashboard = await apiClient.getAccessDashboard();
-      setAccessSummaryCards(accessDashboard.metrics);
-      setAccessUserRows(accessDashboard.users);
-      setAccessActivityItems(accessDashboard.activity);
+      await refreshAccessDashboard();
     };
 
     const loadLogsDashboard = async () => {
@@ -1370,7 +1862,9 @@ export function App() {
     loadTasks().catch(() => setTaskCards([]));
     loadAccessDashboard().catch(() => {
       setAccessSummaryCards([]);
+      setAccessMachines([]);
       setAccessUserRows([]);
+      setAccessInviteRows([]);
       setAccessActivityItems([]);
     });
     loadLogsDashboard().catch(() => {
@@ -1386,6 +1880,40 @@ export function App() {
   }, [screen, selectedMachineId, sessionReady, workspaceTab]);
 
   useEffect(() => {
+    if (!sessionReady || screen !== "machines") return;
+
+    let cancelled = false;
+
+    const refreshMachineSnapshots = async () => {
+      try {
+        const machines = await apiClient.getMachines();
+        if (cancelled) return;
+        setMachineDashboardCards(machines);
+
+        if (workspaceTab === "home") {
+          const dashboard = await apiClient.getHomeDashboard();
+          if (cancelled) return;
+          setHomeMetricCards(dashboard.metrics);
+          setHomeActionCards(dashboard.actions);
+          setHomeErrorItems(dashboard.errors);
+          setHomeTaskRows(dashboard.tasks);
+        }
+      } catch {
+        if (cancelled) return;
+      }
+    };
+
+    const intervalId = window.setInterval(() => {
+      void refreshMachineSnapshots();
+    }, 30_000);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+    };
+  }, [screen, sessionReady, workspaceTab]);
+
+  useEffect(() => {
     if (!isCreateTaskOpen) return;
 
     const onKeyDown = (event: KeyboardEvent) => {
@@ -1397,6 +1925,14 @@ export function App() {
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [isCreateTaskOpen]);
+
+  useEffect(() => {
+    if (!accessMachines.length) return;
+    if (accessMachines.some((machine) => machine.id === inviteMachineId)) return;
+
+    setInviteMachineId(accessMachines[0].id);
+    setInviteRole(accessMachines[0].availableRoleValues[0] ?? "viewer");
+  }, [accessMachines, inviteMachineId]);
 
   const openCreateTaskModal = () => {
     if (selectedMachineId) {
@@ -1419,7 +1955,7 @@ export function App() {
     }
 
     if (normalized.includes("добавить агента")) {
-      navigate(workspacePath("machines"));
+      navigate(addMachinePath());
       return;
     }
 
@@ -1466,10 +2002,28 @@ export function App() {
     void navigator.clipboard.writeText(taskPreviewCommand);
   };
 
+  const copyAddMachineCommand = () => {
+    if (typeof navigator === "undefined" || !navigator.clipboard?.writeText) {
+      return;
+    }
+
+    void navigator.clipboard.writeText(AGENT_PAIR_COMMAND);
+  };
+
+  const resetAddMachineForm = () => {
+    setAddMachineCode("");
+    setAddMachineDisplayName("");
+    setAddMachineError(null);
+  };
+
   const resetTaskComposer = () => {
-    setTaskCommand(taskTemplateOptions[0]?.templateKey ?? "");
+    setTaskCommand(runnableTaskTemplateOptions[0]?.templateKey ?? "");
     setTaskParamValues({});
     setTaskUseSudo(false);
+  };
+
+  const handleMachineTemplatesChanged = (templates: CommandTemplateOption[]) => {
+    setTaskTemplateOptions(templates);
   };
 
   const handleProfileAvatarChange = (
@@ -1488,15 +2042,6 @@ export function App() {
     };
     reader.readAsDataURL(selectedFile);
     event.target.value = "";
-  };
-
-  const handleTerminateProfileSession = () => {
-    setIsCreateTaskOpen(false);
-    setIsLinuxInstallGuideOpen(false);
-    setAuthChallengeId(null);
-    apiClient.clearPersistedAuthToken();
-    setAuthMode("login");
-    setScreen("auth");
   };
 
   const handleCreateTaskSubmit = async (
@@ -1522,6 +2067,37 @@ export function App() {
     }
   };
 
+  const handleAddMachineSubmit = async (
+    event: React.FormEvent<HTMLFormElement>,
+  ) => {
+    event.preventDefault();
+
+    if (!addMachineCode.trim()) {
+      setAddMachineError("Введите device code.");
+      return;
+    }
+
+    setIsAddMachineSubmitting(true);
+    setAddMachineError(null);
+
+    try {
+      const machine = await apiClient.confirmMachineRegistration({
+        deviceCode: addMachineCode,
+        displayName: addMachineDisplayName.trim() || undefined,
+      });
+      resetAddMachineForm();
+      const machines = await apiClient.getMachines();
+      setMachineDashboardCards(machines);
+      navigate(machinePath(machine.id));
+    } catch (error) {
+      setAddMachineError(
+        extractApiErrorMessage(error, "Не удалось подтвердить device code."),
+      );
+    } finally {
+      setIsAddMachineSubmitting(false);
+    }
+  };
+
   const refreshTaskLinkedViews = async () => {
     const [tasks, resultsDashboard, logsDashboard] = await Promise.all([
       apiClient.getTasks(),
@@ -1535,9 +2111,186 @@ export function App() {
     setLogStreamItems(logsDashboard.streamItems);
   };
 
+  const extractApiErrorMessage = (
+    error: unknown,
+    fallback: string,
+  ): string => {
+    if (!(error instanceof ApiError)) {
+      return fallback;
+    }
+
+    try {
+      const parsed = JSON.parse(error.body) as {
+        detail?: { message?: string } | string;
+      };
+      if (typeof parsed.detail === "string" && parsed.detail.trim()) {
+        return parsed.detail;
+      }
+      if (
+        parsed.detail &&
+        typeof parsed.detail === "object" &&
+        typeof parsed.detail.message === "string" &&
+        parsed.detail.message.trim()
+      ) {
+        return parsed.detail.message;
+      }
+    } catch {
+      if (error.body.trim()) {
+        return error.body;
+      }
+    }
+
+    return fallback;
+  };
+
+  const refreshAccessDashboard = async () => {
+    const dashboard = await apiClient.getAccessDashboard();
+    setAccessSummaryCards(dashboard.metrics);
+    setAccessMachines(dashboard.machines);
+    setAccessUserRows(dashboard.users);
+    setAccessInviteRows(dashboard.invites);
+    setAccessActivityItems(dashboard.activity);
+  };
+
+  const closeInviteModal = () => {
+    setIsInviteModalOpen(false);
+    setInviteEmail("");
+    setInvitePassword("");
+    setAccessError(null);
+  };
+
+  const openInviteModal = () => {
+    const initialMachine =
+      selectedInviteMachine ?? accessMachines[0] ?? null;
+    if (!initialMachine) return;
+
+    setInviteMachineId(initialMachine.id);
+    setInviteRole(initialMachine.availableRoleValues[0] ?? "viewer");
+    setInviteEmail("");
+    setInvitePassword("");
+    setAccessError(null);
+    setIsInviteModalOpen(true);
+  };
+
+  const openManageAccessModal = (row: AccessUserRow) => {
+    if (!row.canManage || row.availableRoleValues.length === 0) return;
+
+    const nextRole =
+      row.availableRoleValues.find((role) => role === row.roleValue) ??
+      row.availableRoleValues[0];
+    setManageAccessRowId(row.id);
+    setManageRole(nextRole);
+    setManagePassword("");
+    setAccessError(null);
+  };
+
+  const closeManageAccessModal = () => {
+    setManageAccessRowId(null);
+    setManagePassword("");
+    setAccessError(null);
+  };
+
+  const handleInviteMachineChange = (value: string) => {
+    setInviteMachineId(value);
+    const machine = accessMachines.find((item) => item.id === value);
+    if (machine?.availableRoleValues.length) {
+      setInviteRole(machine.availableRoleValues[0]);
+    }
+  };
+
+  const handleCreateInviteSubmit = async (
+    event: React.FormEvent<HTMLFormElement>,
+  ) => {
+    event.preventDefault();
+
+    if (!inviteMachineId || !inviteEmail.trim() || !invitePassword) {
+      return;
+    }
+
+    setIsInviteSubmitting(true);
+    setAccessError(null);
+    setAccessNotice(null);
+    try {
+      const reauthToken = await apiClient.reauth(invitePassword);
+      await apiClient.createMachineInvite({
+        machineId: inviteMachineId,
+        email: inviteEmail.trim(),
+        role: inviteRole,
+        reauthToken,
+      });
+      await refreshAccessDashboard();
+      closeInviteModal();
+      setAccessNotice("Приглашение отправлено.");
+    } catch (error) {
+      setAccessError(
+        extractApiErrorMessage(error, "Не удалось отправить приглашение."),
+      );
+    } finally {
+      setIsInviteSubmitting(false);
+    }
+  };
+
+  const handleManageAccessSubmit = async (
+    event: React.FormEvent<HTMLFormElement>,
+  ) => {
+    event.preventDefault();
+    if (!selectedManageRow || !managePassword) {
+      return;
+    }
+
+    setIsManageSubmitting(true);
+    setAccessError(null);
+    setAccessNotice(null);
+    try {
+      const reauthToken = await apiClient.reauth(managePassword);
+      await apiClient.updateMachineAccessRole({
+        machineId: selectedManageRow.machineId,
+        accessId: selectedManageRow.accessId,
+        role: manageRole,
+        reauthToken,
+      });
+      await refreshAccessDashboard();
+      closeManageAccessModal();
+      setAccessNotice("Роль пользователя обновлена.");
+    } catch (error) {
+      setAccessError(
+        extractApiErrorMessage(error, "Не удалось изменить роль доступа."),
+      );
+    } finally {
+      setIsManageSubmitting(false);
+    }
+  };
+
+  const handleRevokeAccess = async () => {
+    if (!selectedManageRow || !managePassword) {
+      return;
+    }
+
+    setIsManageSubmitting(true);
+    setAccessError(null);
+    setAccessNotice(null);
+    try {
+      const reauthToken = await apiClient.reauth(managePassword);
+      await apiClient.revokeMachineAccess({
+        machineId: selectedManageRow.machineId,
+        accessId: selectedManageRow.accessId,
+        reauthToken,
+      });
+      await refreshAccessDashboard();
+      closeManageAccessModal();
+      setAccessNotice("Доступ пользователя отозван.");
+    } catch (error) {
+      setAccessError(
+        extractApiErrorMessage(error, "Не удалось отозвать доступ."),
+      );
+    } finally {
+      setIsManageSubmitting(false);
+    }
+  };
+
   const handleTaskSecondaryAction = async (task: TaskCard) => {
     try {
-      if (task.status === "in_progress") {
+      if (task.status === "in_progress" || task.status === "queued") {
         await apiClient.cancelTask(task.id);
       } else {
         await apiClient.retryTask(task.id);
@@ -1550,6 +2303,8 @@ export function App() {
 
   const handleAuthSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    setAuthNotice(null);
+    setAuthError(null);
 
     if (authMode === "login") {
       try {
@@ -1561,7 +2316,10 @@ export function App() {
         }
         setAuthChallengeId(null);
         setScreen("machines");
-      } catch {
+      } catch (error) {
+        setAuthError(
+          extractApiErrorMessage(error, "Не удалось выполнить вход."),
+        );
         return;
       }
       return;
@@ -1577,7 +2335,11 @@ export function App() {
         normalizedEmail,
       );
       setAuthMode("confirm");
-    } catch {
+      setAuthNotice("Письмо с кодом отправлено. Завершите подтверждение.");
+    } catch (error) {
+      setAuthError(
+        extractApiErrorMessage(error, "Не удалось завершить регистрацию."),
+      );
       return;
     }
   };
@@ -1586,6 +2348,8 @@ export function App() {
     event: React.FormEvent<HTMLFormElement>,
   ) => {
     event.preventDefault();
+    setAuthNotice(null);
+    setAuthError(null);
 
     try {
       const normalizedEmail = email.trim();
@@ -1603,7 +2367,65 @@ export function App() {
       }
       setAuthChallengeId(null);
       setScreen("machines");
-    } catch {
+    } catch (error) {
+      setAuthError(
+        extractApiErrorMessage(error, "Не удалось подтвердить вход."),
+      );
+      return;
+    }
+  };
+
+  const handleForgotPasswordSubmit = async (
+    event: React.FormEvent<HTMLFormElement>,
+  ) => {
+    event.preventDefault();
+    setAuthNotice(null);
+    setAuthError(null);
+
+    try {
+      const response = await apiClient.forgotPassword(email.trim());
+      setAuthNotice(response.message);
+    } catch (error) {
+      setAuthError(
+        extractApiErrorMessage(error, "Не удалось отправить письмо для сброса."),
+      );
+      return;
+    }
+  };
+
+  const handleResetPasswordSubmit = async (
+    event: React.FormEvent<HTMLFormElement>,
+  ) => {
+    event.preventDefault();
+    setAuthNotice(null);
+    setAuthError(null);
+
+    if (!resolvedResetToken) {
+      setAuthError("Введите токен для сброса пароля.");
+      return;
+    }
+    if (password !== confirmPassword) {
+      setAuthError("Подтверждение нового пароля не совпадает.");
+      return;
+    }
+
+    const issues = validatePasswordPolicy(password);
+    if (issues.length) {
+      setAuthError(issues[0] ?? "Пароль не соответствует политике.");
+      return;
+    }
+
+    try {
+      const response = await apiClient.resetPassword(resolvedResetToken, password);
+      setPassword("");
+      setConfirmPassword("");
+      setManualResetToken("");
+      navigate(authPath("login"), { replace: true });
+      setAuthNotice(response.message);
+    } catch (error) {
+      setAuthError(
+        extractApiErrorMessage(error, "Не удалось обновить пароль."),
+      );
       return;
     }
   };
@@ -1623,36 +2445,636 @@ export function App() {
               : workspaceTab === "access"
                 ? "Поиск по доступам"
                 : workspaceTab === "reports"
-                  ? "Поиск по отчетам"
+                  ? "Поиск по отчётам"
                   : workspaceTab === "install"
                     ? "Поиск по установке"
                     : "Поиск по профилю";
 
   const sidebarActiveTop = SIDEBAR_ACTIVE_TOP_BY_TAB[workspaceTab];
 
-  const renderWorkspaceTopbar = () => (
-    <header className="home-topbar">
-      <label className="home-search home-search--workspace" aria-label="Поиск">
-        <Search aria-hidden="true" />
-        <input
-          type="search"
-          value={workspaceSearchQuery}
-          onChange={(event) => setWorkspaceSearchQuery(event.target.value)}
-          placeholder={workspaceSearchPlaceholder}
-        />
-      </label>
+  const sidebarItems = useMemo(
+    () =>
+      menuItems.map((item) => ({
+        key: item.tab ?? item.label,
+        label: item.label,
+        iconSrc: item.iconSrc,
+        isActive: item.tab === workspaceTab,
+        onClick: () => {
+          if (item.tab) {
+            navigate(workspacePath(item.tab));
+          }
+        },
+      })),
+    [navigate, workspaceTab],
+  );
 
-      <div className="home-topbar__actions">
-        <button
-          type="button"
-          className="home-new-task"
-          onClick={openCreateTaskModal}
-        >
-          <Plus aria-hidden="true" />
-          <span>Создать задачу</span>
-        </button>
-      </div>
-    </header>
+  const globalSearchTargets = useMemo<SearchTarget[]>(() => {
+    const targets: SearchTarget[] = menuItems.map((item) => ({
+      id: `menu:${item.tab ?? item.label}`,
+      kind: "menu",
+      title: item.label,
+      subtitle: "Раздел платформы",
+      href: item.tab ? workspacePath(item.tab) : workspacePath("machines"),
+      keywords: [item.tab ?? "workspace", "navigation"],
+    }));
+
+    for (const machine of machineDashboardCards) {
+      targets.push({
+        id: `machine:${machine.id}`,
+        kind: "machine",
+        title: getMachineDisplayName(machine),
+        subtitle: `${machine.os} • ${machine.owner}`,
+        href: machinePath(machine.id),
+        keywords: [machine.hostname, machine.myRole, machine.status],
+      });
+    }
+
+    for (const task of taskCards) {
+      targets.push({
+        id: `task:${task.id}`,
+        kind: "task",
+        title: task.title,
+        subtitle: `${task.machine} • ${task.resultText}`,
+        href: taskPath(task.id),
+        keywords: [task.templateKey, task.taskNumber, task.serverNumber],
+      });
+    }
+
+    for (const row of resultHistoryRows) {
+      targets.push({
+        id: `result:${row.id}`,
+        kind: "result",
+        title: row.title,
+        subtitle: `${row.machine} • ${row.statusLabel}`,
+        href: resultPath(row.id),
+        keywords: [row.command, row.resultAt],
+      });
+    }
+
+    for (const row of accessUserRows) {
+      targets.push({
+        id: `access-user:${row.id}`,
+        kind: "access",
+        title: row.email,
+        subtitle: `${row.resource} • ${row.role}`,
+        href: workspacePath("access"),
+        keywords: [row.status, row.roleValue, row.resource],
+      });
+    }
+
+    for (const invite of accessInviteRows) {
+      targets.push({
+        id: `access-invite:${invite.id}`,
+        kind: "access",
+        title: invite.email,
+        subtitle: `${invite.resource} • ${invite.role}`,
+        href: workspacePath("access"),
+        keywords: [invite.status, invite.roleValue, invite.resource],
+      });
+    }
+
+    for (const section of profileSections) {
+      targets.push({
+        id: `profile:${section.key}`,
+        kind: "profile",
+        title: section.label,
+        subtitle: effectiveProfileDisplayName,
+        href: profilePath(section.key),
+        keywords: ["profile", section.key],
+      });
+    }
+
+    targets.push({
+      id: "profile:api-keys",
+      kind: "api_key",
+      title: "API-ключи",
+      subtitle: "Интеграции и внешние доступы",
+      href: profileApiKeysPath(),
+      keywords: ["api", "token", "integration", "key"],
+    });
+
+    for (const key of apiKeys) {
+      targets.push({
+        id: `api-key:${key.id}`,
+        kind: "api_key",
+        title: key.name,
+        subtitle: `${key.permission} • uses ${key.usesCount}`,
+        href: profileApiKeysPath(),
+        keywords: [key.publicId, ...key.allowedTemplateKeys],
+      });
+    }
+
+    for (const row of reportSummaryRows.slice(0, 12)) {
+      targets.push({
+        id: `report:${row.id}`,
+        kind: "report",
+        title: row.title,
+        subtitle: `${row.totalTasks} задач • ${row.successCount} успешно`,
+        href: workspacePath("reports"),
+        keywords: [String(row.errorCount), row.actionLabel],
+      });
+    }
+
+    targets.push({
+      id: "menu:profile",
+      kind: "menu",
+      title: "Профиль",
+      subtitle: effectiveProfileDisplayName,
+      href: workspacePath("profile"),
+      keywords: ["security", "sessions", "notifications"],
+    });
+
+    targets.push({
+      id: "menu:install",
+      kind: "menu",
+      title: "Установка",
+      subtitle: "Команды и загрузки для агентов",
+      href: workspacePath("install"),
+      keywords: ["linux", "windows", "predict pair"],
+    });
+
+      return targets;
+    }, [
+      accessInviteRows,
+      accessUserRows,
+      apiKeys,
+      effectiveProfileDisplayName,
+      machineDashboardCards,
+      reportSummaryRows,
+      resultHistoryRows,
+      taskCards,
+    ]);
+
+  const globalSearchResults = useMemo(
+    () => getSearchMatches(workspaceSearchQuery, globalSearchTargets),
+    [globalSearchTargets, workspaceSearchQuery],
+  );
+
+  const handleSelectGlobalSearchResult = (result: SearchMatch) => {
+    setWorkspaceSearchQuery("");
+    navigate(result.href);
+  };
+
+  const navigateProfileSection = (section: ProfileSectionKey) => {
+    navigate(profilePath(section));
+  };
+
+  const handleOpenNotificationsPage = () => {
+    setIsNotificationsOpen(false);
+    navigateProfileSection("notifications");
+  };
+
+  const handleOpenNotificationTarget = (href: string) => {
+    setIsNotificationsOpen(false);
+    navigate(href);
+  };
+
+  const handleMarkNotificationRead = async (notificationId: string) => {
+    try {
+      await accountApi.markNotificationRead(notificationId);
+      setNotificationFeed((current) =>
+        current.map((item) =>
+          item.id === notificationId ? { ...item, siteRead: true } : item,
+        ),
+      );
+      setUnreadNotificationCount((current) => Math.max(0, current - 1));
+    } catch {
+      // Ignore feed interaction errors and keep the list usable.
+    }
+  };
+
+  const handleMarkAllNotificationsRead = async () => {
+    try {
+      await accountApi.markAllNotificationsRead();
+      setNotificationFeed((current) =>
+        current.map((item) => ({ ...item, siteRead: true })),
+      );
+      setUnreadNotificationCount(0);
+    } catch {
+      // Ignore feed interaction errors and keep the list usable.
+    }
+  };
+
+  const handleProfileSave = async () => {
+    if (!profileDetails) return;
+
+    setProfileSaveNotice(null);
+    setProfileSaveError(null);
+    setIsProfileSaving(true);
+
+      try {
+        const nextProfile = await accountApi.updateProfile({
+          firstName: profileFirstName.trim(),
+          lastName: profileLastName.trim(),
+          avatarDataUrl: profileAvatarUrl,
+          deletedMachineRetention: profileDeletedRetention,
+        });
+        const refreshedMachines = await apiClient.getMachines();
+        setProfileDetails(nextProfile);
+        setMachineDashboardCards(refreshedMachines);
+        setProfileDashboard((current) =>
+          current
+            ? {
+              ...current,
+              firstName: nextProfile.firstName,
+              lastName: nextProfile.lastName,
+              fullName: nextProfile.fullName,
+            }
+          : current,
+      );
+      setProfileSaveNotice("Профиль сохранён.");
+    } catch (error) {
+      setProfileSaveError(
+        error instanceof ApiError ? error.body : "Не удалось сохранить профиль.",
+      );
+    } finally {
+      setIsProfileSaving(false);
+    }
+  };
+
+  const handleNotificationToggle = (
+    topic: "tasks" | "warnings" | "reports" | "security",
+    channel: "siteEnabled" | "telegramEnabled",
+    value: boolean,
+  ) => {
+    setNotificationPreferences((current) => ({
+      ...current,
+      [topic]: {
+        ...current[topic],
+        [channel]: value,
+      },
+    }));
+  };
+
+  const handleNotificationPreferencesSave = async () => {
+    setNotificationsNotice(null);
+    setNotificationsError(null);
+    setIsNotificationsSaving(true);
+
+    try {
+      const nextPreferences = await accountApi.updateNotificationPreferences(
+        notificationPreferences,
+      );
+      setNotificationPreferences(nextPreferences);
+      setNotificationsNotice("Настройки уведомлений сохранены.");
+    } catch (error) {
+      setNotificationsError(
+        error instanceof ApiError
+          ? error.body
+          : "Не удалось сохранить настройки уведомлений.",
+      );
+    } finally {
+      setIsNotificationsSaving(false);
+    }
+  };
+
+  const handleSessionRevoke = async (sessionId: string) => {
+    setSessionsNotice(null);
+    setSessionsError(null);
+    setIsSessionRevoking(true);
+
+    try {
+      const result = await accountApi.revokeSession(sessionId);
+      if (result.revokedCurrentSession) {
+        setProfileDashboard(null);
+        setProfileDetails(null);
+        navigate("/login", { replace: true });
+        return;
+      }
+
+      setAccountSessions((current) =>
+        current.filter((session) => session.id !== sessionId),
+      );
+      setSessionsNotice(result.message);
+    } catch (error) {
+      setSessionsError(
+        error instanceof ApiError ? error.body : "Не удалось завершить сессию.",
+      );
+    } finally {
+      setIsSessionRevoking(false);
+    }
+  };
+
+  const getReauthGrant = async () => {
+    if (passwordForm.currentPassword.trim()) {
+      return accountApi.reauth({ password: passwordForm.currentPassword.trim() });
+    }
+    if (totpCode.trim()) {
+      return accountApi.reauth({ totpCode: totpCode.trim() });
+    }
+    throw new Error("Введите текущий пароль или код TOTP для подтверждения действия.");
+  };
+
+  const handlePasswordFieldChange = (
+    field: "currentPassword" | "newPassword" | "confirmPassword",
+    value: string,
+  ) => {
+    setPasswordForm((current) => ({
+      ...current,
+      [field]: value,
+    }));
+  };
+
+  const handlePasswordSubmit = async () => {
+    setPasswordNotice(null);
+    setPasswordError(null);
+    if (passwordIssues.length) {
+      setPasswordError(passwordIssues[0] ?? "Пароль не соответствует политике.");
+      return;
+    }
+
+    setIsPasswordSubmitting(true);
+    try {
+      const response = await accountApi.changePassword(passwordForm);
+      setPasswordNotice(response.message);
+      setPasswordForm({
+        currentPassword: "",
+        newPassword: "",
+        confirmPassword: "",
+      });
+    } catch (error) {
+      setPasswordError(
+        error instanceof ApiError ? error.body : "Не удалось изменить пароль.",
+      );
+    } finally {
+      setIsPasswordSubmitting(false);
+    }
+  };
+
+  const handleTotpStart = async () => {
+    if (!passwordForm.currentPassword.trim()) {
+      setTotpError("Введите текущий пароль, чтобы подключить TOTP.");
+      return;
+    }
+
+    setTotpNotice(null);
+    setTotpError(null);
+    setIsTotpLoading(true);
+    try {
+      const setup = await accountApi.startTotpSetup(passwordForm.currentPassword.trim());
+      setTotpSetup(setup);
+      setTotpNotice("Секрет создан. Подтвердите его кодом из приложения.");
+    } catch (error) {
+      setTotpError(
+        error instanceof ApiError ? error.body : "Не удалось начать настройку TOTP.",
+      );
+    } finally {
+      setIsTotpLoading(false);
+    }
+  };
+
+  const handleTotpConfirm = async () => {
+    setTotpNotice(null);
+    setTotpError(null);
+    setIsTotpLoading(true);
+    try {
+      const response = await accountApi.confirmTotpSetup(totpCode.trim());
+      setTotpSetup(null);
+      setTotpCode("");
+      setTotpNotice(response.message);
+      const profile = await accountApi.getProfileDetails();
+      setProfileDetails(profile);
+    } catch (error) {
+      setTotpError(
+        error instanceof ApiError ? error.body : "Не удалось подтвердить TOTP.",
+      );
+    } finally {
+      setIsTotpLoading(false);
+    }
+  };
+
+  const handleTotpDisable = async () => {
+    if (!passwordForm.currentPassword.trim() || !totpCode.trim()) {
+      setTotpError("Введите текущий пароль и действующий код TOTP.");
+      return;
+    }
+
+    setTotpNotice(null);
+    setTotpError(null);
+    setIsTotpLoading(true);
+    try {
+      const response = await accountApi.disableTotp({
+        password: passwordForm.currentPassword.trim(),
+        code: totpCode.trim(),
+      });
+      setTotpCode("");
+      setTotpSetup(null);
+      setTotpNotice(response.message);
+      const profile = await accountApi.getProfileDetails();
+      setProfileDetails(profile);
+    } catch (error) {
+      setTotpError(
+        error instanceof ApiError ? error.body : "Не удалось отключить TOTP.",
+      );
+    } finally {
+      setIsTotpLoading(false);
+    }
+  };
+
+  const handleTelegramLink = async () => {
+    setTelegramNotice(null);
+    setTelegramError(null);
+    setIsTelegramLoading(true);
+    try {
+      const response = await accountApi.startTelegramLink();
+      setTelegramSetupState({ linkUrl: response.linkUrl });
+      setTelegramNotice("Откройте Telegram и завершите привязку.");
+    } catch (error) {
+      setTelegramError(
+        error instanceof ApiError ? error.body : "Не удалось начать привязку Telegram.",
+      );
+    } finally {
+      setIsTelegramLoading(false);
+    }
+  };
+
+  const handleTelegramEnable = async () => {
+    setTelegramNotice(null);
+    setTelegramError(null);
+    setIsTelegramLoading(true);
+    try {
+      const setup = await accountApi.startTelegramTwoFactorSetup();
+      if (!setup.linked) {
+        setTelegramSetupState({
+          linkUrl: setup.linkUrl ?? null,
+          reason: setup.reason ?? "Сначала завершите привязку Telegram.",
+        });
+        return;
+      }
+
+      const grant = await getReauthGrant();
+      const response = await accountApi.confirmTelegramTwoFactorSetup(grant.token);
+      setTelegramNotice(response.message);
+      const profile = await accountApi.getProfileDetails();
+      setProfileDetails(profile);
+    } catch (error) {
+      setTelegramError(
+        error instanceof ApiError ? error.body : (error as Error).message || "Не удалось включить Telegram 2FA.",
+      );
+    } finally {
+      setIsTelegramLoading(false);
+    }
+  };
+
+  const handleTelegramDisable = async () => {
+    setTelegramNotice(null);
+    setTelegramError(null);
+    setIsTelegramLoading(true);
+    try {
+      const grant = await getReauthGrant();
+      const response = await accountApi.disableTelegramTwoFactor(grant.token);
+      setTelegramNotice(response.message);
+      const profile = await accountApi.getProfileDetails();
+      setProfileDetails(profile);
+    } catch (error) {
+      setTelegramError(
+        error instanceof ApiError ? error.body : (error as Error).message || "Не удалось отключить Telegram 2FA.",
+      );
+    } finally {
+      setIsTelegramLoading(false);
+    }
+  };
+
+  const handleTelegramUnlink = async () => {
+    setTelegramNotice(null);
+    setTelegramError(null);
+    setIsTelegramLoading(true);
+    try {
+      const grant = await getReauthGrant();
+      await accountApi.unlinkTelegram(grant.token);
+      setTelegramNotice("Telegram отвязан.");
+      const profile = await accountApi.getProfileDetails();
+      setProfileDetails(profile);
+    } catch (error) {
+      setTelegramError(
+        error instanceof ApiError ? error.body : (error as Error).message || "Не удалось отвязать Telegram.",
+      );
+    } finally {
+      setIsTelegramLoading(false);
+    }
+  };
+
+  const handleApiKeyFieldChange = (
+    field: "name" | "permission" | "expiryPreset" | "templateKeysText" | "reauthPassword",
+    value: string,
+  ) => {
+    setApiKeyForm((current) => ({
+      ...current,
+      [field]:
+        field === "permission"
+          ? (value as ApiKeyPermission)
+          : field === "expiryPreset"
+            ? (value as ApiKeyExpiryPreset)
+            : value,
+    }));
+  };
+
+  const handleApiKeyMachineToggle = (machineId: string) => {
+    setApiKeyForm((current) => ({
+      ...current,
+      machineIds: current.machineIds.includes(machineId)
+        ? current.machineIds.filter((id) => id !== machineId)
+        : [...current.machineIds, machineId],
+    }));
+  };
+
+  const handleApiKeyCreate = async () => {
+    setApiKeysNotice(null);
+    setApiKeysError(null);
+    setLatestApiKeySecret(null);
+
+    if (!apiKeyForm.machineIds.length) {
+      setApiKeysError("Выберите хотя бы одну машину для API ключа.");
+      return;
+    }
+
+    setIsApiKeySubmitting(true);
+    try {
+      const grant = await accountApi.reauth({
+        password: apiKeyForm.reauthPassword.trim(),
+      });
+      const response = await accountApi.createApiKey({
+        name: apiKeyForm.name.trim(),
+        permission: apiKeyForm.permission,
+        machineIds: apiKeyForm.machineIds,
+        allowedTemplateKeys: apiKeyForm.templateKeysText
+          .split(",")
+          .map((item) => item.trim())
+          .filter(Boolean),
+        expiryPreset: apiKeyForm.expiryPreset,
+        reauthToken: grant.token,
+      });
+      setApiKeys((current) => [response.key, ...current]);
+      setLatestApiKeySecret(response.rawKey);
+      setApiKeysNotice("API ключ создан. Сохраните его сейчас.");
+      setApiKeyForm({
+        name: "",
+        permission: "read",
+        expiryPreset: "month",
+        machineIds: [],
+        templateKeysText: "",
+        reauthPassword: "",
+      });
+    } catch (error) {
+      setApiKeysError(
+        error instanceof ApiError ? error.body : "Не удалось создать API ключ.",
+      );
+    } finally {
+      setIsApiKeySubmitting(false);
+    }
+  };
+
+  const handleApiKeyRevoke = async (keyId: string) => {
+    if (!apiKeyForm.reauthPassword.trim()) {
+      setApiKeysError("Введите пароль в форме API keys, чтобы отозвать ключ.");
+      return;
+    }
+
+    setApiKeysNotice(null);
+    setApiKeysError(null);
+    setIsApiKeyRevoking(true);
+    try {
+      const grant = await accountApi.reauth({
+        password: apiKeyForm.reauthPassword.trim(),
+      });
+      await accountApi.revokeApiKey(keyId, grant.token);
+      setApiKeys((current) =>
+        current.map((item) =>
+          item.id === keyId
+            ? { ...item, isActive: false, revokedAt: new Date().toISOString() }
+            : item,
+        ),
+      );
+      setApiKeysNotice("API ключ отозван.");
+    } catch (error) {
+      setApiKeysError(
+        error instanceof ApiError ? error.body : "Не удалось отозвать API ключ.",
+      );
+    } finally {
+      setIsApiKeyRevoking(false);
+    }
+  };
+
+  const renderWorkspaceTopbar = () => (
+    <Topbar
+      searchQuery={workspaceSearchQuery}
+      searchPlaceholder={workspaceSearchPlaceholder}
+      searchResults={globalSearchResults}
+      notificationItems={notificationFeed}
+      unreadNotificationCount={unreadNotificationCount}
+      notificationsOpen={isNotificationsOpen}
+      themeMode={themeMode}
+      onSearchChange={setWorkspaceSearchQuery}
+      onSelectSearchResult={handleSelectGlobalSearchResult}
+      onToggleNotifications={() => setIsNotificationsOpen((current) => !current)}
+      onOpenNotificationsPage={handleOpenNotificationsPage}
+      onOpenNotificationTarget={handleOpenNotificationTarget}
+      onMarkNotificationRead={handleMarkNotificationRead}
+      onToggleTheme={() =>
+        setThemeMode((current) => (current === "dark" ? "light" : "dark"))
+      }
+      onCreateTask={openCreateTaskModal}
+    />
   );
 
   if (!sessionReady) {
@@ -1686,7 +3108,7 @@ export function App() {
                   : workspaceTab === "access"
                     ? "Страница доступа"
                     : workspaceTab === "reports"
-                      ? "Страница отчетов"
+                      ? "Страница отчётов"
                       : workspaceTab === "install"
                         ? "Страница установки"
                         : workspaceTab === "profile"
@@ -1694,83 +3116,19 @@ export function App() {
                           : "Страница машин"
         }
       >
-        <aside className="machines-sidebar">
-          <span
-            className="machines-sidebar__active-strip"
-            aria-hidden="true"
-            style={{ transform: `translateY(${sidebarActiveTop}px)` }}
-          />
-          <div className="machines-logo">
-            <img
-              src="/logo.png"
-              alt="Predict MV logo"
-              className="machines-logo__mark"
-            />
-            <strong>PREDICT MV</strong>
-          </div>
-
-          <nav className="machines-nav" aria-label="Навигация">
-            {menuItems.map((item) => {
-              const isActive = item.tab === workspaceTab;
-
-              return (
-                <button
-                  key={item.label}
-                  type="button"
-                  className={
-                    isActive
-                      ? "machines-nav__item active"
-                      : "machines-nav__item"
-                  }
-                  onClick={() => {
-                    if (item.tab) {
-                      navigate(workspacePath(item.tab));
-                    }
-                  }}
-                >
-                  <img
-                    src={item.iconSrc}
-                    alt=""
-                    aria-hidden="true"
-                    className="machines-nav__icon"
-                  />
-                  <span>{item.label}</span>
-                </button>
-              );
-            })}
-          </nav>
-
-          <button
-            type="button"
-            className={
-              workspaceTab === "profile"
-                ? "machines-profile machines-profile--active"
-                : "machines-profile"
-            }
-            onClick={() => {
-              navigate(workspacePath("profile"));
-              setProfileSection("general");
-            }}
-          >
-            <img src="/imya.png" alt="" aria-hidden="true" />
-            <span>{profileDisplayName}</span>
-          </button>
-
-          <button
-            type="button"
-            className={
-              workspaceTab === "install"
-                ? "machines-profile machines-install machines-profile--active"
-                : "machines-profile machines-install"
-            }
-            onClick={() => {
-              navigate(workspacePath("install"));
-            }}
-          >
-            <img src="/download.png" alt="" aria-hidden="true" />
-            <span>Установка</span>
-          </button>
-        </aside>
+        <Sidebar
+          activeStripTop={sidebarActiveTop}
+          items={sidebarItems}
+          profileLabel={effectiveProfileDisplayName}
+          isProfileActive={workspaceTab === "profile"}
+          isInstallActive={workspaceTab === "install"}
+          onProfileClick={() => {
+            navigate(profilePath());
+          }}
+          onInstallClick={() => {
+            navigate(workspacePath("install"));
+          }}
+        />
 
         <section
           className={
@@ -1876,7 +3234,7 @@ export function App() {
                       <table className="home-tasks__table">
                         <thead>
                           <tr>
-                            <th>ID Задачи</th>
+                            <th>ID задачи</th>
                             <th>Машина</th>
                             <th>Статус</th>
                             <th>Время отправки</th>
@@ -1925,451 +3283,63 @@ export function App() {
             <section className="tasks-dashboard" aria-label="Задачи">
               {renderWorkspaceTopbar()}
 
-              <div className="tasks-body">
-
-                <header className="tasks-dashboard__header">
-                  <div className="tasks-dashboard__title-box">
-                    <h1>Задачи</h1>
-                    <p>Всего {taskCards.length}</p>
-                  </div>
-                </header>
-
-                <div className="tasks-dashboard__controls">
-                  <button
-                    type="button"
-                    className={`tasks-dashboard__chip ${taskFilterStatus === "all" ? "tasks-dashboard__chip--active" : ""}`}
-                    onClick={() => setTaskFilterStatus("all")}
-                  >
-                    Все
-                  </button>
-                  <button
-                    type="button"
-                    className={`tasks-dashboard__chip ${taskFilterStatus === "completed" ? "tasks-dashboard__chip--active" : ""}`}
-                    onClick={() => setTaskFilterStatus("completed")}
-                  >
-                    Завершенные
-                  </button>
-                  <button
-                    type="button"
-                    className={`tasks-dashboard__chip ${taskFilterStatus === "in_progress" ? "tasks-dashboard__chip--active" : ""}`}
-                    onClick={() => setTaskFilterStatus("in_progress")}
-                  >
-                    В процессе
-                  </button>
-                  <button
-                    type="button"
-                    className={`tasks-dashboard__chip ${taskFilterStatus === "error" ? "tasks-dashboard__chip--active" : ""}`}
-                    onClick={() => setTaskFilterStatus("error")}
-                  >
-                    Ошибки
-                  </button>
-                </div>
-
-                <div className="tasks-dashboard__statuses">
-                  {visibleTaskStatusGroups.map((section) => (
-                    <p
-                      key={section.key}
-                      className="tasks-dashboard__status-item"
-                    >
-                      <span>{`${section.label} (${section.cards.length})`}</span>
-                    </p>
-                  ))}
-                </div>
-
-                <div
-                  className={`tasks-dashboard__columns tasks-dashboard__columns--${visibleTaskStatusGroups.length}`}
-                >
-                  {visibleTaskStatusGroups.map((section) => (
-                    <section key={section.key} className="tasks-status-column">
-                      <div className="tasks-status-column__cards">
-                        {section.cards.map((task, index) => {
-                          const secondaryActionLabel =
-                            task.status === "in_progress"
-                              ? "Убить"
-                              : "Повторить";
-                          const primaryActionLabel =
-                            task.status === "in_progress"
-                              ? "Детали"
-                              : "Посмотреть логи";
-                          const completedLabel =
-                            task.status === "error" ? "Прервана" : "Завершена";
-
-                          return (
-                            <article
-                              key={`${task.taskNumber}_${index}`}
-                              className={`task-card task-card--${task.status}`}
-                            >
-                              <div className="task-card__header">
-                                <div className="task-card__title-box">
-                                  <p className="task-card__number">
-                                    Задача №{task.taskNumber}
-                                  </p>
-                                  <h3 className="task-card__title">
-                                    {task.title}
-                                  </h3>
-                                </div>
-
-                                <div className="task-card__timeline">
-                                  <p>Запущена: {task.startedAt}</p>
-                                  {task.completedAt ? (
-                                    <p>{`${completedLabel}: ${task.completedAt}`}</p>
-                                  ) : null}
-                                </div>
-                              </div>
-
-                              <div className="task-card__divider" />
-
-                              <div className="task-card__footer">
-                                <div className="task-card__server">
-                                  <img
-                                    src="/server.png"
-                                    alt=""
-                                    aria-hidden="true"
-                                  />
-                                  <span>Сервер №{task.serverNumber}</span>
-                                </div>
-                                <div
-                                  className={`task-card__result task-card__result--${task.resultColor}`}
-                                >
-                                  <img
-                                    src={
-                                      task.resultColor === "green"
-                                        ? "/greenport.png"
-                                        : task.resultColor === "yellow"
-                                          ? "/openport.png"
-                                          : "/closeport.png"
-                                    }
-                                    alt=""
-                                    aria-hidden="true"
-                                  />
-                                  <span>{task.resultText}</span>
-                                </div>
-                              </div>
-
-                              <div className="task-card__actions">
-                                <button
-                                  type="button"
-                                  className="task-card__btn task-card__btn--secondary"
-                                  onClick={() => handleTaskSecondaryAction(task)}
-                                >
-                                  {secondaryActionLabel}
-                                </button>
-                                <button
-                                  type="button"
-                                  className="task-card__btn task-card__btn--primary"
-                                  onClick={() => openTaskLogs(task.id, task.machineId)}
-                                >
-                                  {primaryActionLabel}
-                                </button>
-                              </div>
-                            </article>
-                          );
-                        })}
-                      </div>
-                    </section>
-                  ))}
-                </div>
-              </div>
+              <TasksWorkspace
+                totalItems={taskCards.length}
+                activeFilter={taskFilterStatus}
+                machineValue={taskFilterMachine}
+                templateValue={taskFilterTemplate}
+                dateRange={taskDateRange}
+                machineOptions={taskMachineOptions}
+                templateOptions={taskTypeFilterOptions}
+                sections={visibleTaskStatusGroups}
+                onFilterChange={setTaskFilterStatus}
+                onMachineChange={setTaskFilterMachine}
+                onTemplateChange={setTaskFilterTemplate}
+                onDateRangeChange={setTaskDateRange}
+                onOpenLogs={openTaskLogs}
+                onSecondaryAction={handleTaskSecondaryAction}
+              />
             </section>
           ) : workspaceTab === "results" ? (
             <section className="results-dashboard" aria-label="Результаты">
               {renderWorkspaceTopbar()}
 
-              <div className="results-dashboard__body">
-                <header className="results-dashboard__header">
-                  <h1>Результаты</h1>
-                </header>
-
-                <div className="results-dashboard__filters">
-                  <label className="results-filter">
-                    <select
-                      value={resultsStatusFilter}
-                      onChange={(event) =>
-                        setResultsStatusFilter(
-                          event.target.value as "all" | ResultStatusTone,
-                        )
-                      }
-                    >
-                      <option value="all">Статус</option>
-                      <option value="success">Выполнено</option>
-                      <option value="error">Ошибка</option>
-                      <option value="cancelled">Отменено</option>
-                    </select>
-                  </label>
-
-                  <label className="results-filter">
-                    <select
-                      value={resultsMachineFilter}
-                      onChange={(event) =>
-                        setResultsMachineFilter(event.target.value)
-                      }
-                    >
-                      <option value="all">Машина</option>
-                      {resultsMachineOptions.map((machine) => (
-                        <option key={machine} value={machine}>
-                          {machine}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-
-                  <label className="results-filter">
-                    <select
-                      value={resultsCommandFilter}
-                      onChange={(event) =>
-                        setResultsCommandFilter(event.target.value)
-                      }
-                    >
-                      <option value="all">Команда</option>
-                      {resultsCommandOptions.map((command) => (
-                        <option key={command} value={command}>
-                          {command}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-
-                  <label className="results-filter">
-                    <select
-                      value={resultsDateFilter}
-                      onChange={(event) =>
-                        setResultsDateFilter(event.target.value)
-                      }
-                    >
-                      <option value="all">Дата результата</option>
-                      <option value="today">Сегодня</option>
-                    </select>
-                  </label>
-                </div>
-
-                {resultsMachineFilter !== "all" ? (
-                  <div className="results-dashboard__chips">
-                    <button
-                      type="button"
-                      className="results-chip"
-                      onClick={() => setResultsMachineFilter("all")}
-                    >
-                      <span>{resultsMachineFilter}</span>
-                      <span aria-hidden="true">×</span>
-                    </button>
-                  </div>
-                ) : null}
-
-                <section className="results-table-card">
-                  <header className="results-table-card__header">
-                    <h2>История запусков</h2>
-
-                    <span className="results-table-card__caption">Поиск выполняется через верхнюю панель</span>
-                  </header>
-
-                  <table className="results-table-card__grid">
-                    <thead>
-                      <tr>
-                        <th>Название</th>
-                        <th>Статус</th>
-                        <th>Машина</th>
-                        <th>Команда</th>
-                        <th>Дата результата</th>
-                        <th>Действия</th>
-                      </tr>
-                    </thead>
-
-                    <tbody>
-                      {visibleResultRows.length ? (
-                        visibleResultRows.map((row) => (
-                          <tr key={row.id}>
-                            <td>{row.title}</td>
-                            <td>
-                              <span
-                                className={`results-status results-status--${row.statusTone}`}
-                              >
-                                {row.statusLabel}
-                              </span>
-                            </td>
-                            <td>{row.machine}</td>
-                            <td>
-                              <span className="results-command">
-                                {row.command}
-                              </span>
-                            </td>
-                            <td>{row.resultAt}</td>
-                            <td>
-                              <div className="results-actions">
-                                <button
-                                  type="button"
-                                  className="results-actions__logs"
-                                  onClick={() =>
-                                    openTaskLogs(row.id, row.machineId)
-                                  }
-                                >
-                                  Смотреть логи
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))
-                      ) : (
-                        <tr>
-                          <td colSpan={6}>
-                            Нет результатов для выбранных фильтров
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </section>
-              </div>
+              <ResultsWorkspace
+                rows={visibleResultRows}
+                totalItems={resultHistoryRows.length}
+                statusValue={resultsStatusFilter}
+                machineValue={resultsMachineFilter}
+                commandValue={resultsCommandFilter}
+                dateRange={resultsDateRange}
+                machineOptions={resultsFilterOptions.machineOptions}
+                commandOptions={resultsFilterOptions.commandOptions}
+                onStatusChange={setResultsStatusFilter}
+                onMachineChange={setResultsMachineFilter}
+                onCommandChange={setResultsCommandFilter}
+                onDateRangeChange={setResultsDateRange}
+                onOpenLogs={openTaskLogs}
+                onOpenResultDetail={openResultDetail}
+              />
             </section>
           ) : workspaceTab === "logs" ? (
-            <section className="logs-dashboard" aria-label="Логи">
+            <>
               {renderWorkspaceTopbar()}
-
-              <div className="logs-dashboard__body">
-                <header className="logs-dashboard__header">
-                  <div>
-                    <h1>Логи</h1>
-                    <p>История системных событий по задачам и машинам</p>
-                  </div>
-                </header>
-
-                <div className="logs-dashboard__filters">
-                  <div className="logs-dashboard__chips">
-                    <button
-                      type="button"
-                      className={`logs-dashboard__chip ${logFilterTone === "all" ? "logs-dashboard__chip--active" : ""}`}
-                      onClick={() => setLogFilterTone("all")}
-                    >
-                      Все ({logEntries.length})
-                    </button>
-                    <button
-                      type="button"
-                      className={`logs-dashboard__chip ${logFilterTone === "success" ? "logs-dashboard__chip--active" : ""}`}
-                      onClick={() => setLogFilterTone("success")}
-                    >
-                      Завершено ({logStatusStats.success})
-                    </button>
-                    <button
-                      type="button"
-                      className={`logs-dashboard__chip ${logFilterTone === "warning" ? "logs-dashboard__chip--active" : ""}`}
-                      onClick={() => setLogFilterTone("warning")}
-                    >
-                      Требует внимания ({logStatusStats.warning})
-                    </button>
-                    <button
-                      type="button"
-                      className={`logs-dashboard__chip ${logFilterTone === "critical" ? "logs-dashboard__chip--active" : ""}`}
-                      onClick={() => setLogFilterTone("critical")}
-                    >
-                      Критично ({logStatusStats.critical})
-                    </button>
-                  </div>
-
-                  <span className="logs-dashboard__search-note">Поиск выполняется через верхнюю панель</span>
-                </div>
-
-                <div className="logs-dashboard__content">
-                  <section className="logs-table" aria-label="Таблица логов">
-                    <table className="logs-table__grid">
-                      <thead>
-                        <tr>
-                          <th>Задача</th>
-                          <th>Машина</th>
-                          <th>Пользователь</th>
-                          <th>Статус</th>
-                          <th>Дата</th>
-                          <th>Действия</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {visibleLogEntries.map((entry) => (
-                          <tr key={entry.id}>
-                            <td>
-                              <div className="logs-table__task">
-                                <strong>{entry.taskTitle}</strong>
-                                <span>{entry.action}</span>
-                              </div>
-                            </td>
-                            <td>{entry.machine}</td>
-                            <td>{entry.email}</td>
-                            <td>
-                              <span
-                                className={`logs-table__status logs-table__status--${entry.tone}`}
-                              >
-                                {entry.status}
-                              </span>
-                            </td>
-                            <td>{entry.createdAt}</td>
-                            <td>
-                              <button
-                                type="button"
-                                className="logs-table__details"
-                                onClick={() =>
-                                  openTaskLogs(entry.taskId, entry.machineId)
-                                }
-                              >
-                                К деталям
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-
-                    <footer className="logs-table__footer">
-                      <span>
-                        Показано {visibleLogEntries.length} из{" "}
-                        {logEntries.length}
-                      </span>
-                      <span>Событий в потоке: {visibleLogStreamItems.length}</span>
-                    </footer>
-                  </section>
-
-                  <aside className="logs-stream" aria-label="Поток логов">
-                    <header className="logs-stream__header">
-                      <h2>Поток задачи</h2>
-                      <button
-                        type="button"
-                        className={
-                          logsAutoScrollEnabled
-                            ? "logs-stream__toggle logs-stream__toggle--active"
-                            : "logs-stream__toggle"
-                        }
-                        onClick={() =>
-                          setLogsAutoScrollEnabled((current) => !current)
-                        }
-                      >
-                        {logsAutoScrollEnabled
-                          ? "Автопрокрутка: вкл"
-                          : "Автопрокрутка: выкл"}
-                      </button>
-                    </header>
-
-                    <div
-                      className="logs-stream__console"
-                      role="log"
-                      aria-live="polite"
-                    >
-                      {visibleLogStreamItems.map((item) => (
-                        <article
-                          key={item.id}
-                          className={`logs-stream__item logs-stream__item--${item.kind}`}
-                        >
-                          <p className="logs-stream__item-title">
-                            {item.kind === "request"
-                              ? "Отправленная задача"
-                              : "Ответ"}{" "}
-                            <span>
-                              ({item.createdAt} {item.machine})
-                            </span>
-                          </p>
-                          <p className="logs-stream__item-text">{item.text}</p>
-                        </article>
-                      ))}
-                    </div>
-                  </aside>
-                </div>
-              </div>
-            </section>
+              <LogsWorkspace
+                scopeSummary={logScopeSummary}
+                filterTone={logFilterTone}
+                statusStats={logStatusStats}
+                totalEntries={logEntries.length}
+                totalStreamItems={visibleLogStreamItems.length}
+                autoScrollEnabled={logsAutoScrollEnabled}
+                entries={visibleLogEntries}
+                streamItems={visibleLogStreamItems}
+                onFilterToneChange={setLogFilterTone}
+                onToggleAutoScroll={() =>
+                  setLogsAutoScrollEnabled((current) => !current)
+                }
+                onOpenTaskLogs={openTaskLogs}
+              />
+            </>
           ) : workspaceTab === "access" ? (
             <section className="access-dashboard" aria-label="Доступ">
               {renderWorkspaceTopbar()}
@@ -2377,11 +3347,28 @@ export function App() {
               <div className="access-dashboard__body">
                 <header className="access-dashboard__header">
                   <h1>Управление доступом</h1>
-                  <button type="button" className="access-dashboard__invite">
+                  <button
+                    type="button"
+                    className="access-dashboard__invite"
+                    onClick={openInviteModal}
+                    disabled={!accessMachines.length}
+                  >
                     <span>Отправить приглашение</span>
                     <img src="/plus.png" alt="" aria-hidden="true" />
                   </button>
                 </header>
+
+                {accessNotice ? (
+                  <p className="access-dashboard__notice" role="status">
+                    {accessNotice}
+                  </p>
+                ) : null}
+
+                {accessError && !isInviteModalOpen && !selectedManageRow ? (
+                  <p className="access-dashboard__error" role="alert">
+                    {accessError}
+                  </p>
+                ) : null}
 
                 <div className="access-dashboard__stats">
                   {accessSummaryCards.map((card) => (
@@ -2400,16 +3387,23 @@ export function App() {
                 <div className="access-dashboard__content">
                   <section className="access-users">
                     <div className="access-users__toolbar">
-                      <button type="button" className="access-users__template">
-                        <span>Шаблон DV-Sync</span>
-                        <img src="/arrow.png" alt="" aria-hidden="true" />
-                      </button>
+                      <div className="access-users__template" role="status">
+                        <span>
+                          {accessMachines.length
+                            ? `Машин под управлением: ${accessMachines.length}`
+                            : "Нет машин, для которых можно выдавать доступ"}
+                        </span>
+                      </div>
 
                       <label className="access-users__search">
                         <Search size={20} />
                         <input
                           type="text"
                           placeholder="Поиск по пользователям..."
+                          value={workspaceSearchQuery}
+                          onChange={(event) =>
+                            setWorkspaceSearchQuery(event.target.value)
+                          }
                         />
                       </label>
                     </div>
@@ -2458,7 +3452,8 @@ export function App() {
                                   <button
                                     type="button"
                                     className="access-users__action"
-                                    disabled={row.action === "-"}
+                                    disabled={!row.canManage}
+                                    onClick={() => openManageAccessModal(row)}
                                   >
                                     {row.action}
                                   </button>
@@ -2479,8 +3474,68 @@ export function App() {
                         Показано {visibleAccessRows.length} из{" "}
                         {accessUserRows.length}
                       </span>
-                      <button type="button">Показать все</button>
+                      <button
+                        type="button"
+                        onClick={() => setWorkspaceSearchQuery("")}
+                      >
+                        Сбросить поиск
+                      </button>
                     </footer>
+
+                    <section className="access-invites">
+                      <header className="access-invites__header">
+                        <h2>Приглашения</h2>
+                        <span>
+                          Показано {visibleAccessInvites.length} из{" "}
+                          {accessInviteRows.length}
+                        </span>
+                      </header>
+
+                      <div className="access-users__table-wrap">
+                        <table className="access-users__table access-users__table--invites">
+                          <thead>
+                            <tr>
+                              <th>Email</th>
+                              <th>Роль</th>
+                              <th>Машина</th>
+                              <th>Статус</th>
+                              <th>Создано</th>
+                              <th>Действует до</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {visibleAccessInvites.length ? (
+                              visibleAccessInvites.map((row) => (
+                                <tr key={row.id}>
+                                  <td>{row.email}</td>
+                                  <td>
+                                    <span
+                                      className={`access-users__role access-users__role--${row.roleValue}`}
+                                    >
+                                      {row.role}
+                                    </span>
+                                  </td>
+                                  <td>{row.resource}</td>
+                                  <td>
+                                    <span
+                                      className={`access-users__status access-users__status--${row.statusTone}`}
+                                    >
+                                      {row.status}
+                                    </span>
+                                  </td>
+                                  <td>{row.createdAt}</td>
+                                  <td>{row.expiresAt}</td>
+                                </tr>
+                              ))
+                            ) : (
+                              <tr>
+                                <td colSpan={6}>Нет приглашений</td>
+                              </tr>
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </section>
                   </section>
 
                   <aside className="access-activity">
@@ -2520,12 +3575,12 @@ export function App() {
               </div>
             </section>
           ) : workspaceTab === "reports" ? (
-            <section className="reports-dashboard" aria-label="Отчеты">
+            <section className="reports-dashboard" aria-label="Отчёты">
               {renderWorkspaceTopbar()}
 
               <div className="reports-dashboard__body">
                 <header className="reports-dashboard__header">
-                  <h1>Отчеты и статистика</h1>
+                  <h1>Отчёты и статистика</h1>
 
                   <button
                     type="button"
@@ -2542,193 +3597,30 @@ export function App() {
                   </button>
                 </header>
 
-                <div className="reports-dashboard__filters">
-                  <label className="reports-filter reports-filter--period">
-                    <select
-                      value={reportPeriod}
-                      onChange={(event) =>
-                        setReportPeriod(event.target.value as ReportPeriod)
-                      }
-                    >
-                      <option value="day">Период</option>
-                      <option value="week">Неделя</option>
-                      <option value="month">Месяц</option>
-                      <option value="all">Все время</option>
-                    </select>
-                  </label>
-
-                  <label className="reports-filter reports-filter--machine">
-                    <select
-                      value={reportMachine}
-                      onChange={(event) => setReportMachine(event.target.value)}
-                    >
-                      <option value="all">Все машины</option>
-                      {reportMachineOptions.map((machine) => (
-                        <option key={machine.id} value={machine.id}>
-                          {machine.label}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-
-                  <label className="reports-filter reports-filter--template">
-                    <select
-                      value={reportTemplate}
-                      onChange={(event) =>
-                        setReportTemplate(event.target.value)
-                      }
-                    >
-                      <option value="all">Все шаблоны</option>
-                      {reportTemplateOptions.map((template) => (
-                        <option key={template} value={template}>
-                          {template}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-
-                  <label className="reports-filter reports-filter--team">
-                    <select
-                      value={reportTeam}
-                      onChange={(event) => setReportTeam(event.target.value)}
-                    >
-                      <option value="all">Все команды</option>
-                      {reportTeamOptions.map((team) => (
-                        <option key={team} value={team}>
-                          {team}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                </div>
-
-                <div className="reports-dashboard__stats">
-                  <article className="reports-stat-card">
-                    <header>
-                      <p>Средняя длительность</p>
-                      <Clock3 size={24} />
-                    </header>
-                    <strong>
-                      {formatDurationLong(reportStats.averageDurationMs)}
-                    </strong>
-                    <p className="reports-stat-card__trend reports-stat-card__trend--up">
-                      <ArrowUpRight size={20} />
-                      <span>{reportTrend.duration}</span>
-                    </p>
-                  </article>
-
-                  <article className="reports-stat-card">
-                    <header>
-                      <p>Активные машины</p>
-                      <Monitor size={24} />
-                    </header>
-                    <strong>{`${reportStats.activeMachines}/${reportStats.totalMachines}`}</strong>
-                    <p className="reports-stat-card__trend reports-stat-card__trend--up">
-                      <ArrowUpRight size={20} />
-                      <span>{reportTrend.machines}</span>
-                    </p>
-                  </article>
-
-                  <article className="reports-stat-card">
-                    <header>
-                      <p>Число ошибок</p>
-                      <AlertTriangle size={24} />
-                    </header>
-                    <strong>{`${reportStats.errorTasks}/${reportStats.totalTasks}`}</strong>
-                    <p className="reports-stat-card__trend reports-stat-card__trend--down">
-                      <ArrowDownRight size={20} />
-                      <span>{reportTrend.errors}</span>
-                    </p>
-                  </article>
-
-                  <article className="reports-stat-card">
-                    <header>
-                      <p>Процент успеха</p>
-                      <Percent size={24} />
-                    </header>
-                    <strong>{`${reportStats.successRate.toFixed(1)}%`}</strong>
-                    <p className="reports-stat-card__trend reports-stat-card__trend--up">
-                      <ArrowUpRight size={20} />
-                      <span>{reportTrend.success}</span>
-                    </p>
-                  </article>
-                </div>
-
-                <section className="reports-table-card">
-                  <header className="reports-table-card__header">
-                    <h2>Сводка по шаблонам и машинам с drill-down</h2>
-
-                    <span className="reports-table-card__caption">Поиск выполняется через верхнюю панель</span>
-                  </header>
-
-                  <table className="reports-table-card__grid">
-                    <thead>
-                      <tr>
-                        <th>Шаблон или задача</th>
-                        <th>Всего задач</th>
-                        <th>Успешно</th>
-                        <th>Ошибки</th>
-                        <th>Ср. длительность</th>
-                        <th>Действия</th>
-                      </tr>
-                    </thead>
-
-                    <tbody>
-                      {reportSummaryRows.length ? (
-                        reportSummaryRows.map((row) => (
-                          <tr key={row.id}>
-                            <td>
-                              <span className="reports-table-card__template">
-                                <img
-                                  src={getReportTemplateIcon(row.title)}
-                                  className={
-                                    row.title.trim().toLowerCase() === "db-sync"
-                                      ? "reports-table-card__template-icon--sync"
-                                      : undefined
-                                  }
-                                  alt=""
-                                  aria-hidden="true"
-                                />
-                                <span>{row.title}</span>
-                              </span>
-                            </td>
-                            <td>{row.totalTasks}</td>
-                            <td className="reports-table-card__success">
-                              {row.successCount}
-                            </td>
-                            <td className="reports-table-card__error">
-                              {row.errorCount}
-                            </td>
-                            <td>{formatDurationCompact(row.avgDurationMs)}</td>
-                            <td>
-                              <button
-                                type="button"
-                                className="reports-table-card__action"
-                                onClick={() => {
-                                  navigate(
-                                    row.actionLabel === "Смотреть логи"
-                                      ? logsPath()
-                                      : workspacePath("tasks"),
-                                  );
-                                }}
-                              >
-                                {row.actionLabel}
-                              </button>
-                            </td>
-                          </tr>
-                        ))
-                      ) : (
-                        <tr>
-                          <td colSpan={6}>Нет данных для выбранных фильтров</td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </section>
-
-                <span className="reports-dashboard__avatar" aria-hidden="true">
-                  <img src="/imya.png" alt="" />
-                </span>
+                <ReportsWorkspace
+                  reportPeriod={reportPeriod}
+                  reportMachine={reportMachine}
+                  reportTemplate={reportTemplate}
+                  reportTeam={reportTeam}
+                  tasks={filteredReportTasks}
+                  machineOptions={reportMachineOptions}
+                  templateOptions={reportTemplateOptions}
+                  teamOptions={reportTeamOptions}
+                  stats={reportStats}
+                  trend={reportTrend}
+                  rows={reportSummaryRows}
+                  onPeriodChange={setReportPeriod}
+                  onMachineChange={setReportMachine}
+                  onTemplateChange={setReportTemplate}
+                  onTeamChange={setReportTeam}
+                  onAction={(row) => {
+                    navigate(
+                      row.actionLabel === "Смотреть логи"
+                        ? logsPath()
+                        : workspacePath("tasks"),
+                    );
+                  }}
+                />
               </div>
             </section>
           ) : workspaceTab === "install" ? (
@@ -2815,807 +3707,165 @@ export function App() {
               </div>
             </section>
           ) : workspaceTab === "profile" ? (
-            <section className="profile-dashboard" aria-label="Профиль">
+            <ProfileWorkspace
+              activeSection={activeProfileSection}
+              onNavigateSection={navigateProfileSection}
+            >
               {renderWorkspaceTopbar()}
-
-              <div className="profile-dashboard__body">
-                <aside className="profile-nav" aria-label="Разделы профиля">
-                  <h2>Профиль</h2>
-                  <div className="profile-nav__items">
-                    {profileSections.map((section) => (
-                      <button
-                        key={section.key}
-                        type="button"
-                        className={
-                          profileSection === section.key
-                            ? "profile-nav__item profile-nav__item--active"
-                            : "profile-nav__item"
-                        }
-                        onClick={() => setProfileSection(section.key)}
-                      >
-                        {section.label}
-                      </button>
-                    ))}
-                  </div>
-                </aside>
-
-                <div className="profile-main">
-                  {profileSection === "general" ? (
-                    <section className="profile-card profile-card--general">
-                      <header className="profile-card__header">
-                        <h3>Основная информация</h3>
-                        <p>Управление личными данными и настройками профиля</p>
-                      </header>
-
-                      <div className="profile-main-info">
-                        <span className="profile-avatar" aria-hidden="true">
-                          {profileAvatarUrl ? (
-                            <img
-                              src={profileAvatarUrl}
-                              alt=""
-                              aria-hidden="true"
-                            />
-                          ) : null}
-                        </span>
-                        <div className="profile-main-info__controls">
-                          <button
-                            type="button"
-                            className="profile-main-info__add"
-                            onClick={() =>
-                              profileAvatarInputRef.current?.click()
-                            }
-                          >
-                            Добавить +
-                          </button>
-                          <input
-                            ref={profileAvatarInputRef}
-                            type="file"
-                            accept="image/png,image/jpeg,image/jpg"
-                            className="profile-main-info__file"
-                            onChange={handleProfileAvatarChange}
-                          />
-                          <span className="profile-main-info__hint">
-                            Формат JPG, PNG
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="profile-fields profile-fields--two">
-                        <label className="profile-field">
-                          <span>Имя</span>
-                          <input
-                            type="text"
-                            value={profileFirstName}
-                            onChange={(event) =>
-                              setProfileFirstName(event.target.value)
-                            }
-                            placeholder="Имя"
-                          />
-                        </label>
-
-                        <label className="profile-field">
-                          <span>Фамилия</span>
-                          <input
-                            type="text"
-                            value={profileLastName}
-                            onChange={(event) =>
-                              setProfileLastName(event.target.value)
-                            }
-                            placeholder="Фамилия"
-                          />
-                        </label>
-                      </div>
-
-                      <label className="profile-field">
-                        <span>Электронная почта</span>
-                        <input
-                          type="email"
-                          value={profileDashboard?.email ?? ""}
-                          readOnly
-                        />
-                      </label>
-                    </section>
+                  <input
+                    ref={profileAvatarInputRef}
+                    type="file"
+                    accept="image/png,image/jpeg,image/jpg"
+                    className="profile-main-info__file"
+                    onChange={handleProfileAvatarChange}
+                  />
+                  {activeProfileSection === "general" && profileDetails ? (
+                    <ProfileGeneralSection
+                      profile={profileDetails}
+                      firstName={profileFirstName}
+                      lastName={profileLastName}
+                      avatarDataUrl={profileAvatarUrl}
+                      deletedMachineRetention={profileDeletedRetention}
+                      isSaving={isProfileSaving}
+                      notice={profileSaveNotice}
+                      error={profileSaveError}
+                      onFirstNameChange={setProfileFirstName}
+                      onLastNameChange={setProfileLastName}
+                      onRetentionChange={setProfileDeletedRetention}
+                      onAvatarPick={() => profileAvatarInputRef.current?.click()}
+                      onSubmit={handleProfileSave}
+                    />
                   ) : null}
 
-                  {profileSection === "security" ? (
-                    <section className="profile-card profile-card--security">
-                      <header className="profile-card__header">
-                        <h3>Безопасность</h3>
-                        <p>Пароль и двухфакторная аутентификация</p>
-                      </header>
-
-                      <label className="profile-field">
-                        <span>Текущий пароль</span>
-                        <input type="password" value="********" readOnly />
-                      </label>
-
-                      <div className="profile-security-row">
-                        <div>
-                          <div className="profile-security-row__title-line">
-                            <strong>Двухфакторная аутентификация</strong>
-                            {profileDashboard?.twoFactorEnabled ? (
-                              <span className="profile-security-row__badge">
-                                Подключена
-                              </span>
-                            ) : null}
-                          </div>
-                          <p>
-                            {profileDashboard?.twoFactorEnabled
-                              ? `Подключена (${profileDashboard.enabledTwoFactorMethods.join(", ") || "метод не указан"})`
-                              : "Не подключена"}
-                          </p>
-                        </div>
-
-                        <button
-                          type="button"
-                          className={
-                            profileDashboard?.twoFactorEnabled
-                              ? "profile-security-row__action profile-security-row__action--danger"
-                              : "profile-security-row__action"
-                          }
-                        >
-                          {profileDashboard?.twoFactorEnabled
-                            ? "Отключить"
-                            : "Подключить"}
-                        </button>
-                      </div>
-                    </section>
+                  {activeProfileSection === "security" && profileDetails ? (
+                    <ProfileSecuritySection
+                      profile={profileDetails}
+                      passwordForm={passwordForm}
+                      passwordIssues={passwordIssues}
+                      isPasswordSubmitting={isPasswordSubmitting}
+                      passwordNotice={passwordNotice}
+                      passwordError={passwordError}
+                      onPasswordFieldChange={handlePasswordFieldChange}
+                      onPasswordSubmit={handlePasswordSubmit}
+                      totpSetup={totpSetup}
+                      totpCode={totpCode}
+                      isTotpLoading={isTotpLoading}
+                      totpNotice={totpNotice}
+                      totpError={totpError}
+                      onTotpCodeChange={setTotpCode}
+                      onTotpStart={handleTotpStart}
+                      onTotpConfirm={handleTotpConfirm}
+                      onTotpDisable={handleTotpDisable}
+                      telegramSetupState={telegramSetupState}
+                      isTelegramLoading={isTelegramLoading}
+                      telegramNotice={telegramNotice}
+                      telegramError={telegramError}
+                      onTelegramLink={handleTelegramLink}
+                      onTelegramEnable={handleTelegramEnable}
+                      onTelegramDisable={handleTelegramDisable}
+                      onTelegramUnlink={handleTelegramUnlink}
+                    />
                   ) : null}
 
-                  {profileSection === "sessions" ? (
-                    <section className="profile-card profile-card--sessions">
-                      <header className="profile-card__header">
-                        <h3>Активные сессии</h3>
-                        <p>
-                          Показаны устройства, на которых выполнен вход в Ваш
-                          аккаунт.
-                        </p>
-                      </header>
-
-                      <div className="profile-sessions-list">
-                        {profileSessions.length ? (
-                          profileSessions.map((session) => (
-                            <article
-                              key={session.id}
-                              className="profile-session-row profile-session-row--current"
-                            >
-                              <div className="profile-session-row__content">
-                                <span
-                                  className="profile-session-row__icon profile-session-row__icon--current"
-                                  aria-hidden="true"
-                                >
-                                  {session.deviceLabel === "Браузер" ? (
-                                    <Smartphone size={20} />
-                                  ) : (
-                                    <Laptop size={20} />
-                                  )}
-                                </span>
-                                <div className="profile-session-row__meta">
-                                  <div className="profile-session-row__title-line">
-                                    <strong>{session.deviceLabel}</strong>
-                                    {session.isCurrent ? (
-                                      <span className="profile-session-row__current">
-                                        На этом устройстве
-                                      </span>
-                                    ) : null}
-                                  </div>
-                                  <p>{session.description}</p>
-                                </div>
-                              </div>
-
-                              <button
-                                type="button"
-                                className="profile-session-row__terminate"
-                                onClick={handleTerminateProfileSession}
-                              >
-                                Завершить
-                              </button>
-                            </article>
-                          ))
-                        ) : (
-                          <p className="profile-sessions-list__empty">
-                            Нет активных сессий
-                          </p>
-                        )}
-                      </div>
-                    </section>
+                  {activeProfileSection === "sessions" ? (
+                    <ProfileSessionsSection
+                      sessions={accountSessions}
+                      isLoading={isSessionsLoading}
+                      isRevoking={isSessionRevoking}
+                      notice={sessionsNotice}
+                      error={sessionsError}
+                      onRevoke={handleSessionRevoke}
+                    />
                   ) : null}
 
-                  {profileSection === "notifications" ? (
-                    <section className="profile-card profile-card--notifications">
-                      <header className="profile-card__header">
-                        <h3>Настройки уведомлений</h3>
-                        <p>Укажите уведомления, которые нужно отправлять</p>
-                      </header>
-
-                      <div className="profile-notifications">
-                        <label>
-                          <span>Выполнение задачи</span>
-                          <input
-                            type="checkbox"
-                            checked={profileNotifications.taskCompleted}
-                            onChange={(event) =>
-                              setProfileNotifications((current) => ({
-                                ...current,
-                                taskCompleted: event.target.checked,
-                              }))
-                            }
-                          />
-                        </label>
-
-                        <label>
-                          <span>Предупреждение</span>
-                          <input
-                            type="checkbox"
-                            checked={profileNotifications.warnings}
-                            onChange={(event) =>
-                              setProfileNotifications((current) => ({
-                                ...current,
-                                warnings: event.target.checked,
-                              }))
-                            }
-                          />
-                        </label>
-
-                        <label>
-                          <span>Отчет</span>
-                          <input
-                            type="checkbox"
-                            checked={profileNotifications.reports}
-                            onChange={(event) =>
-                              setProfileNotifications((current) => ({
-                                ...current,
-                                reports: event.target.checked,
-                              }))
-                            }
-                          />
-                        </label>
-                      </div>
-                    </section>
+                  {activeProfileSection === "notifications" ? (
+                    <ProfileNotificationsSection
+                      preferences={notificationPreferences}
+                      notifications={notificationFeed}
+                      unreadCount={unreadNotificationCount}
+                      isLoading={isNotificationsLoading}
+                      isSaving={isNotificationsSaving}
+                      notice={notificationsNotice}
+                      error={notificationsError}
+                      onToggle={handleNotificationToggle}
+                      onSave={handleNotificationPreferencesSave}
+                      onMarkRead={handleMarkNotificationRead}
+                      onMarkAllRead={handleMarkAllNotificationsRead}
+                      onNavigate={handleOpenNotificationTarget}
+                    />
                   ) : null}
 
-                  <footer className="profile-actions">
-                    <button type="button" className="profile-actions__cancel">
-                      Отмена
-                    </button>
-                    <button type="button" className="profile-actions__save">
-                      Сохранить
-                    </button>
-                  </footer>
-                </div>
-              </div>
-            </section>
+                  {activeProfileSection === "api-keys" ? (
+                    <ApiKeysWorkspace
+                      items={apiKeys}
+                      machineOptions={apiKeyMachineOptions}
+                      isLoading={isApiKeysLoading}
+                      isSubmitting={isApiKeySubmitting}
+                      isRevoking={isApiKeyRevoking}
+                      createForm={apiKeyForm}
+                      latestRawKey={latestApiKeySecret}
+                      notice={apiKeysNotice}
+                      error={apiKeysError}
+                      onFieldChange={handleApiKeyFieldChange}
+                      onToggleMachine={handleApiKeyMachineToggle}
+                      onCreate={handleApiKeyCreate}
+                      onRevoke={handleApiKeyRevoke}
+                    />
+                  ) : null}
+
+            </ProfileWorkspace>
           ) : selectedMachine ? (
             <section className="machine-details" aria-label="Карточка машины">
               {renderWorkspaceTopbar()}
 
               <div className="machine-details__body">
-                <header className="machine-details__header machine-details__header--hero">
-                  <div>
-                    <h1>
-                      Агент {getMachineDisplayName(selectedMachine)}{" "}
-                      <span>{selectedMachine.owner}</span>
-                    </h1>
-                    <p className="machine-details__status">
-                      <span
-                        className={`machine-details__status-dot machine-details__status-dot--${selectedMachine.status}`}
-                      />
-                      <span>
-                        {machineStatusLabelByStatus[selectedMachine.status]}
-                      </span>
-                    </p>
-                  </div>
-                </header>
-
-                <section className="machine-details__panel">
-                  <h2>Обзор</h2>
-                  <div className="machine-details__overview-grid">
-                    <article className="machine-details__overview-card">
-                      <p className="machine-details__overview-label">Хост</p>
-                      <p className="machine-details__overview-value">
-                        {selectedMachine.hostname}
-                      </p>
-                    </article>
-
-                    <article className="machine-details__overview-card">
-                      <p className="machine-details__overview-label">Моя роль</p>
-                      <p className="machine-details__overview-value machine-details__overview-value--accent">
-                        {selectedMachine.myRole}
-                      </p>
-                    </article>
-
-                    <article className="machine-details__overview-card">
-                      <p className="machine-details__overview-label">ОС</p>
-                      <p className="machine-details__overview-value">
-                        {selectedMachine.os}
-                      </p>
-                    </article>
-
-                    <article className="machine-details__overview-card">
-                      <p className="machine-details__overview-label">Last heartbeat</p>
-                      <p className="machine-details__overview-value machine-details__overview-value--heartbeat">
-                        {selectedMachine.heartbeat}
-                      </p>
-                    </article>
-
-                    <article className="machine-details__overview-card">
-                      <p className="machine-details__overview-label">
-                        Создатель машины
-                      </p>
-                      <p className="machine-details__overview-value machine-details__overview-value--accent">
-                        {selectedMachine.owner}
-                      </p>
-                    </article>
-                  </div>
-                </section>
-
-                <div className="machine-details__tabs-row">
-                  <div className="machine-details__tabs">
-                    {machineDetailTabs.map((tab) => (
-                      <button
-                        key={tab.key}
-                        type="button"
-                        className={
-                          tab.key === machineDetailTab
-                            ? "machine-details__tab machine-details__tab--active"
-                            : "machine-details__tab"
-                        }
-                        onClick={() => openMachine(selectedMachine.id, tab.key)}
-                      >
-                        {tab.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {machineDetailTab === "dashboard" ? (
-                  <>
-                    <div className="machine-details__dashboard-grid">
-                      <section className="machine-details__panel machine-details__panel--task-create">
-                        <header className="machine-details__section-head">
-                          <h2>Задача</h2>
-                          <span className="machine-details__task-role">
-                            {selectedMachine.myRole}
-                          </span>
-                        </header>
-
-                        {selectedMachineCanCreateTask ? (
-                          <form
-                            className="machine-details__task-create-card"
-                            onSubmit={handleCreateTaskSubmit}
-                          >
-                            <label className="machine-details__task-field">
-                              <span>Команда</span>
-                              <select
-                                value={taskCommand}
-                                onChange={(event) =>
-                                  setTaskCommand(event.target.value)
-                                }
-                                disabled={!taskTemplateOptions.length}
-                              >
-                                <option value="">
-                                  {taskTemplateOptions.length
-                                    ? "Введите или выберите команду"
-                                    : "Нет доступных команд"}
-                                </option>
-                                {taskTemplateOptions.map((template) => (
-                                  <option
-                                    key={template.templateKey}
-                                    value={template.templateKey}
-                                  >
-                                    {template.name}
-                                  </option>
-                                ))}
-                              </select>
-                            </label>
-
-                            {selectedTaskTemplate?.parameters.length ? (
-                              selectedTaskTemplate.parameters.map((parameter) => (
-                                <label
-                                  key={parameter.key}
-                                  className="machine-details__task-field"
-                                >
-                                  <span>{parameter.label}</span>
-                                  <select
-                                    value={taskParamValues[parameter.key] ?? ""}
-                                    onChange={(event) =>
-                                      setTaskParamValues((current) => ({
-                                        ...current,
-                                        [parameter.key]: event.target.value,
-                                      }))
-                                    }
-                                  >
-                                    {parameter.allowedValues.map((option) => (
-                                      <option key={option} value={option}>
-                                        {option}
-                                      </option>
-                                    ))}
-                                  </select>
-                                </label>
-                              ))
-                            ) : (
-                              <p className="machine-details__task-create-text">
-                                У выбранной команды нет дополнительных параметров.
-                              </p>
-                            )}
-
-                            {/^linux\b/i.test(selectedMachine.os) ? (
-                              <label className="machine-details__task-checkbox">
-                                <input
-                                  type="checkbox"
-                                  checked={taskUseSudo}
-                                  onChange={(event) =>
-                                    setTaskUseSudo(event.target.checked)
-                                  }
-                                />
-                                <span>Разрешить sudo</span>
-                              </label>
-                            ) : null}
-
-                            <div className="machine-details__task-terminal">
-                              <div className="machine-details__task-terminal-head">
-                                <span>{taskPreviewShellLabel}</span>
-                                <button
-                                  type="button"
-                                  className="machine-details__inline-action machine-details__inline-action--ghost"
-                                  onClick={copyTaskPreview}
-                                >
-                                  <span>Копировать</span>
-                                </button>
-                              </div>
-                              <code>
-                                {taskPreviewCommand ||
-                                  "Выберите команду и параметры, чтобы увидеть итоговый запуск."}
-                              </code>
-                            </div>
-
-                            <div className="machine-details__task-actions">
-                              <button
-                                type="button"
-                                className="machine-details__link-button"
-                                onClick={resetTaskComposer}
-                              >
-                                Сбросить
-                              </button>
-                              <button
-                                type="submit"
-                                className="machine-details__primary-button"
-                                disabled={!canSubmitTask}
-                              >
-                                Добавить
-                              </button>
-                            </div>
-                          </form>
-                        ) : (
-                          <div className="machine-details__task-create-card">
-                            <strong>{getMachineDisplayName(selectedMachine)}</strong>
-                            <p className="machine-details__task-create-text">
-                              Для этой машины доступен только выбор разрешённых сценариев
-                              от администратора.
-                            </p>
-                          </div>
-                        )}
-                      </section>
-
-                      <section className="machine-details__panel">
-                        <header className="machine-details__section-head">
-                          <h2>Недавние задачи</h2>
-                          <button
-                            type="button"
-                            className="machine-details__link-button"
-                            onClick={() => openMachine(selectedMachine.id, "tasks")}
-                          >
-                            Смотреть все
-                          </button>
-                        </header>
-
-                        <div className="machine-details__recent-list">
-                          {selectedMachineTaskCards.length ? (
-                            selectedMachineTaskCards.slice(0, 3).map((task) => (
-                              <article
-                                key={task.id}
-                                className="machine-details__recent-card"
-                              >
-                                <div>
-                                  <p className="machine-details__recent-kicker">
-                                    Задача №{task.taskNumber}
-                                  </p>
-                                  <strong>{task.title}</strong>
-                                  <p>{task.startedAt}</p>
-                                </div>
-                                <div className="machine-details__recent-actions">
-                                  <span
-                                    className={`results-status results-status--${task.status === "completed" ? "success" : task.status === "error" ? "error" : "cancelled"}`}
-                                  >
-                                    {task.resultText}
-                                  </span>
-                                  <button
-                                    type="button"
-                                    className="machine-details__link-button"
-                                    onClick={() =>
-                                      openTaskLogs(task.id, selectedMachine.id)
-                                    }
-                                  >
-                                    Посмотреть логи
-                                  </button>
-                                </div>
-                              </article>
-                            ))
-                          ) : (
-                            <p className="machine-details__empty">
-                              По этой машине пока нет задач
-                            </p>
-                          )}
-                        </div>
-                      </section>
-                    </div>
-
-                    <section className="machine-details__panel">
-                      <header className="machine-details__section-head">
-                        <h2>Результаты</h2>
-                        <button
-                          type="button"
-                          className="machine-details__link-button"
-                          onClick={() =>
-                            openMachine(selectedMachine.id, "results")
-                          }
-                        >
-                          Смотреть все
-                        </button>
-                      </header>
-
-                      <div className="machine-details__table-wrap">
-                        <table className="results-table-card__grid">
-                          <thead>
-                            <tr>
-                              <th>Название</th>
-                              <th>Статус</th>
-                              <th>Команда</th>
-                              <th>Дата результата</th>
-                              <th>Действия</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {selectedMachineResultRows.length ? (
-                              selectedMachineResultRows.slice(0, 4).map((row) => (
-                                <tr key={row.id}>
-                                  <td>{row.title}</td>
-                                  <td>
-                                    <span
-                                      className={`results-status results-status--${row.statusTone}`}
-                                    >
-                                      {row.statusLabel}
-                                    </span>
-                                  </td>
-                                  <td>
-                                    <span className="results-command">
-                                      {row.command}
-                                    </span>
-                                  </td>
-                                  <td>{row.resultAt}</td>
-                                  <td>
-                                    <button
-                                      type="button"
-                                      className="results-actions__logs"
-                                      onClick={() =>
-                                        openTaskLogs(row.id, row.machineId)
-                                      }
-                                    >
-                                      Смотреть логи
-                                    </button>
-                                  </td>
-                                </tr>
-                              ))
-                            ) : (
-                              <tr>
-                                <td colSpan={5}>Нет результатов по этой машине</td>
-                              </tr>
-                            )}
-                          </tbody>
-                        </table>
-                      </div>
-                    </section>
-
-                    <section className="machine-details__panel">
-                      <header className="machine-details__section-head">
-                        <h2>Логи</h2>
-                        <button
-                          type="button"
-                          className="machine-details__link-button"
-                          onClick={() => openMachine(selectedMachine.id, "logs")}
-                        >
-                          Смотреть все
-                        </button>
-                      </header>
-
-                      <div className="machine-details__table-wrap">
-                        <table className="logs-table__grid">
-                          <thead>
-                            <tr>
-                              <th>Задача</th>
-                              <th>Пользователь</th>
-                              <th>Статус</th>
-                              <th>Дата</th>
-                              <th>Действия</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {selectedMachineLogEntries.length ? (
-                              selectedMachineLogEntries.slice(0, 4).map((entry) => (
-                                <tr key={entry.id}>
-                                  <td>
-                                    <div className="logs-table__task">
-                                      <strong>{entry.taskTitle}</strong>
-                                      <span>{entry.action}</span>
-                                    </div>
-                                  </td>
-                                  <td>{entry.email}</td>
-                                  <td>
-                                    <span
-                                      className={`logs-table__status logs-table__status--${entry.tone}`}
-                                    >
-                                      {entry.status}
-                                    </span>
-                                  </td>
-                                  <td>{entry.createdAt}</td>
-                                  <td>
-                                    <button
-                                      type="button"
-                                      className="logs-table__details"
-                                      onClick={() =>
-                                        openTaskLogs(entry.taskId, entry.machineId)
-                                      }
-                                    >
-                                      К деталям
-                                    </button>
-                                  </td>
-                                </tr>
-                              ))
-                            ) : (
-                              <tr>
-                                <td colSpan={5}>Нет логов по этой машине</td>
-                              </tr>
-                            )}
-                          </tbody>
-                        </table>
-                      </div>
-                    </section>
-                  </>
-                ) : machineDetailTab === "tasks" ? (
-                  <section className="machine-details__panel">
-                    <header className="machine-details__section-head">
-                      <h2>Задачи машины</h2>
-                    </header>
-                    <div className="machine-details__recent-list">
-                      {selectedMachineTaskCards.length ? (
-                        selectedMachineTaskCards.map((task) => (
-                          <article key={task.id} className="machine-details__recent-card">
-                            <div>
-                              <p className="machine-details__recent-kicker">
-                                Задача №{task.taskNumber}
-                              </p>
-                              <strong>{task.title}</strong>
-                              <p>{task.startedAt}</p>
-                            </div>
-                            <span
-                              className={`results-status results-status--${task.status === "completed" ? "success" : task.status === "error" ? "error" : "cancelled"}`}
-                            >
-                              {task.resultText}
-                            </span>
-                            <button
-                              type="button"
-                              className="machine-details__link-button"
-                              onClick={() => openTaskLogs(task.id, task.machineId)}
-                            >
-                              Посмотреть логи
-                            </button>
-                          </article>
-                        ))
-                      ) : (
-                        <p className="machine-details__empty">Нет задач по этой машине</p>
-                      )}
-                    </div>
-                  </section>
-                ) : machineDetailTab === "results" ? (
-                  <section className="machine-details__panel">
-                    <header className="machine-details__section-head">
-                      <h2>Результаты машины</h2>
-                    </header>
-                    <div className="machine-details__table-wrap">
-                      <table className="results-table-card__grid">
-                        <thead>
-                          <tr>
-                            <th>Название</th>
-                            <th>Статус</th>
-                            <th>Команда</th>
-                            <th>Дата результата</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {selectedMachineResultRows.length ? (
-                            selectedMachineResultRows.map((row) => (
-                              <tr key={row.id}>
-                                <td>{row.title}</td>
-                                <td>
-                                  <span
-                                    className={`results-status results-status--${row.statusTone}`}
-                                  >
-                                    {row.statusLabel}
-                                  </span>
-                                </td>
-                                <td>
-                                  <span className="results-command">{row.command}</span>
-                                </td>
-                                <td>{row.resultAt}</td>
-                              </tr>
-                            ))
-                          ) : (
-                            <tr>
-                              <td colSpan={4}>Нет результатов по этой машине</td>
-                            </tr>
-                          )}
-                        </tbody>
-                      </table>
-                    </div>
-                  </section>
-                ) : (
-                  <section className="machine-details__panel">
-                    <header className="machine-details__section-head">
-                      <h2>Логи машины</h2>
-                    </header>
-                    <div className="machine-details__table-wrap">
-                      <table className="logs-table__grid">
-                        <thead>
-                          <tr>
-                            <th>Задача</th>
-                            <th>Пользователь</th>
-                            <th>Статус</th>
-                            <th>Дата</th>
-                            <th>Действия</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {selectedMachineLogEntries.length ? (
-                            selectedMachineLogEntries.map((entry) => (
-                              <tr key={entry.id}>
-                                <td>
-                                  <div className="logs-table__task">
-                                    <strong>{entry.taskTitle}</strong>
-                                    <span>{entry.action}</span>
-                                  </div>
-                                </td>
-                                <td>{entry.email}</td>
-                                <td>
-                                  <span
-                                    className={`logs-table__status logs-table__status--${entry.tone}`}
-                                  >
-                                    {entry.status}
-                                  </span>
-                                </td>
-                                <td>{entry.createdAt}</td>
-                                <td>
-                                  <button
-                                    type="button"
-                                    className="logs-table__details"
-                                    onClick={() =>
-                                      openTaskLogs(entry.taskId, entry.machineId)
-                                    }
-                                  >
-                                    К деталям
-                                  </button>
-                                </td>
-                              </tr>
-                            ))
-                          ) : (
-                            <tr>
-                              <td colSpan={5}>Нет логов по этой машине</td>
-                            </tr>
-                          )}
-                        </tbody>
-                      </table>
-                    </div>
-                  </section>
-                )}
+                <MachineWorkspace
+                  activeSection={selectedMachineRouteTab}
+                  machine={{
+                    id: selectedMachine.id,
+                    name: getMachineDisplayName(selectedMachine),
+                    hostname: selectedMachine.hostname,
+                    os: selectedMachine.os,
+                    heartbeat: selectedMachine.heartbeat,
+                    owner: selectedMachine.owner,
+                    role: selectedMachine.myRole,
+                    status: selectedMachine.status,
+                    statusLabel: machineStatusLabelByStatus[selectedMachine.status],
+                  }}
+                  canCreateTask={selectedMachineCanCreateTask}
+                  canManageCommands={selectedMachineCanManageCommands}
+                  taskRoleLabel={selectedMachine.myRole}
+                  taskTemplateOptions={runnableTaskTemplateOptions}
+                  commandTemplates={taskTemplateOptions}
+                  selectedTaskTemplateKey={taskCommand}
+                  selectedTaskParameterValues={taskParamValues}
+                  taskUseSudo={taskUseSudo}
+                  taskShellLabel={taskPreviewShellLabel}
+                  taskPreviewCommand={taskPreviewCommand}
+                  canSubmitTask={canSubmitTask}
+                  onTaskTemplateChange={setTaskCommand}
+                  onTaskParameterChange={(parameterKey, value) =>
+                    setTaskParamValues((current) => ({
+                      ...current,
+                      [parameterKey]: value,
+                    }))
+                  }
+                  onTaskUseSudoChange={setTaskUseSudo}
+                  onTaskReset={resetTaskComposer}
+                  onTaskSubmit={handleCreateTaskSubmit}
+                  onCopyTaskPreview={copyTaskPreview}
+                  onTemplatesChanged={handleMachineTemplatesChanged}
+                  tasks={selectedMachineTaskCards}
+                  results={selectedMachineResultRows}
+                  logs={selectedMachineLogEntries}
+                  onOpenTasks={() => openMachine(selectedMachine.id, "tasks")}
+                  onOpenResults={() => openMachine(selectedMachine.id, "results")}
+                  onOpenLogs={() => openMachine(selectedMachine.id, "logs")}
+                  onOpenTaskLogs={(taskId) => openTaskLogs(taskId, selectedMachine.id)}
+                  onOpenResultDetail={(resultId) =>
+                    openResultDetail(resultId, selectedMachine.id)
+                  }
+                />
               </div>
             </section>
           ) : (
@@ -3627,7 +3877,49 @@ export function App() {
                   <h1>Машины</h1>
                   <p>Всего {machineDashboardCards.length}</p>
                 </div>
+
+                <button
+                  type="button"
+                  className="machines-dashboard__add-button"
+                  onClick={() =>
+                    navigate(
+                      isAddMachineRoute ? workspacePath("machines") : addMachinePath(),
+                    )
+                  }
+                >
+                  {isAddMachineRoute ? "Скрыть форму" : "Добавить машину"}
+                </button>
               </header>
+
+              <p className="machines-dashboard__retention-note">
+                Удалённые машины хранятся согласно настройке профиля:{" "}
+                <strong>{getRetentionLabel(profileDeletedRetention)}</strong>.
+              </p>
+
+              {isAddMachineRoute ? (
+                <AddMachineCard
+                  command={AGENT_PAIR_COMMAND}
+                  deviceCode={addMachineCode}
+                  displayName={addMachineDisplayName}
+                  errorMessage={addMachineError}
+                  isSubmitting={isAddMachineSubmitting}
+                  onDeviceCodeChange={(value) => {
+                    setAddMachineCode(value);
+                    if (addMachineError) {
+                      setAddMachineError(null);
+                    }
+                  }}
+                  onDisplayNameChange={(value) => {
+                    setAddMachineDisplayName(value);
+                    if (addMachineError) {
+                      setAddMachineError(null);
+                    }
+                  }}
+                  onReset={resetAddMachineForm}
+                  onSubmit={handleAddMachineSubmit}
+                  onCopyCommand={copyAddMachineCommand}
+                />
+              ) : null}
 
               <div className="machines-dashboard__statuses">
                 {machineStatusGroups.map((section) => {
@@ -3653,52 +3945,65 @@ export function App() {
                       className="machines-status-column"
                     >
                       <div className="machines-status-column__cards">
-                        {section.cards.map((card) => (
-                          <article
-                            key={card.id}
-                            className="machine-status-card machine-status-card--interactive"
-                            role="button"
-                            tabIndex={0}
-                            onClick={() => {
-                              openMachine(card.id);
-                            }}
-                            onKeyDown={(event) => {
-                              if (event.key === "Enter" || event.key === " ") {
-                                event.preventDefault();
+                        {section.cards.length ? (
+                          section.cards.map((card) => (
+                            <article
+                              key={card.id}
+                              className="machine-status-card machine-status-card--interactive"
+                              role="button"
+                              tabIndex={0}
+                              onClick={() => {
                                 openMachine(card.id);
-                              }
-                            }}
-                          >
-                            <div className="machine-status-card__top">
-                              <div>
-                                <h3>{card.machine}</h3>
-                                <p>{card.os}</p>
-                              </div>
-
-                              <div className="machine-status-card__meta">
-                                <span
-                                  className={`machine-status-card__badge machine-status-card__badge--${card.badgeTone}`}
-                                >
-                                  {card.owner
-                                    .trim()
-                                    .split("@")[1]
-                                    ?.slice(0, 2) ?? ""}
-                                </span>
-                              </div>
-                            </div>
-
-                            <p
-                              className={`machine-status-card__heartbeat machine-status-card__heartbeat--${card.status}`}
+                              }}
+                              onKeyDown={(event) => {
+                                if (event.key === "Enter" || event.key === " ") {
+                                  event.preventDefault();
+                                  openMachine(card.id);
+                                }
+                              }}
                             >
-                              {card.heartbeat}
-                            </p>
+                              <div className="machine-status-card__top">
+                                <div>
+                                  <h3>{card.machine}</h3>
+                                  <p>{card.os}</p>
+                                </div>
 
-                            <p className="machine-status-card__owner">
-                              <img src="/user.png" alt="" aria-hidden="true" />
-                              <span>{card.owner}</span>
-                            </p>
-                          </article>
-                        ))}
+                                <div className="machine-status-card__meta">
+                                  <span
+                                    className={`machine-status-card__badge machine-status-card__badge--${card.badgeTone}`}
+                                  >
+                                    {card.owner
+                                      .trim()
+                                      .split("@")[1]
+                                      ?.slice(0, 2) ?? ""}
+                                  </span>
+                                </div>
+                              </div>
+
+                              <p
+                                className={`machine-status-card__heartbeat machine-status-card__heartbeat--${card.status}`}
+                              >
+                                {card.heartbeat}
+                              </p>
+
+                              <p className="machine-status-card__owner">
+                                <img src="/user.png" alt="" aria-hidden="true" />
+                                <span>{card.owner}</span>
+                              </p>
+                            </article>
+                          ))
+                        ) : (
+                          <div className="machines-status-column__empty">
+                            <EmptyState
+                              title="Пусто"
+                              description={
+                                section.key === "deleted"
+                                  ? "Удалённые машины появятся здесь и будут скрыты автоматически по сроку хранения."
+                                  : "Сейчас в этой группе нет машин."
+                              }
+                            />
+                          </div>
+                        )}
                       </div>
                     </section>
                   );
@@ -3707,6 +4012,63 @@ export function App() {
             </section>
           )}
         </section>
+
+        {route.section === "workspace" && route.modal?.kind === "task-logs" ? (
+          <ConsoleModal taskId={route.modal.taskId} onClose={closeRouteModal} />
+        ) : null}
+
+        {route.section === "workspace" && route.modal?.kind === "machine-task-logs" ? (
+          <ConsoleModal taskId={route.modal.taskId} onClose={closeRouteModal} />
+        ) : null}
+
+        {route.section === "workspace" && route.modal?.kind === "result-detail" ? (
+          <ResultDetailModal
+            resultId={route.modal.resultId}
+            onClose={closeRouteModal}
+          />
+        ) : null}
+
+        {route.section === "workspace" && route.modal?.kind === "machine-result" ? (
+          <ResultDetailModal
+            resultId={route.modal.resultId}
+            onClose={closeRouteModal}
+          />
+        ) : null}
+
+        {isInviteModalOpen ? (
+          <InviteAccessModal
+            machineOptions={inviteMachineOptions}
+            roleOptions={inviteRoleOptions}
+            selectedMachineId={selectedInviteMachine?.id ?? ""}
+            selectedRole={inviteRole}
+            email={inviteEmail}
+            password={invitePassword}
+            errorMessage={accessError}
+            isSubmitting={isInviteSubmitting}
+            onMachineChange={handleInviteMachineChange}
+            onRoleChange={setInviteRole}
+            onEmailChange={setInviteEmail}
+            onPasswordChange={setInvitePassword}
+            onClose={closeInviteModal}
+            onSubmit={handleCreateInviteSubmit}
+          />
+        ) : null}
+
+        {selectedManageRow ? (
+          <ManageAccessModal
+            row={selectedManageRow}
+            roleOptions={manageRoleOptions}
+            selectedRole={manageRole}
+            password={managePassword}
+            errorMessage={accessError}
+            isSubmitting={isManageSubmitting}
+            onRoleChange={setManageRole}
+            onPasswordChange={setManagePassword}
+            onClose={closeManageAccessModal}
+            onSubmit={handleManageAccessSubmit}
+            onRevoke={handleRevokeAccess}
+          />
+        ) : null}
 
         {isLinuxInstallGuideOpen ? (
           <div
@@ -3788,107 +4150,50 @@ export function App() {
               </div>
 
               <p className="install-guide-modal__hint">
-                На linux доступен только systemd сервис без графического
-                интерфейса
+                На Linux доступен только systemd-сервис без графического интерфейса
               </p>
             </section>
           </div>
         ) : null}
 
-        {isCreateTaskOpen ? (
-          <div
-            className="task-create-modal__overlay"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="task-create-title"
-            onClick={closeCreateTaskModal}
-          >
-            <form
-              className="task-create-modal"
-              onSubmit={handleCreateTaskSubmit}
-              onClick={(event) => event.stopPropagation()}
-            >
-              <button
-                type="button"
-                className="task-create-modal__close"
-                aria-label="Закрыть"
-                onClick={closeCreateTaskModal}
-              >
-                <X size={20} />
-              </button>
-
-              <div className="task-create-modal__head">
-                <p>Новая задача</p>
-                <h2 id="task-create-title">Создание задачи</h2>
-              </div>
-
-              <label className="task-create-modal__field">
-                <span>Машина</span>
-                <select
-                  value={taskMachineId}
-                  onChange={(event) => setTaskMachineId(event.target.value)}
-                >
-                  <option value="">Выбрать</option>
-                  {machineDashboardCards.map((machine) => (
-                    <option key={machine.id} value={machine.id}>
-                      {getMachineDisplayName(machine)}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label className="task-create-modal__field">
-                <span>Команда</span>
-                <select
-                  value={taskCommand}
-                  onChange={(event) => setTaskCommand(event.target.value)}
-                  disabled={!taskMachineId || !taskTemplateOptions.length}
-                >
-                  <option value="">
-                    {taskMachineId ? "Выбрать" : "Сначала выберите машину"}
-                  </option>
-                  {taskTemplateOptions.map((template) => (
-                    <option key={template.templateKey} value={template.templateKey}>
-                      {template.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              {selectedTaskTemplate ? (
-                <div className="task-create-modal__params">
-                  {selectedTaskTemplate.parameters.map((parameter) => (
-                    <label
-                      key={parameter.key}
-                      className="task-create-modal__field"
-                    >
-                      <span>{parameter.label}</span>
-                      <select
-                        value={taskParamValues[parameter.key] ?? ""}
-                        onChange={(event) =>
-                          setTaskParamValues((current) => ({
-                            ...current,
-                            [parameter.key]: event.target.value,
-                          }))
-                        }
-                      >
-                        {parameter.allowedValues.map((option) => (
-                          <option key={option} value={option}>
-                            {option}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                  ))}
-                </div>
-              ) : null}
-
-              <button type="submit" className="task-create-modal__submit">
-                Создать задачу
-              </button>
-            </form>
-          </div>
-        ) : null}
+        <TaskCreateModal
+          isOpen={isCreateTaskOpen}
+          machineId={taskMachineId}
+          machineOptions={[
+            { value: "", label: "Выбрать" },
+            ...machineDashboardCards.map((machine) => ({
+              value: machine.id,
+              label: getMachineDisplayName(machine),
+            })),
+          ]}
+          onMachineChange={setTaskMachineId}
+          templateId={taskCommand}
+          templateOptions={[
+            {
+              value: "",
+              label: taskMachineId ? "Выбрать" : "Сначала выберите машину",
+            },
+            ...runnableTaskTemplateOptions.map((template) => ({
+              value: template.templateKey,
+              label: template.name,
+            })),
+          ]}
+          onTemplateChange={setTaskCommand}
+          selectedTemplate={selectedTaskTemplate}
+          parameterValues={taskParamValues}
+          onParameterChange={(parameterKey, value) =>
+            setTaskParamValues((current) => ({
+              ...current,
+              [parameterKey]: value,
+            }))
+          }
+          previewShellLabel={taskPreviewShellLabel}
+          previewCommand={taskPreviewCommand}
+          canSubmit={canSubmitTask}
+          onReset={resetTaskComposer}
+          onClose={closeCreateTaskModal}
+          onSubmit={handleCreateTaskSubmit}
+        />
       </main>
     );
   }
@@ -3905,7 +4210,11 @@ export function App() {
             ? "Страница входа"
             : authMode === "register"
               ? "Страница регистрации"
-              : "Подтверждение входа"
+              : authMode === "forgot-password"
+                ? "Сброс пароля"
+                : authMode === "reset-password"
+                  ? "Обновление пароля"
+                  : "Подтверждение входа"
         }
       >
         <div className="auth-card__preview">
@@ -3926,7 +4235,7 @@ export function App() {
         <div className="auth-card__content">
           <header className="brand-block">
             <p className="brand-block__name">PREDICT MV</p>
-            <p className="brand-block__tagline">Любая валюта под рукой</p>
+            <p className="brand-block__tagline">Контроль инфраструктуры под рукой</p>
           </header>
 
           {authMode === "confirm" ? (
@@ -3949,15 +4258,16 @@ export function App() {
                   <div className="field__control field__control--centered">
                     <input
                       value={verificationCode}
-                      onChange={(event) =>
-                        setVerificationCode(event.target.value)
-                      }
+                      onChange={(event) => setVerificationCode(event.target.value)}
                       placeholder="Введите 6-значный код"
                       inputMode="numeric"
                       autoComplete="one-time-code"
                     />
                   </div>
                 </label>
+
+                {authNotice ? <p className="profile-card__notice">{authNotice}</p> : null}
+                {authError ? <p className="profile-card__error">{authError}</p> : null}
 
                 <button className="submit-button" type="submit">
                   <span>Подтвердить вход</span>
@@ -3966,7 +4276,7 @@ export function App() {
 
               <p className="confirm-panel__resend">
                 <span>Не приходит код?</span>{" "}
-                <button type="button">Отправить еще раз</button>
+                <button type="button">Отправить ещё раз</button>
               </p>
 
               <button
@@ -3983,16 +4293,140 @@ export function App() {
               <p className="confirm-panel__legal">
                 Нажимая кнопку "Подтвердить вход" выше, вы подтверждаете, что
                 ознакомились и согласны с{" "}
-                <a href="#terms">Условиями Пользования</a> и{" "}
-                <a href="#privacy">Политикой Конфиденциальности</a>
+                <a href="#terms">Условиями пользования</a> и{" "}
+                <a href="#privacy">Политикой конфиденциальности</a>
+              </p>
+            </section>
+          ) : authMode === "forgot-password" ? (
+            <section className="auth-panel">
+              <div className="auth-panel__heading">
+                <h1>Сброс пароля</h1>
+                <p>Введите email, и мы отправим письмо для восстановления доступа.</p>
+              </div>
+
+              <form className="auth-form" onSubmit={handleForgotPasswordSubmit}>
+                <label className="field">
+                  <span>Email</span>
+                  <div className="field__control">
+                    <Mail size={16} />
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(event) => setEmail(event.target.value)}
+                      placeholder="name@company.com"
+                      autoComplete="email"
+                    />
+                  </div>
+                </label>
+
+                {authNotice ? <p className="profile-card__notice">{authNotice}</p> : null}
+                {authError ? <p className="profile-card__error">{authError}</p> : null}
+
+                <button className="submit-button" type="submit">
+                  <span>Отправить письмо</span>
+                </button>
+              </form>
+
+              <p className="auth-panel__footer">
+                <button type="button" onClick={() => setAuthMode("login")}>
+                  Вернуться ко входу
+                </button>
+              </p>
+            </section>
+          ) : authMode === "reset-password" ? (
+            <section className="auth-panel">
+              <div className="auth-panel__heading">
+                <h1>Новый пароль</h1>
+                <p>Задайте новый пароль для аккаунта и подтвердите его.</p>
+              </div>
+
+              <form className="auth-form" onSubmit={handleResetPasswordSubmit}>
+                {!resetTokenFromUrl ? (
+                  <label className="field">
+                    <span>Токен сброса</span>
+                    <div className="field__control">
+                      <Shield size={16} />
+                      <input
+                        type="text"
+                        value={manualResetToken}
+                        onChange={(event) => setManualResetToken(event.target.value)}
+                        placeholder="Вставьте токен из письма"
+                      />
+                    </div>
+                  </label>
+                ) : null}
+
+                <label className="field">
+                  <span>Новый пароль</span>
+                  <div className="field__control field__control--password">
+                    <Lock size={16} />
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      value={password}
+                      onChange={(event) => setPassword(event.target.value)}
+                      placeholder="••••••••"
+                      autoComplete="new-password"
+                    />
+                    <button
+                      type="button"
+                      className="field__toggle"
+                      onClick={() => setShowPassword((current) => !current)}
+                      aria-label={showPassword ? "Скрыть пароль" : "Показать пароль"}
+                    >
+                      {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
+                </label>
+
+                <label className="field">
+                  <span>Подтвердите новый пароль</span>
+                  <div className="field__control field__control--password">
+                    <Lock size={16} />
+                    <input
+                      type={showConfirmPassword ? "text" : "password"}
+                      value={confirmPassword}
+                      onChange={(event) => setConfirmPassword(event.target.value)}
+                      placeholder="••••••••"
+                      autoComplete="new-password"
+                    />
+                    <button
+                      type="button"
+                      className="field__toggle"
+                      onClick={() => setShowConfirmPassword((current) => !current)}
+                      aria-label={
+                        showConfirmPassword ? "Скрыть пароль" : "Показать пароль"
+                      }
+                    >
+                      {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
+                </label>
+
+                {password ? (
+                  <ul className="profile-validation-list">
+                    {validatePasswordPolicy(password).map((issue) => (
+                      <li key={issue}>{issue}</li>
+                    ))}
+                  </ul>
+                ) : null}
+                {authNotice ? <p className="profile-card__notice">{authNotice}</p> : null}
+                {authError ? <p className="profile-card__error">{authError}</p> : null}
+
+                <button className="submit-button" type="submit">
+                  <span>Обновить пароль</span>
+                </button>
+              </form>
+
+              <p className="auth-panel__footer">
+                <button type="button" onClick={() => setAuthMode("login")}>
+                  Вернуться ко входу
+                </button>
               </p>
             </section>
           ) : (
             <section className="auth-panel">
               <div className="auth-panel__heading">
-                <h1>
-                  {authMode === "login" ? "Вход в аккаунт" : "Регистрация"}
-                </h1>
+                <h1>{authMode === "login" ? "Вход в аккаунт" : "Регистрация"}</h1>
                 <p>
                   {authMode === "login"
                     ? "Авторизуйтесь, чтобы продолжить"
@@ -4024,26 +4458,29 @@ export function App() {
                       value={password}
                       onChange={(event) => setPassword(event.target.value)}
                       placeholder="••••••••"
-                      autoComplete={
-                        authMode === "login"
-                          ? "current-password"
-                          : "new-password"
-                      }
+                      autoComplete={authMode === "login" ? "current-password" : "new-password"}
                     />
                     <button
                       type="button"
                       className="field__toggle"
                       onClick={() => setShowPassword((current) => !current)}
-                      aria-label={
-                        showPassword ? "Скрыть пароль" : "Показать пароль"
-                      }
+                      aria-label={showPassword ? "Скрыть пароль" : "Показать пароль"}
                     >
                       {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                     </button>
                   </div>
                 </label>
 
-                {authMode === "register" && (
+                {authMode === "login" ? (
+                  <p className="confirm-panel__resend">
+                    <span>Забыли пароль?</span>{" "}
+                    <button type="button" onClick={() => setAuthMode("forgot-password")}>
+                      Восстановить доступ
+                    </button>
+                  </p>
+                ) : null}
+
+                {authMode === "register" ? (
                   <>
                     <label className="field">
                       <span>Повторите пароль</span>
@@ -4052,29 +4489,19 @@ export function App() {
                         <input
                           type={showConfirmPassword ? "text" : "password"}
                           value={confirmPassword}
-                          onChange={(event) =>
-                            setConfirmPassword(event.target.value)
-                          }
+                          onChange={(event) => setConfirmPassword(event.target.value)}
                           placeholder="••••••••"
                           autoComplete="new-password"
                         />
                         <button
                           type="button"
                           className="field__toggle"
-                          onClick={() =>
-                            setShowConfirmPassword((current) => !current)
-                          }
+                          onClick={() => setShowConfirmPassword((current) => !current)}
                           aria-label={
-                            showConfirmPassword
-                              ? "Скрыть пароль"
-                              : "Показать пароль"
+                            showConfirmPassword ? "Скрыть пароль" : "Показать пароль"
                           }
                         >
-                          {showConfirmPassword ? (
-                            <EyeOff size={16} />
-                          ) : (
-                            <Eye size={16} />
-                          )}
+                          {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                         </button>
                       </div>
                     </label>
@@ -4083,21 +4510,18 @@ export function App() {
                       <input
                         type="checkbox"
                         checked={acceptTerms}
-                        onChange={(event) =>
-                          setAcceptTerms(event.target.checked)
-                        }
+                        onChange={(event) => setAcceptTerms(event.target.checked)}
                       />
-                      <span>
-                        Я даю согласие на обработку персональных данных
-                      </span>
+                      <span>Я даю согласие на обработку персональных данных</span>
                     </label>
                   </>
-                )}
+                ) : null}
+
+                {authNotice ? <p className="profile-card__notice">{authNotice}</p> : null}
+                {authError ? <p className="profile-card__error">{authError}</p> : null}
 
                 <button className="submit-button" type="submit">
-                  <span>
-                    {authMode === "login" ? "Войти" : "Зарегистрироваться"}
-                  </span>
+                  <span>{authMode === "login" ? "Войти" : "Зарегистрироваться"}</span>
                 </button>
               </form>
 
@@ -4137,3 +4561,4 @@ export function App() {
     </main>
   );
 }
+
