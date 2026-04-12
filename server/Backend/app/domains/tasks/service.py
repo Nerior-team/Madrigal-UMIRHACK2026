@@ -4,9 +4,12 @@ from app.core.exceptions import AppError
 from app.core.security import hash_token
 from app.domains.access.repository import AccessRepository
 from app.domains.access.roles import ensure_can_run_tasks, ensure_can_view_machine
+from app.domains.auth.repository import AuthRepository
 from app.domains.commands.repository import CommandRepository
 from app.domains.commands.service import CommandService
 from app.domains.machines.repository import MachineRepository
+from app.domains.notifications.repository import NotificationRepository
+from app.domains.notifications.service import NotificationPublishRequest, NotificationService
 from app.domains.results.repository import ResultRepository
 from app.domains.results.schemas import CommandExecutionResultRead, ShellResultRead
 from app.domains.results.service import ResultService, parse_result_payload
@@ -24,10 +27,11 @@ from app.domains.tasks.schemas import (
     TaskRead,
     TaskResultRequest,
 )
+from app.domains.integrations.telegram.repository import TelegramRepository
 from app.infra.observability.audit import record_audit_event
 from app.realtime.broker import operator_feed
 from app.realtime.events import operator_event
-from app.shared.enums import AuditStatus, ResultParserKind, TaskFailureKind, TaskStatus
+from app.shared.enums import AuditStatus, NotificationLevel, NotificationTopic, ResultParserKind, TaskFailureKind, TaskStatus
 from app.shared.time import utc_now
 
 
@@ -52,6 +56,7 @@ class TaskService:
         self.command_repository = command_repository or CommandRepository(machine_repository.db)
         self.task_repository = task_repository or TaskRepository(machine_repository.db)
         self.result_repository = result_repository or ResultRepository(machine_repository.db)
+        self.auth_repository = AuthRepository(machine_repository.db)
         self.command_service = CommandService(
             access_repository=access_repository,
             machine_repository=machine_repository,
@@ -63,6 +68,40 @@ class TaskService:
             machine_repository,
             access_repository,
         )
+        self.notification_service = NotificationService(
+            notification_repository=NotificationRepository(machine_repository.db),
+            telegram_repository=TelegramRepository(machine_repository.db),
+        )
+
+    @staticmethod
+    def _extract_cancel_metadata(task_events: list) -> dict[str, str | None]:
+        cancelled_by_email: str | None = None
+        cancelled_by_role: str | None = None
+        cancel_requested_by_email: str | None = None
+        cancel_requested_by_role: str | None = None
+        status_reason: str | None = None
+
+        for event in reversed(task_events):
+            payload = event.payload or {}
+            if cancelled_by_email is None and payload.get("cancelled_by_email"):
+                cancelled_by_email = str(payload.get("cancelled_by_email"))
+                cancelled_by_role = str(payload.get("cancelled_by_role") or "")
+                status_reason = event.message
+            if cancel_requested_by_email is None and payload.get("cancel_requested_by_email"):
+                cancel_requested_by_email = str(payload.get("cancel_requested_by_email"))
+                cancel_requested_by_role = str(payload.get("cancel_requested_by_role") or "")
+                status_reason = status_reason or event.message
+
+            if cancelled_by_email is not None and cancel_requested_by_email is not None:
+                break
+
+        return {
+            "status_reason": status_reason,
+            "cancelled_by_email": cancelled_by_email,
+            "cancelled_by_role": cancelled_by_role or None,
+            "cancel_requested_by_email": cancel_requested_by_email,
+            "cancel_requested_by_role": cancel_requested_by_role or None,
+        }
 
     def _publish_operator_event(self, *, event_type: str, machine_id: str, payload: dict, task_id: str | None = None) -> None:
         operator_feed.publish(
@@ -71,6 +110,32 @@ class TaskService:
                 machine_id=machine_id,
                 task_id=task_id,
                 payload=payload,
+            )
+        )
+
+    def _notify_task_event(
+        self,
+        *,
+        user_id: str,
+        topic: NotificationTopic,
+        level: NotificationLevel,
+        title: str,
+        message: str,
+        task_id: str,
+        machine_id: str,
+        result_id: str | None = None,
+    ) -> None:
+        self.notification_service.publish(
+            NotificationPublishRequest(
+                user_id=user_id,
+                topic=topic,
+                level=level,
+                title=title,
+                message=message,
+                action_url=f"/tasks/{task_id}",
+                machine_id=machine_id,
+                task_id=task_id,
+                result_id=result_id,
             )
         )
 
@@ -111,6 +176,9 @@ class TaskService:
 
     def _build_task_read(self, task: Task) -> TaskRead:
         attempts = [self._build_attempt_read(item) for item in self.task_repository.get_attempts_for_task(task.id)]
+        requester = self.auth_repository.get_user_by_id(task.requested_by_user_id)
+        task_events = self.task_repository.get_events_for_task(task.id)
+        cancel_metadata = self._extract_cancel_metadata(task_events)
         return TaskRead(
             id=task.id,
             machine_id=task.machine_id,
@@ -119,9 +187,15 @@ class TaskService:
             runner=task.runner,
             status=task.status,
             requested_by_user_id=task.requested_by_user_id,
+            requested_by_email=requester.email if requester is not None else None,
             params=task.params_payload or {},
             rendered_command=task.rendered_command,
             parser_kind=task.parser_kind,
+            status_reason=cancel_metadata["status_reason"],
+            cancelled_by_email=cancel_metadata["cancelled_by_email"],
+            cancelled_by_role=cancel_metadata["cancelled_by_role"],
+            cancel_requested_by_email=cancel_metadata["cancel_requested_by_email"],
+            cancel_requested_by_role=cancel_metadata["cancel_requested_by_role"],
             created_at=task.created_at,
             updated_at=task.updated_at,
             attempts=attempts,
@@ -178,6 +252,15 @@ class TaskService:
                 "template_name": task.template_name,
                 "status": TaskStatus.QUEUED.value,
             },
+        )
+        self._notify_task_event(
+            user_id=actor_user.id,
+            topic=NotificationTopic.TASKS,
+            level=NotificationLevel.INFO,
+            title="Задача отправлена",
+            message=f"{task.template_name} поставлена в очередь на машине {machine.display_name}.",
+            task_id=task.id,
+            machine_id=task.machine_id,
         )
         return self._build_task_read(task)
 
@@ -422,6 +505,16 @@ class TaskService:
                 "parser_kind": parser_kind.value,
             },
         )
+        self._notify_task_event(
+            user_id=task.requested_by_user_id,
+            topic=NotificationTopic.TASKS,
+            level=NotificationLevel.SUCCESS,
+            title="Задача выполнена",
+            message=f"{task.template_name} завершилась успешно на машине {machine.display_name}.",
+            task_id=task.id,
+            machine_id=task.machine_id,
+            result_id=result.id,
+        )
         return self.result_service.get_result(result.id)
 
     def fail_attempt(self, *, attempt_id: str, machine_token: str, payload: TaskFailureRequest) -> TaskActionResponse:
@@ -493,6 +586,16 @@ class TaskService:
                 "parser_kind": parser_kind.value,
             },
         )
+        self._notify_task_event(
+            user_id=task.requested_by_user_id,
+            topic=NotificationTopic.WARNINGS,
+            level=NotificationLevel.ERROR,
+            title="Задача завершилась ошибкой",
+            message=f"{task.template_name} завершилась ошибкой на машине {machine.display_name}: {payload.error_message}",
+            task_id=task.id,
+            machine_id=task.machine_id,
+            result_id=result.id,
+        )
         return TaskActionResponse(message="Task failed")
 
     def retry_task(self, *, actor_user, task_id: str, client) -> TaskRead:
@@ -549,7 +652,7 @@ class TaskService:
         if latest_attempt.status == TaskStatus.QUEUED:
             latest_attempt.status = TaskStatus.CANCELLED
             latest_attempt.failure_kind = TaskFailureKind.CANCELLED
-            latest_attempt.error_message = "Task cancelled before execution"
+            latest_attempt.error_message = f"Отменено пользователем {actor_user.email}"
             latest_attempt.finished_at = utc_now()
             task.status = TaskStatus.CANCELLED
         elif latest_attempt.status in {TaskStatus.DISPATCHED, TaskStatus.ACCEPTED, TaskStatus.RUNNING}:
@@ -564,7 +667,20 @@ class TaskService:
             task_id=task.id,
             attempt_id=latest_attempt.id,
             status=TaskStatus.CANCELLED if not notify_machine else latest_attempt.status,
-            message="Task cancel requested" if notify_machine else "Task cancelled",
+            message=(
+                f"Отмена запрошена пользователем {actor_user.email}"
+                if notify_machine
+                else f"Задача отменена пользователем {actor_user.email}"
+            ),
+            payload={
+                "cancel_requested_by_email": actor_user.email,
+                "cancel_requested_by_role": access.role.value,
+            }
+            if notify_machine
+            else {
+                "cancelled_by_email": actor_user.email,
+                "cancelled_by_role": access.role.value,
+            },
         )
         record_audit_event(
             self.task_repository,
@@ -586,6 +702,19 @@ class TaskService:
                 "status": (TaskStatus.CANCELLED if not notify_machine else latest_attempt.status).value,
                 "message": "Task cancel requested" if notify_machine else "Task cancelled",
             },
+        )
+        self._notify_task_event(
+            user_id=task.requested_by_user_id,
+            topic=NotificationTopic.TASKS if notify_machine else NotificationTopic.WARNINGS,
+            level=NotificationLevel.WARNING,
+            title="Задача отменяется" if notify_machine else "Задача отменена",
+            message=(
+                f"Для {task.template_name} на машине {task.machine_id} отправлен запрос на отмену."
+                if notify_machine
+                else f"{task.template_name} на машине {task.machine_id} была отменена."
+            ),
+            task_id=task.id,
+            machine_id=task.machine_id,
         )
         return TaskCancelOutcome(
             response=TaskActionResponse(message="Task cancellation scheduled" if notify_machine else "Task cancelled"),

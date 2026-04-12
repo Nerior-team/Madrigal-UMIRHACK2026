@@ -6,6 +6,7 @@ from app.api.deps import (
     get_access_repository,
     get_command_repository,
     get_machine_repository,
+    get_notification_repository,
     get_reports_repository,
     get_repository,
     get_result_repository,
@@ -35,6 +36,9 @@ from app.domains.integrations.telegram.schemas import (
     TelegramBotTaskLogsResponse,
     TelegramBotTasksResponse,
 )
+from app.domains.notifications.repository import NotificationRepository
+from app.domains.notifications.schemas import TelegramNotificationDeliveryRequest, TelegramNotificationDispatchRead, TelegramNotificationFailureRequest
+from app.domains.notifications.service import NotificationService
 from app.domains.integrations.telegram.service import TelegramClientContext, TelegramIntegrationService
 from app.domains.machines.repository import MachineRepository
 from app.domains.reports.repository import ReportsRepository
@@ -68,6 +72,17 @@ def _build_service(
     )
 
 
+def _build_notification_service(
+    *,
+    notification_repository: NotificationRepository,
+    telegram_repository: TelegramRepository,
+) -> NotificationService:
+    return NotificationService(
+        notification_repository=notification_repository,
+        telegram_repository=telegram_repository,
+    )
+
+
 @router.post("/bot/start", response_model=TelegramBotStartResponse, dependencies=[Depends(require_telegram_internal_signature)])
 def bot_start(
     payload: TelegramBotStartRequest,
@@ -92,6 +107,64 @@ def bot_start(
     ).handle_bot_start(
         payload=payload,
         client=TelegramClientContext(ip_address=None, user_agent="tg_bot"),
+    )
+
+
+@router.get(
+    "/bot/notifications/pending",
+    response_model=list[TelegramNotificationDispatchRead],
+    dependencies=[Depends(require_telegram_internal_signature)],
+)
+def list_pending_bot_notifications(
+    notification_repository: Annotated[NotificationRepository, Depends(get_notification_repository)] = None,
+    telegram_repository: Annotated[TelegramRepository, Depends(get_telegram_repository)] = None,
+):
+    return _build_notification_service(
+        notification_repository=notification_repository,
+        telegram_repository=telegram_repository,
+    ).list_pending_telegram_notifications()
+
+
+@router.post(
+    "/bot/notifications/{notification_id}/delivered",
+    status_code=204,
+    dependencies=[Depends(require_telegram_internal_signature)],
+)
+def mark_bot_notification_delivered(
+    notification_id: str,
+    payload: TelegramNotificationDeliveryRequest,
+    notification_repository: Annotated[NotificationRepository, Depends(get_notification_repository)] = None,
+    telegram_repository: Annotated[TelegramRepository, Depends(get_telegram_repository)] = None,
+):
+    _build_notification_service(
+        notification_repository=notification_repository,
+        telegram_repository=telegram_repository,
+    ).mark_telegram_delivered(
+        notification_id=notification_id,
+        telegram_user_id=payload.telegram_user_id,
+        telegram_chat_id=payload.telegram_chat_id,
+    )
+
+
+@router.post(
+    "/bot/notifications/{notification_id}/failed",
+    status_code=204,
+    dependencies=[Depends(require_telegram_internal_signature)],
+)
+def mark_bot_notification_failed(
+    notification_id: str,
+    payload: TelegramNotificationFailureRequest,
+    notification_repository: Annotated[NotificationRepository, Depends(get_notification_repository)] = None,
+    telegram_repository: Annotated[TelegramRepository, Depends(get_telegram_repository)] = None,
+):
+    _build_notification_service(
+        notification_repository=notification_repository,
+        telegram_repository=telegram_repository,
+    ).mark_telegram_failed(
+        notification_id=notification_id,
+        telegram_user_id=payload.telegram_user_id,
+        telegram_chat_id=payload.telegram_chat_id,
+        error=payload.error,
     )
 
 

@@ -71,9 +71,15 @@ class TaskRead(BaseModel):
     runner: CommandRunner
     status: TaskStatus
     requested_by_user_id: str
+    requested_by_email: str | None = None
     params: dict[str, str]
     rendered_command: str
     parser_kind: ResultParserKind
+    status_reason: str | None = None
+    cancelled_by_email: str | None = None
+    cancelled_by_role: str | None = None
+    cancel_requested_by_email: str | None = None
+    cancel_requested_by_role: str | None = None
     created_at: datetime
     updated_at: datetime
     attempts: list[TaskAttemptRead]

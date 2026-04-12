@@ -118,6 +118,9 @@ class BackendClient:
     async def list_pending_challenges(self) -> list[dict]:
         return await self._request("GET", "/api/v1/integrations/telegram/bot/challenges/pending")
 
+    async def list_pending_notifications(self) -> list[dict]:
+        return await self._request("GET", "/api/v1/integrations/telegram/bot/notifications/pending")
+
     async def mark_challenge_notified(
         self,
         challenge_id: str,
@@ -133,6 +136,42 @@ class BackendClient:
                 "telegram_user_id": telegram_user_id,
                 "telegram_chat_id": telegram_chat_id,
                 "message_id": message_id,
+            },
+        )
+
+    async def mark_notification_delivered(
+        self,
+        notification_id: str,
+        *,
+        telegram_user_id: str,
+        telegram_chat_id: str,
+        message_id: int,
+    ) -> None:
+        await self._request(
+            "POST",
+            f"/api/v1/integrations/telegram/bot/notifications/{notification_id}/delivered",
+            json={
+                "telegram_user_id": telegram_user_id,
+                "telegram_chat_id": telegram_chat_id,
+                "message_id": message_id,
+            },
+        )
+
+    async def mark_notification_failed(
+        self,
+        notification_id: str,
+        *,
+        telegram_user_id: str,
+        telegram_chat_id: str,
+        error: str,
+    ) -> None:
+        await self._request(
+            "POST",
+            f"/api/v1/integrations/telegram/bot/notifications/{notification_id}/failed",
+            json={
+                "telegram_user_id": telegram_user_id,
+                "telegram_chat_id": telegram_chat_id,
+                "error": error,
             },
         )
 

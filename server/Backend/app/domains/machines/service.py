@@ -30,7 +30,7 @@ from app.infra.observability.audit import record_audit_event
 from app.realtime.broker import operator_feed
 from app.realtime.events import operator_event
 from app.realtime.task_stream import notify_access_revoked
-from app.shared.enums import AuditStatus, MachineAccessRole, MachineStatus
+from app.shared.enums import AuditStatus, DeletedMachineRetention, MachineAccessRole, MachineStatus
 from app.shared.time import has_expired, utc_now
 
 
@@ -169,8 +169,13 @@ class MachineService:
         self.machine_repository.commit()
         return MachineRegistrationCompleteResponse(machine_id=registration.machine_id, machine_token=raw_machine_token)
 
-    def list_for_user(self, *, actor_user_id: str) -> list[MachineSummary]:
-        rows = self.machine_repository.list_for_user(actor_user_id)
+    def list_for_user(
+        self,
+        *,
+        actor_user_id: str,
+        retention: DeletedMachineRetention = DeletedMachineRetention.MONTH,
+    ) -> list[MachineSummary]:
+        rows = self.machine_repository.list_for_user(actor_user_id, retention=retention)
         return [
             MachineSummary(
                 id=row.machine.id,
@@ -180,14 +185,21 @@ class MachineService:
                 os_version=row.machine.os_version,
                 status=row.machine.status,
                 last_heartbeat_at=row.machine.last_heartbeat_at,
+                unpaired_at=row.unpaired_at,
                 owner_email=row.owner_email,
                 my_role=row.my_role,
             )
             for row in rows
         ]
 
-    def get_detail_for_user(self, *, machine_id: str, actor_user_id: str) -> MachineDetail:
-        rows = self.machine_repository.list_for_user(actor_user_id)
+    def get_detail_for_user(
+        self,
+        *,
+        machine_id: str,
+        actor_user_id: str,
+        retention: DeletedMachineRetention,
+    ) -> MachineDetail:
+        rows = self.machine_repository.list_for_user(actor_user_id, retention=retention)
         for row in rows:
             if row.machine.id == machine_id:
                 return MachineDetail(
@@ -198,6 +210,7 @@ class MachineService:
                     os_version=row.machine.os_version,
                     status=row.machine.status,
                     last_heartbeat_at=row.machine.last_heartbeat_at,
+                    unpaired_at=row.unpaired_at,
                     owner_email=row.owner_email,
                     my_role=row.my_role,
                     creator_user_id=row.creator_user_id,

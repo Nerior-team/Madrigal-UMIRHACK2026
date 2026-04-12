@@ -2,7 +2,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
-from app.shared.enums import SessionKind, TwoFactorMethod
+from app.shared.enums import DeletedMachineRetention, SessionKind, TwoFactorMethod
 
 
 class RegisterRequest(BaseModel):
@@ -47,6 +47,12 @@ class ResetPasswordRequest(BaseModel):
     new_password: str = Field(min_length=8, max_length=128)
 
 
+class ChangePasswordRequest(BaseModel):
+    current_password: str = Field(min_length=8, max_length=128)
+    new_password: str = Field(min_length=12, max_length=128)
+    confirm_password: str = Field(min_length=12, max_length=128)
+
+
 class MessageResponse(BaseModel):
     message: str
 
@@ -78,9 +84,15 @@ class AuthSessionResponse(BaseModel):
 
 class MeResponse(BaseModel):
     user: UserRead
+    session_id: str
     session_kind: SessionKind
     two_factor_enabled: bool
     enabled_two_factor_methods: list[TwoFactorMethod] = Field(default_factory=list)
+    first_name: str = ""
+    last_name: str = ""
+    full_name: str
+    avatar_data_url: str | None = None
+    deleted_machine_retention: DeletedMachineRetention = DeletedMachineRetention.MONTH
 
 
 class TOTPSetupStartRequest(BaseModel):
@@ -127,3 +139,21 @@ class ReauthRequest(BaseModel):
 class ReauthResponse(BaseModel):
     reauth_token: str
     expires_at: datetime
+
+
+class SessionRead(BaseModel):
+    id: str
+    session_kind: SessionKind
+    issued_at: datetime
+    last_seen_at: datetime | None = None
+    access_expires_at: datetime
+    ip_address: str | None = None
+    user_agent: str | None = None
+    is_current: bool
+    can_be_revoked: bool
+    revoke_restricted_until: datetime | None = None
+
+
+class SessionRevokeResponse(BaseModel):
+    message: str
+    revoked_current_session: bool

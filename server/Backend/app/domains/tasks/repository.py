@@ -146,6 +146,14 @@ class TaskRepository:
         statement = select(CommandExecutionResult).where(CommandExecutionResult.attempt_id == attempt_id)
         return self.db.scalar(statement)
 
+    def get_events_for_task(self, task_id: str) -> list[TaskEvent]:
+        statement = (
+            select(TaskEvent)
+            .where(TaskEvent.task_id == task_id)
+            .order_by(TaskEvent.created_at.asc())
+        )
+        return list(self.db.scalars(statement).all())
+
     def get_log_chunks_for_task(self, task_id: str) -> list[TaskLogChunk]:
         statement = (
             select(TaskLogChunk)

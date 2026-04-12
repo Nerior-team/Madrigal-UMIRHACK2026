@@ -10,6 +10,7 @@ from app.api.deps import (
     get_current_user,
     get_external_api_repository,
     get_machine_repository,
+    get_profile_repository,
     get_reports_repository,
     get_repository,
     get_result_repository,
@@ -26,11 +27,22 @@ from app.domains.integrations.telegram.repository import TelegramRepository
 from app.domains.integrations.telegram.schemas import TelegramLinkDeleteRequest, TelegramLinkStartResponse, TelegramLinkStatusRead
 from app.domains.integrations.telegram.service import TelegramClientContext, TelegramIntegrationService
 from app.domains.machines.repository import MachineRepository
+from app.domains.profile.repository import ProfileRepository
+from app.domains.profile.schemas import UserProfileRead, UserProfileUpdateRequest
+from app.domains.profile.service import ProfileClientContext, ProfileService
 from app.domains.reports.repository import ReportsRepository
 from app.domains.results.repository import ResultRepository
 from app.domains.tasks.repository import TaskRepository
 
 router = APIRouter(prefix="/profile", tags=["profile"])
+
+
+def _build_profile_service(
+    *,
+    auth_repository: AuthRepository,
+    profile_repository: ProfileRepository,
+) -> ProfileService:
+    return ProfileService(profile_repository=profile_repository, auth_repository=auth_repository)
 
 
 def _build_service(
@@ -101,6 +113,36 @@ def list_api_keys(
         result_repository=result_repository,
         reports_repository=reports_repository,
     ).list_api_keys(actor_user_id=current_user.id)
+
+
+@router.get("", response_model=UserProfileRead)
+def get_profile(
+    current_user=Depends(get_current_user),
+    auth_repository: Annotated[AuthRepository, Depends(get_repository)] = None,
+    profile_repository: Annotated[ProfileRepository, Depends(get_profile_repository)] = None,
+):
+    return _build_profile_service(
+        auth_repository=auth_repository,
+        profile_repository=profile_repository,
+    ).get_profile(user=current_user)
+
+
+@router.patch("", response_model=UserProfileRead)
+def update_profile(
+    payload: UserProfileUpdateRequest,
+    current_user=Depends(get_current_user),
+    client=Depends(build_client_context),
+    auth_repository: Annotated[AuthRepository, Depends(get_repository)] = None,
+    profile_repository: Annotated[ProfileRepository, Depends(get_profile_repository)] = None,
+):
+    return _build_profile_service(
+        auth_repository=auth_repository,
+        profile_repository=profile_repository,
+    ).update_profile(
+        user=current_user,
+        payload=payload,
+        client=ProfileClientContext(ip_address=client.ip_address, user_agent=client.user_agent),
+    )
 
 
 @router.get("/telegram", response_model=TelegramLinkStatusRead)

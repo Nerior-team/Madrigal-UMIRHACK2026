@@ -396,3 +396,31 @@ async def auth_prompt_worker(bot, client: BackendClient, poll_interval: int) -> 
         except Exception as exc:
             logger.warning("Telegram auth prompt poll failed: %s", exc)
         await asyncio.sleep(poll_interval)
+
+
+async def notification_worker(bot, client: BackendClient, poll_interval: int) -> None:
+    while True:
+        try:
+            notifications = await client.list_pending_notifications()
+            for item in notifications:
+                try:
+                    sent = await bot.send_message(
+                        chat_id=int(item["telegram_chat_id"]),
+                        text=item["text"],
+                    )
+                    await client.mark_notification_delivered(
+                        item["notification_id"],
+                        telegram_user_id=item["telegram_user_id"],
+                        telegram_chat_id=item["telegram_chat_id"],
+                        message_id=sent.message_id,
+                    )
+                except Exception as exc:
+                    await client.mark_notification_failed(
+                        item["notification_id"],
+                        telegram_user_id=item["telegram_user_id"],
+                        telegram_chat_id=item["telegram_chat_id"],
+                        error=str(exc),
+                    )
+        except Exception as exc:
+            logger.warning("Telegram notification poll failed: %s", exc)
+        await asyncio.sleep(poll_interval)

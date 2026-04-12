@@ -10,6 +10,7 @@ from app.api.v1.integrations import router as integrations_router
 from app.api.v1.invites import router as invites_router
 from app.api.v1.machines import router as machines_router
 from app.api.v1.metrics import router as metrics_router
+from app.api.v1.notifications import router as notifications_router
 from app.api.v1.profile import router as profile_router
 from app.api.v1.realtime import router as realtime_router
 from app.api.v1.reports import router as reports_router
@@ -19,6 +20,7 @@ from app.api.v1.tasks import router as tasks_router
 v1_router = APIRouter()
 v1_router.include_router(auth_router)
 v1_router.include_router(profile_router)
+v1_router.include_router(notifications_router)
 v1_router.include_router(groups_router)
 v1_router.include_router(machines_router)
 v1_router.include_router(access_router)

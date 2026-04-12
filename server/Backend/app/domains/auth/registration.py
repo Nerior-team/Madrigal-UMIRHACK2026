@@ -1,5 +1,5 @@
 from app.core.exceptions import AppError
-from app.core.security import hash_password, hash_token, normalize_email
+from app.core.security import hash_password, hash_token, normalize_email, validate_password_policy
 from app.domains.auth.email_verification import issue_email_verification
 from app.domains.auth.sessions import issue_session
 from app.shared.time import utc_now
@@ -11,6 +11,7 @@ def register_user(*, repository, payload, mailer, max_attempts: int):
     if existing is not None:
         raise AppError("email_taken", "Пользователь с таким email уже существует.", 409)
 
+    validate_password_policy(payload.password)
     user = repository.create_user(email=normalized_email, password_hash=hash_password(payload.password))
     issue_email_verification(repository=repository, mailer=mailer, user=user, max_attempts=max_attempts)
     return user

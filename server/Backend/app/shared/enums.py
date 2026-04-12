@@ -108,3 +108,38 @@ class ApiKeyExpiryPreset(StrEnum):
     MONTH = "month"
     YEAR = "year"
     UNLIMITED = "unlimited"
+
+
+class DeletedMachineRetention(StrEnum):
+    NONE = "none"
+    WEEK = "week"
+    MONTH = "month"
+    THREE_MONTHS = "three_months"
+    SIX_MONTHS = "six_months"
+    YEAR = "year"
+    FOREVER = "forever"
+
+
+class NotificationChannel(StrEnum):
+    SITE = "site"
+    TELEGRAM = "telegram"
+
+
+class NotificationTopic(StrEnum):
+    TASKS = "tasks"
+    WARNINGS = "warnings"
+    REPORTS = "reports"
+    SECURITY = "security"
+
+
+class NotificationLevel(StrEnum):
+    INFO = "info"
+    SUCCESS = "success"
+    WARNING = "warning"
+    ERROR = "error"
+
+
+class NotificationStatus(StrEnum):
+    PENDING = "pending"
+    DELIVERED = "delivered"
+    READ = "read"

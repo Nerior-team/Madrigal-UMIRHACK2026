@@ -6,7 +6,7 @@ import logging
 from aiogram import Bot, Dispatcher
 
 from app.backend import BackendClient
-from app.bot import auth_prompt_worker, build_router
+from app.bot import auth_prompt_worker, build_router, notification_worker
 from app.config import get_settings
 from app.state import BotStateStore
 
@@ -35,10 +35,18 @@ async def run() -> None:
             poll_interval=settings.bot_auth_poll_interval_seconds,
         )
     )
+    notification_task = asyncio.create_task(
+        notification_worker(
+            bot,
+            backend_client,
+            poll_interval=settings.bot_auth_poll_interval_seconds,
+        )
+    )
     try:
         await dispatcher.start_polling(bot)
     finally:
         prompt_task.cancel()
+        notification_task.cancel()
         await backend_client.close()
         await state_store.close()
         await bot.session.close()

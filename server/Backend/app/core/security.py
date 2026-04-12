@@ -1,6 +1,7 @@
 """Security primitives scaffold."""
 import hashlib
 import hmac
+import re
 import secrets
 from datetime import timedelta
 
@@ -9,6 +10,7 @@ from argon2.exceptions import InvalidHashError, VerificationError, VerifyMismatc
 from cryptography.fernet import Fernet, InvalidToken
 
 from app.core.config import get_settings
+from app.core.exceptions import AppError
 
 _PASSWORD_HASHER = PasswordHasher()
 
@@ -22,6 +24,28 @@ def verify_password(password: str, password_hash: str) -> bool:
         return _PASSWORD_HASHER.verify(password_hash, password)
     except (VerifyMismatchError, VerificationError, InvalidHashError):
         return False
+
+
+def validate_password_policy(password: str) -> None:
+    if len(password) < 12:
+        raise AppError("password_policy_length", "Пароль должен содержать минимум 12 символов.", 400)
+    if len(password) > 128:
+        raise AppError("password_policy_length", "Пароль не должен быть длиннее 128 символов.", 400)
+    if any(char.isspace() for char in password):
+        raise AppError("password_policy_whitespace", "Пароль не должен содержать пробелы.", 400)
+    checks = (
+        (re.search(r"[a-z]", password), "password_policy_lower", "Добавь строчные латинские буквы."),
+        (re.search(r"[A-Z]", password), "password_policy_upper", "Добавь заглавные латинские буквы."),
+        (re.search(r"\d", password), "password_policy_digit", "Добавь хотя бы одну цифру."),
+        (
+            re.search(r"[^A-Za-z0-9]", password),
+            "password_policy_symbol",
+            "Добавь хотя бы один специальный символ.",
+        ),
+    )
+    for matched, code, message in checks:
+        if not matched:
+            raise AppError(code, message, 400)
 
 
 def normalize_email(email: str) -> str:
