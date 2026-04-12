@@ -1019,6 +1019,19 @@ a {
   font-weight: 700;
 }
 
+.machines-dashboard__retention-note {
+  margin: 4px 0 0;
+  color: #6d6468;
+  font-family: "Albert Sans", sans-serif;
+  font-size: 14px;
+  line-height: 22px;
+}
+
+.machines-dashboard__retention-note strong {
+  color: #82333e;
+  font-weight: 700;
+}
+
 .machine-pairing-card {
   width: 100%;
   display: grid;
@@ -1365,6 +1378,7 @@ a {
   line-height: 24px;
   font-weight: 500;
   color: #000;
+  overflow-wrap: anywhere;
 }
 
 .machine-status-card__top p {
@@ -1447,6 +1461,10 @@ a {
   color: #ed3030;
 }
 
+.machine-status-card__heartbeat--deleted {
+  color: #8b8f98;
+}
+
 .machine-status-card__owner {
   margin: 0;
   display: inline-flex;
@@ -1457,6 +1475,15 @@ a {
   line-height: 22px;
   font-weight: 400;
   color: #212529;
+  min-width: 0;
+}
+
+.machine-status-card__owner span {
+  overflow-wrap: anywhere;
+}
+
+.machines-status-column__empty {
+  grid-column: 1 / -1;
 }
 
 .machine-status-card__owner img {

@@ -1,6 +1,8 @@
-import { CustomSelect, type CustomSelectOption } from "../primitives/CustomSelect";
-import { ModalFrame } from "../primitives/ModalFrame";
+import type { FormEvent } from "react";
+
 import type { AccessDashboardResponse } from "../../core";
+import { ModalFrame } from "../primitives/ModalFrame";
+import { CustomSelect, type CustomSelectOption } from "../primitives/CustomSelect";
 
 type AccessUserRow = AccessDashboardResponse["users"][number];
 type RoleValue = AccessUserRow["availableRoleValues"][number];
@@ -15,7 +17,7 @@ type ManageAccessModalProps = {
   onRoleChange: (value: RoleValue) => void;
   onPasswordChange: (value: string) => void;
   onClose: () => void;
-  onSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
+  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
   onRevoke: () => void;
 };
 
@@ -87,12 +89,8 @@ export function ManageAccessModal({
                 <button type="button" className="access-modal__ghost" onClick={onClose}>
                   Отмена
                 </button>
-                <button
-                  type="submit"
-                  className="access-modal__primary"
-                  disabled={isSubmitting}
-                >
-                  {isSubmitting ? "Сохранение..." : "Сохранить роль"}
+                <button type="submit" className="access-modal__primary" disabled={isSubmitting}>
+                  {isSubmitting ? "Сохраняем..." : "Сохранить роль"}
                 </button>
               </div>
             </div>

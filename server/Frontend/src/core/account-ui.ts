@@ -63,6 +63,10 @@ export function getRetentionOptions(): Array<{
   }));
 }
 
+export function getRetentionLabel(value: DeletedMachineRetention): string {
+  return RETENTION_LABELS[value];
+}
+
 export function getNotificationTopicLabel(topic: NotificationTopic): string {
   return TOPIC_LABELS[topic];
 }

@@ -44,6 +44,7 @@ import {
   normalizeMachineTitle,
 } from "./core/ui";
 import {
+  getRetentionLabel,
   getSessionKindLabel,
   summarizeSession,
   validatePasswordPolicy,
@@ -107,6 +108,7 @@ import { ProfileSecuritySection } from "./components/profile/ProfileSecuritySect
 import { ProfileSessionsSection } from "./components/profile/ProfileSessionsSection";
 import { ProfileNotificationsSection } from "./components/profile/ProfileNotificationsSection";
 import { ApiKeysWorkspace } from "./components/profile/ApiKeysWorkspace";
+import { EmptyState } from "./components/primitives/EmptyState";
 import type { ProfileSectionKey } from "./components/profile/types";
 
 const apiClient = api;
@@ -3470,10 +3472,13 @@ export function App() {
                 <div className="access-dashboard__content">
                   <section className="access-users">
                     <div className="access-users__toolbar">
-                      <button type="button" className="access-users__template">
-                        <span>Шаблон DV-Sync</span>
-                        <img src="/arrow.png" alt="" aria-hidden="true" />
-                      </button>
+                      <div className="access-users__template" role="status">
+                        <span>
+                          {accessMachines.length
+                            ? `Машин под управлением: ${accessMachines.length}`
+                            : "Нет машин, для которых можно выдавать доступ"}
+                        </span>
+                      </div>
 
                       <label className="access-users__search">
                         <Search size={20} />
@@ -3967,6 +3972,11 @@ export function App() {
                 </button>
               </header>
 
+              <p className="machines-dashboard__retention-note">
+                Удалённые машины хранятся согласно настройке профиля:{" "}
+                <strong>{getRetentionLabel(profileDeletedRetention)}</strong>.
+              </p>
+
               {isAddMachineRoute ? (
                 <AddMachineCard
                   command={AGENT_PAIR_COMMAND}
@@ -4016,52 +4026,65 @@ export function App() {
                       className="machines-status-column"
                     >
                       <div className="machines-status-column__cards">
-                        {section.cards.map((card) => (
-                          <article
-                            key={card.id}
-                            className="machine-status-card machine-status-card--interactive"
-                            role="button"
-                            tabIndex={0}
-                            onClick={() => {
-                              openMachine(card.id);
-                            }}
-                            onKeyDown={(event) => {
-                              if (event.key === "Enter" || event.key === " ") {
-                                event.preventDefault();
+                        {section.cards.length ? (
+                          section.cards.map((card) => (
+                            <article
+                              key={card.id}
+                              className="machine-status-card machine-status-card--interactive"
+                              role="button"
+                              tabIndex={0}
+                              onClick={() => {
                                 openMachine(card.id);
-                              }
-                            }}
-                          >
-                            <div className="machine-status-card__top">
-                              <div>
-                                <h3>{card.machine}</h3>
-                                <p>{card.os}</p>
-                              </div>
-
-                              <div className="machine-status-card__meta">
-                                <span
-                                  className={`machine-status-card__badge machine-status-card__badge--${card.badgeTone}`}
-                                >
-                                  {card.owner
-                                    .trim()
-                                    .split("@")[1]
-                                    ?.slice(0, 2) ?? ""}
-                                </span>
-                              </div>
-                            </div>
-
-                            <p
-                              className={`machine-status-card__heartbeat machine-status-card__heartbeat--${card.status}`}
+                              }}
+                              onKeyDown={(event) => {
+                                if (event.key === "Enter" || event.key === " ") {
+                                  event.preventDefault();
+                                  openMachine(card.id);
+                                }
+                              }}
                             >
-                              {card.heartbeat}
-                            </p>
+                              <div className="machine-status-card__top">
+                                <div>
+                                  <h3>{card.machine}</h3>
+                                  <p>{card.os}</p>
+                                </div>
 
-                            <p className="machine-status-card__owner">
-                              <img src="/user.png" alt="" aria-hidden="true" />
-                              <span>{card.owner}</span>
-                            </p>
-                          </article>
-                        ))}
+                                <div className="machine-status-card__meta">
+                                  <span
+                                    className={`machine-status-card__badge machine-status-card__badge--${card.badgeTone}`}
+                                  >
+                                    {card.owner
+                                      .trim()
+                                      .split("@")[1]
+                                      ?.slice(0, 2) ?? ""}
+                                  </span>
+                                </div>
+                              </div>
+
+                              <p
+                                className={`machine-status-card__heartbeat machine-status-card__heartbeat--${card.status}`}
+                              >
+                                {card.heartbeat}
+                              </p>
+
+                              <p className="machine-status-card__owner">
+                                <img src="/user.png" alt="" aria-hidden="true" />
+                                <span>{card.owner}</span>
+                              </p>
+                            </article>
+                          ))
+                        ) : (
+                          <div className="machines-status-column__empty">
+                            <EmptyState
+                              title="Пусто"
+                              description={
+                                section.key === "deleted"
+                                  ? "Удалённые машины появятся здесь и будут скрыты автоматически по сроку хранения."
+                                  : "Сейчас в этой группе нет машин."
+                              }
+                            />
+                          </div>
+                        )}
                       </div>
                     </section>
                   );

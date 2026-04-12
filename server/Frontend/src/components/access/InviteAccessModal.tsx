@@ -1,6 +1,8 @@
-import { CustomSelect, type CustomSelectOption } from "../primitives/CustomSelect";
-import { ModalFrame } from "../primitives/ModalFrame";
+import type { FormEvent } from "react";
+
 import type { AccessDashboardResponse } from "../../core";
+import { ModalFrame } from "../primitives/ModalFrame";
+import { CustomSelect, type CustomSelectOption } from "../primitives/CustomSelect";
 
 type RoleValue = AccessDashboardResponse["machines"][number]["availableRoleValues"][number];
 
@@ -18,7 +20,7 @@ type InviteAccessModalProps = {
   onEmailChange: (value: string) => void;
   onPasswordChange: (value: string) => void;
   onClose: () => void;
-  onSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
+  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
 };
 
 export function InviteAccessModal({
@@ -42,7 +44,7 @@ export function InviteAccessModal({
       <div className="access-modal-card" onClick={(event) => event.stopPropagation()}>
         <ModalFrame
           title="Новое приглашение"
-          subtitle="Доступ отправится на email только после подтверждения паролем."
+          subtitle="Доступ будет отправлен на email после подтверждения вашим текущим паролем."
           actions={
             <button type="button" className="access-modal__ghost" onClick={onClose}>
               Закрыть
@@ -67,7 +69,7 @@ export function InviteAccessModal({
                 value={selectedRole}
                 options={roleOptions}
                 onChange={onRoleChange}
-                ariaLabel="Выберите роль приглашения"
+                ariaLabel="Выберите роль для приглашения"
                 className="access-form__select"
               />
             </label>
@@ -104,12 +106,8 @@ export function InviteAccessModal({
               <button type="button" className="access-modal__ghost" onClick={onClose}>
                 Отмена
               </button>
-              <button
-                type="submit"
-                className="access-modal__primary"
-                disabled={isSubmitting}
-              >
-                {isSubmitting ? "Отправка..." : "Отправить приглашение"}
+              <button type="submit" className="access-modal__primary" disabled={isSubmitting}>
+                {isSubmitting ? "Отправляем..." : "Отправить приглашение"}
               </button>
             </div>
           </form>
