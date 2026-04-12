@@ -1017,9 +1017,13 @@ export function App() {
       .then((templates) => {
         if (cancelled) return;
         setTaskTemplateOptions(templates);
-        const fallbackTemplateKey = templates[0]?.templateKey ?? "";
+        const fallbackTemplateKey =
+          templates.find((template) => template.isEnabled)?.templateKey ?? "";
         setTaskCommand((current) =>
-          current && templates.some((template) => template.templateKey === current)
+          current &&
+          templates.some(
+            (template) => template.templateKey === current && template.isEnabled,
+          )
             ? current
             : fallbackTemplateKey,
         );
@@ -1035,11 +1039,36 @@ export function App() {
     };
   }, [taskMachineId]);
 
+  const runnableTaskTemplateOptions = useMemo(
+    () => taskTemplateOptions.filter((template) => template.isEnabled),
+    [taskTemplateOptions],
+  );
+
+  useEffect(() => {
+    if (!runnableTaskTemplateOptions.length) {
+      if (taskCommand) {
+        setTaskCommand("");
+      }
+      return;
+    }
+
+    if (
+      taskCommand &&
+      runnableTaskTemplateOptions.some(
+        (template) => template.templateKey === taskCommand,
+      )
+    ) {
+      return;
+    }
+
+    setTaskCommand(runnableTaskTemplateOptions[0]?.templateKey ?? "");
+  }, [runnableTaskTemplateOptions, taskCommand]);
+
   useEffect(() => {
     setTaskParamValues((current) => {
       if (!taskCommand) return {};
 
-      const template = taskTemplateOptions.find(
+      const template = runnableTaskTemplateOptions.find(
         (option) => option.templateKey === taskCommand,
       );
       if (!template) return {};
@@ -1058,7 +1087,7 @@ export function App() {
 
       return nextValues;
     });
-  }, [taskCommand, taskTemplateOptions]);
+  }, [taskCommand, runnableTaskTemplateOptions]);
 
   const visibleLogEntries = useMemo(() => {
     const byTone =
@@ -1498,9 +1527,11 @@ export function App() {
 
   const selectedTaskTemplate = useMemo(
     () =>
-      taskTemplateOptions.find((template) => template.templateKey === taskCommand) ??
+      runnableTaskTemplateOptions.find(
+        (template) => template.templateKey === taskCommand,
+      ) ??
       null,
-    [taskCommand, taskTemplateOptions],
+    [runnableTaskTemplateOptions, taskCommand],
   );
 
   const selectedTaskMachine = useMemo(
@@ -1538,6 +1569,15 @@ export function App() {
         ? selectedMachine.myRole === "Владелец" ||
           selectedMachine.myRole === "Администратор" ||
           selectedMachine.myRole === "Оператор"
+        : false,
+    [selectedMachine],
+  );
+
+  const selectedMachineCanManageCommands = useMemo(
+    () =>
+      selectedMachine
+        ? selectedMachine.myRole === "Владелец" ||
+          selectedMachine.myRole === "Администратор"
         : false,
     [selectedMachine],
   );
@@ -1883,9 +1923,13 @@ export function App() {
   };
 
   const resetTaskComposer = () => {
-    setTaskCommand(taskTemplateOptions[0]?.templateKey ?? "");
+    setTaskCommand(runnableTaskTemplateOptions[0]?.templateKey ?? "");
     setTaskParamValues({});
     setTaskUseSudo(false);
+  };
+
+  const handleMachineTemplatesChanged = (templates: CommandTemplateOption[]) => {
+    setTaskTemplateOptions(templates);
   };
 
   const handleProfileAvatarChange = (
@@ -3611,8 +3655,10 @@ export function App() {
                     statusLabel: machineStatusLabelByStatus[selectedMachine.status],
                   }}
                   canCreateTask={selectedMachineCanCreateTask}
+                  canManageCommands={selectedMachineCanManageCommands}
                   taskRoleLabel={selectedMachine.myRole}
-                  taskTemplateOptions={taskTemplateOptions}
+                  taskTemplateOptions={runnableTaskTemplateOptions}
+                  commandTemplates={taskTemplateOptions}
                   selectedTaskTemplateKey={taskCommand}
                   selectedTaskParameterValues={taskParamValues}
                   taskUseSudo={taskUseSudo}
@@ -3630,6 +3676,7 @@ export function App() {
                   onTaskReset={resetTaskComposer}
                   onTaskSubmit={handleCreateTaskSubmit}
                   onCopyTaskPreview={copyTaskPreview}
+                  onTemplatesChanged={handleMachineTemplatesChanged}
                   tasks={selectedMachineTaskCards}
                   results={selectedMachineResultRows}
                   logs={selectedMachineLogEntries}
@@ -3983,13 +4030,13 @@ export function App() {
                       value: "",
                       label: taskMachineId ? "Выбрать" : "Сначала выберите машину",
                     },
-                    ...taskTemplateOptions.map((template) => ({
+                    ...runnableTaskTemplateOptions.map((template) => ({
                       value: template.templateKey,
                       label: template.name,
                     })),
                   ]}
                   onChange={setTaskCommand}
-                  disabled={!taskMachineId || !taskTemplateOptions.length}
+                  disabled={!taskMachineId || !runnableTaskTemplateOptions.length}
                   ariaLabel="Выбор команды для задачи"
                 />
               </label>

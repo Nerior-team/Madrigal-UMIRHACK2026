@@ -6,6 +6,27 @@ import { describe, expect, it, vi } from "vitest";
 
 import { MachineWorkspace, type MachineWorkspaceProps } from "./MachineWorkspace";
 
+function createTemplate() {
+  return {
+    id: null,
+    templateKey: "docker:logs",
+    name: "Docker logs",
+    description: null,
+    runner: "shell",
+    commandPattern: "docker logs {container}",
+    parameters: [
+      {
+        key: "container",
+        label: "Контейнер",
+        allowedValues: ["api"],
+      },
+    ],
+    parserKind: "none",
+    isBuiltin: true,
+    isEnabled: true,
+  };
+}
+
 function createProps(): MachineWorkspaceProps {
   return {
     machine: {
@@ -21,24 +42,10 @@ function createProps(): MachineWorkspaceProps {
     },
     activeSection: "dashboard",
     canCreateTask: true,
+    canManageCommands: true,
     taskRoleLabel: "Администратор",
-    taskTemplateOptions: [
-      {
-        templateKey: "docker:logs",
-        name: "Docker logs",
-        description: null,
-        runner: "shell",
-        commandPattern: "docker logs {container}",
-        parameters: [
-          {
-            key: "container",
-            label: "Контейнер",
-            allowedValues: ["api"],
-          },
-        ],
-        parserKind: "text",
-      },
-    ],
+    taskTemplateOptions: [createTemplate()],
+    commandTemplates: [createTemplate()],
     selectedTaskTemplateKey: "docker:logs",
     selectedTaskParameterValues: { container: "api" },
     taskUseSudo: true,
@@ -53,6 +60,7 @@ function createProps(): MachineWorkspaceProps {
       event.preventDefault(),
     ),
     onCopyTaskPreview: vi.fn(),
+    onTemplatesChanged: vi.fn(),
     onOpenTasks: vi.fn(),
     onOpenResults: vi.fn(),
     onOpenLogs: vi.fn(),
@@ -107,6 +115,9 @@ describe("MachineWorkspace", () => {
 
     expect(
       screen.getByRole("heading", { name: "Создать задачу" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Команды для машины" }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("heading", { name: "Задачи по машине" }),

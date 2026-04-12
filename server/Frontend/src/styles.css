@@ -7358,6 +7358,208 @@ button:disabled {
   gap: 10px;
 }
 
+.machine-commands__layout {
+  display: grid;
+  grid-template-columns: minmax(320px, 0.92fr) minmax(380px, 1.08fr);
+  gap: 20px;
+}
+
+.machine-commands__column,
+.machine-commands__editor,
+.machine-commands__list,
+.machine-commands__form,
+.machine-commands__parameters {
+  display: grid;
+  gap: 16px;
+}
+
+.machine-commands__group {
+  display: grid;
+  gap: 12px;
+}
+
+.machine-commands__group-head,
+.machine-commands__card-head,
+.machine-commands__editor-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.machine-commands__group-head h3,
+.machine-commands__editor-head h3 {
+  margin: 0;
+  font-family: "Albert Sans", sans-serif;
+  font-size: 18px;
+  line-height: 24px;
+}
+
+.machine-commands__group-head span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 30px;
+  min-height: 30px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: rgba(130, 51, 62, 0.08);
+  color: #82333e;
+  font-family: "Albert Sans", sans-serif;
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 700;
+}
+
+.machine-commands__card,
+.machine-commands__editor {
+  border: 1px solid rgba(130, 51, 62, 0.12);
+  border-radius: 18px;
+  padding: 18px;
+  background:
+    radial-gradient(circle at top right, rgba(130, 51, 62, 0.06), transparent 32%),
+    linear-gradient(180deg, #fff 0%, #fbf7f8 100%);
+}
+
+.machine-commands__card strong {
+  display: block;
+  font-family: "Albert Sans", sans-serif;
+  font-size: 17px;
+  line-height: 22px;
+}
+
+.machine-commands__card p,
+.machine-commands__meta {
+  margin: 0;
+  color: #7a7174;
+  font-family: "Albert Sans", sans-serif;
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.machine-commands__card code {
+  display: block;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(18, 19, 22, 0.04);
+  color: #261f22;
+  font-family: "Ubuntu Mono", monospace;
+  font-size: 13px;
+  line-height: 20px;
+  white-space: normal;
+  word-break: break-word;
+}
+
+.machine-commands__badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 28px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-family: "Albert Sans", sans-serif;
+  font-size: 11px;
+  line-height: 14px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.machine-commands__badge--builtin {
+  background: rgba(18, 19, 22, 0.08);
+  color: #262126;
+}
+
+.machine-commands__badge--enabled {
+  background: rgba(31, 149, 91, 0.12);
+  color: #0c7a42;
+}
+
+.machine-commands__badge--disabled {
+  background: rgba(130, 51, 62, 0.1);
+  color: #82333e;
+}
+
+.machine-commands__card-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.machine-commands__delete {
+  flex-shrink: 0;
+  width: 34px;
+  min-width: 34px;
+  font-size: 20px;
+  line-height: 1;
+}
+
+.machine-commands__input,
+.machine-commands__textarea {
+  width: 100%;
+  border: 1px solid rgba(18, 19, 22, 0.1);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.96);
+  color: #261f22;
+  font-family: "Albert Sans", sans-serif;
+  font-size: 14px;
+  line-height: 20px;
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
+}
+
+.machine-commands__input {
+  min-height: 46px;
+  padding: 12px 14px;
+}
+
+.machine-commands__textarea {
+  min-height: 104px;
+  padding: 12px 14px;
+  resize: vertical;
+}
+
+.machine-commands__input:focus,
+.machine-commands__textarea:focus {
+  outline: none;
+  border-color: rgba(130, 51, 62, 0.24);
+  box-shadow: 0 0 0 4px rgba(130, 51, 62, 0.08);
+}
+
+.machine-commands__form-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: end;
+}
+
+.machine-commands__toggle {
+  min-height: 46px;
+}
+
+.machine-commands__parameter-list {
+  display: grid;
+  gap: 10px;
+}
+
+.machine-commands__parameter-row {
+  display: grid;
+  grid-template-columns: minmax(120px, 0.5fr) minmax(180px, 0.8fr) minmax(220px, 1.2fr) auto;
+  gap: 10px;
+  align-items: start;
+}
+
+.machine-commands__preview {
+  margin-top: 4px;
+}
+
+.machine-commands__actions {
+  margin-top: 8px;
+}
+
 .machine-details__table-wrap {
   overflow-x: auto;
 }
@@ -7438,6 +7640,10 @@ button:disabled {
     grid-template-columns: 1fr;
   }
 
+  .machine-commands__layout {
+    grid-template-columns: 1fr;
+  }
+
   .machine-details__recent-list {
     grid-template-columns: 1fr;
   }
@@ -7509,6 +7715,18 @@ button:disabled {
   .machine-details__recent-actions {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .machine-commands__group-head,
+  .machine-commands__card-head,
+  .machine-commands__editor-head {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .machine-commands__form-grid,
+  .machine-commands__parameter-row {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -9008,6 +9226,8 @@ html[data-theme="dark"] .machine-details__panel,
 html[data-theme="dark"] .machine-details__overview-card,
 html[data-theme="dark"] .machine-details__recent-card,
 html[data-theme="dark"] .machine-details__task-create-card,
+html[data-theme="dark"] .machine-commands__card,
+html[data-theme="dark"] .machine-commands__editor,
 html[data-theme="dark"] .report-comparison,
 html[data-theme="dark"] .report-summary,
 html[data-theme="dark"] .install-card,
@@ -9070,6 +9290,24 @@ html[data-theme="dark"] .machine-details__recent-card p,
 html[data-theme="dark"] .machine-details__task-create-text,
 html[data-theme="dark"] .machine-details__empty {
   color: var(--muted);
+}
+
+html[data-theme="dark"] .machine-commands__card p,
+html[data-theme="dark"] .machine-commands__meta {
+  color: var(--muted);
+}
+
+html[data-theme="dark"] .machine-commands__input,
+html[data-theme="dark"] .machine-commands__textarea,
+html[data-theme="dark"] .machine-commands__card code {
+  background: rgba(30, 23, 30, 0.96);
+  border-color: rgba(255, 255, 255, 0.08);
+  color: var(--text);
+}
+
+html[data-theme="dark"] .machine-commands__badge--builtin {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text);
 }
 
 html[data-theme="dark"] .home-theme-toggle,

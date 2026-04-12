@@ -75,9 +75,12 @@ export type MachineTaskComposerProps = MachineTaskComposerControls & {
 export type MachineWorkspaceProps = MachineTaskComposerControls & {
   machine: MachineWorkspaceMachine;
   activeSection: "dashboard" | "tasks" | "results" | "logs";
+  commandTemplates: CommandTemplateOption[];
+  canManageCommands: boolean;
   tasks: MachineWorkspaceTask[];
   results: MachineWorkspaceResult[];
   logs: MachineWorkspaceLog[];
+  onTemplatesChanged: (templates: CommandTemplateOption[]) => void;
   onOpenTasks: () => void;
   onOpenResults: () => void;
   onOpenLogs: () => void;

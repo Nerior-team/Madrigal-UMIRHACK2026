@@ -263,6 +263,7 @@ export interface ProfileDashboardResponse {
 export interface CommandTemplateParameter {
   key: string;
   label: string;
+  type?: string;
   allowedValues: string[];
 }
 
@@ -275,6 +276,22 @@ export interface CommandTemplateOption {
   commandPattern: string;
   parameters: CommandTemplateParameter[];
   parserKind: string;
+  isBuiltin: boolean;
+  isEnabled: boolean;
+}
+
+export interface CommandTemplateMutationInput {
+  name: string;
+  description?: string | null;
+  runner: string;
+  commandPattern: string;
+  parserKind: string;
+  parameters: Array<{
+    key: string;
+    label: string;
+    allowedValues: string[];
+  }>;
+  isEnabled?: boolean;
 }
 
 type BackendSessionKind = "web" | "desktop" | "cli";
@@ -334,9 +351,12 @@ type BackendCommandTemplateRead = {
   parameters: Array<{
     key: string;
     label: string;
+    type: string;
     allowed_values: string[];
   }>;
   parser_kind: string;
+  is_builtin: boolean;
+  is_enabled: boolean;
 };
 
 type BackendTaskAttempt = {
@@ -500,6 +520,32 @@ function extractDigits(value: string): string {
   return value.replace(/\D/g, "");
 }
 
+function resolveMachineDisplayName(
+  machine: BackendMachineSummary | undefined,
+  fallbackMachineId: string,
+): string {
+  return normalizeMachineTitle(
+    machine?.display_name || machine?.hostname || "Неизвестная машина",
+  );
+}
+
+function resolveUserDisplayName(
+  email: string | null | undefined,
+  fallbackUserId?: string | null,
+): string {
+  const normalizedEmail = email?.trim();
+  if (normalizedEmail) {
+    return normalizedEmail;
+  }
+
+  const normalizedFallback = fallbackUserId?.trim();
+  if (!normalizedFallback) {
+    return "Неизвестный пользователь";
+  }
+
+  return `Пользователь ${normalizedFallback.slice(0, 6)}`;
+}
+
 function hasActiveExecution(status: BackendTaskLifecycle): boolean {
   return (
     status === "dispatched" || status === "accepted" || status === "running"
@@ -567,8 +613,6 @@ function mapTask(
   const presentation = getTaskPresentation(task.status);
   const lastAttempt = task.attempts[task.attempts.length - 1];
 
-  const machineDigits = extractDigits(task.machine_id);
-  const serverNumber = machineDigits || task.machine_id.slice(0, 6);
   const taskDigits = extractDigits(task.id);
   const taskNumber = taskDigits || task.id.slice(0, 6);
 
@@ -582,10 +626,10 @@ function mapTask(
     presentation.group === "in_progress" || presentation.group === "queued"
       ? undefined
       : formatDateTime(lastAttempt?.finished_at ?? task.created_at);
-  const requestedBy =
-    task.requested_by_email ??
-    userEmailMap.get(task.requested_by_user_id) ??
-    task.requested_by_user_id;
+  const requestedBy = resolveUserDisplayName(
+    task.requested_by_email ?? userEmailMap.get(task.requested_by_user_id),
+    task.requested_by_user_id,
+  );
 
   let resultText = presentation.resultLabel;
   let statusLabel = presentation.taskStatusLabel;
@@ -602,9 +646,7 @@ function mapTask(
   return {
     id: task.id,
     machineId: task.machine_id,
-    machine: normalizeMachineTitle(
-      machine?.display_name || machine?.hostname || task.machine_id,
-    ),
+    machine: resolveMachineDisplayName(machine, task.machine_id),
     resultId: lastAttempt?.result_id ?? undefined,
     templateKey: task.template_key,
     renderedCommand: getTaskRenderedCommand(task),
@@ -613,7 +655,7 @@ function mapTask(
     title: taskTitle,
     startedAt,
     completedAt,
-    serverNumber,
+    serverNumber: extractDigits(task.machine_id) || task.machine_id.slice(0, 6),
     resultText,
     resultColor: mapPresentationToResultColor(presentation.resultTone),
     statusLabel,
@@ -1273,9 +1315,109 @@ export const api = {
       parameters: template.parameters.map((parameter) => ({
         key: parameter.key,
         label: parameter.label,
+        type: parameter.type,
         allowedValues: parameter.allowed_values,
       })),
+      isBuiltin: template.is_builtin,
+      isEnabled: template.is_enabled,
     }));
+  },
+
+  async createMachineCommandTemplate(
+    machineId: string,
+    input: CommandTemplateMutationInput,
+  ): Promise<CommandTemplateOption> {
+    const template = await request<BackendCommandTemplateRead>(
+      `/machines/${encodeURIComponent(machineId)}/commands/templates`,
+      {
+        method: "POST",
+        body: JSON.stringify({
+          name: input.name.trim(),
+          description: input.description?.trim() || null,
+          runner: input.runner,
+          command_pattern: input.commandPattern.trim(),
+          parser_kind: input.parserKind,
+          parameters: input.parameters.map((parameter) => ({
+            key: parameter.key,
+            label: parameter.label,
+            type: "enum",
+            allowed_values: parameter.allowedValues,
+          })),
+        }),
+      },
+    );
+
+    return {
+      id: template.id,
+      templateKey: template.template_key,
+      name: template.name,
+      description: template.description,
+      runner: template.runner,
+      commandPattern: template.command_pattern,
+      parserKind: template.parser_kind,
+      parameters: template.parameters.map((parameter) => ({
+        key: parameter.key,
+        label: parameter.label,
+        type: parameter.type,
+        allowedValues: parameter.allowed_values,
+      })),
+      isBuiltin: template.is_builtin,
+      isEnabled: template.is_enabled,
+    };
+  },
+
+  async updateMachineCommandTemplate(
+    machineId: string,
+    templateId: string,
+    input: CommandTemplateMutationInput,
+  ): Promise<CommandTemplateOption> {
+    const template = await request<BackendCommandTemplateRead>(
+      `/machines/${encodeURIComponent(machineId)}/commands/templates/${encodeURIComponent(templateId)}`,
+      {
+        method: "PATCH",
+        body: JSON.stringify({
+          name: input.name.trim(),
+          description: input.description?.trim() || null,
+          runner: input.runner,
+          command_pattern: input.commandPattern.trim(),
+          parser_kind: input.parserKind,
+          parameters: input.parameters.map((parameter) => ({
+            key: parameter.key,
+            label: parameter.label,
+            type: "enum",
+            allowed_values: parameter.allowedValues,
+          })),
+          is_enabled: input.isEnabled,
+        }),
+      },
+    );
+
+    return {
+      id: template.id,
+      templateKey: template.template_key,
+      name: template.name,
+      description: template.description,
+      runner: template.runner,
+      commandPattern: template.command_pattern,
+      parserKind: template.parser_kind,
+      parameters: template.parameters.map((parameter) => ({
+        key: parameter.key,
+        label: parameter.label,
+        type: parameter.type,
+        allowedValues: parameter.allowed_values,
+      })),
+      isBuiltin: template.is_builtin,
+      isEnabled: template.is_enabled,
+    };
+  },
+
+  async deleteMachineCommandTemplate(machineId: string, templateId: string): Promise<void> {
+    await request(
+      `/machines/${encodeURIComponent(machineId)}/commands/templates/${encodeURIComponent(templateId)}`,
+      {
+        method: "DELETE",
+      },
+    );
   },
 
   async createTask(input: {
@@ -1401,8 +1543,6 @@ export const api = {
         })),
       tasks: tasks.slice(0, 8).map((task) => {
         const presentation = getTaskPresentation(task.status);
-        const machineDigits = extractDigits(task.machine_id);
-        const serverNumber = machineDigits || task.machine_id.slice(0, 6);
         const lastAttempt = task.attempts[task.attempts.length - 1];
         const createdAt = formatDateTime(
           lastAttempt?.started_at ?? lastAttempt?.queued_at ?? task.created_at,
@@ -1411,14 +1551,13 @@ export const api = {
 
         return {
           id: extractDigits(task.id) || task.id.slice(0, 6),
-          machine: normalizeMachineTitle(
-            machine?.display_name || machine?.hostname || `Сервер №${serverNumber}`,
-          ),
+          machine: resolveMachineDisplayName(machine, task.machine_id),
           status: presentation.taskStatusLabel,
           createdAt,
-          sender:
-            userEmailMap.get(task.requested_by_user_id) ??
+          sender: resolveUserDisplayName(
+            userEmailMap.get(task.requested_by_user_id),
             task.requested_by_user_id,
+          ),
         };
       }),
     };
@@ -1449,10 +1588,10 @@ export const api = {
     const presentation = getTaskPresentation(task.status);
     const lastAttempt = task.attempts[task.attempts.length - 1];
 
-    const requestedBy =
-      task.requested_by_email ??
-      userEmailMap.get(task.requested_by_user_id) ??
-      task.requested_by_user_id;
+    const requestedBy = resolveUserDisplayName(
+      task.requested_by_email ?? userEmailMap.get(task.requested_by_user_id),
+      task.requested_by_user_id,
+    );
     const statusLabel =
       task.status === "cancelled" && task.cancelled_by_email
         ? "Завершено администратором"
@@ -1467,9 +1606,7 @@ export const api = {
     return {
       id: task.id,
       machineId: task.machine_id,
-      machine: normalizeMachineTitle(
-        machine?.display_name || machine?.hostname || task.machine_id,
-      ),
+      machine: resolveMachineDisplayName(machine, task.machine_id),
       title: task.template_name,
       templateKey: task.template_key,
       renderedCommand: getTaskRenderedCommand(task),
@@ -1535,13 +1672,12 @@ export const api = {
           taskId: task.id,
           machineId: task.machine_id,
           taskTitle: task.template_name,
-          machine: normalizeMachineTitle(
-            machine?.display_name || machine?.hostname || task.machine_id,
-          ),
+          machine: resolveMachineDisplayName(machine, task.machine_id),
           action,
-          email:
-            userEmailMap.get(task.requested_by_user_id) ??
+          email: resolveUserDisplayName(
+            userEmailMap.get(task.requested_by_user_id),
             task.requested_by_user_id,
+          ),
           status,
           tone,
           createdAt: formatDateTime(createdAtIso),
@@ -1557,9 +1693,7 @@ export const api = {
 
     const streamItems = recentTasks.flatMap((task) => {
       const machine = machineMap.get(task.machine_id);
-      const machineLabel = normalizeMachineTitle(
-        machine?.display_name || machine?.hostname || task.machine_id,
-      );
+      const machineLabel = resolveMachineDisplayName(machine, task.machine_id);
       const taskLogs = logsByTask.get(task.id) ?? [];
       const taskStartedAt = pickTaskCreatedAtIso(task);
       const items: LogsDashboardResponse["streamItems"] = [
@@ -1635,9 +1769,7 @@ export const api = {
         return {
           id: task.id,
           machineId: task.machine_id,
-          machine: normalizeMachineTitle(
-            machine?.display_name || machine?.hostname || task.machine_id,
-          ),
+          machine: resolveMachineDisplayName(machine, task.machine_id),
           machineStatus: machine
             ? resolveMachineActivityStatus({
                 backendStatus: machine.status,
@@ -1647,9 +1779,10 @@ export const api = {
               })
             : "offline",
           templateName: task.template_name,
-          requestedBy:
-            userEmailMap.get(task.requested_by_user_id) ??
+          requestedBy: resolveUserDisplayName(
+            userEmailMap.get(task.requested_by_user_id),
             task.requested_by_user_id,
+          ),
           status: getTaskPresentation(task.status).group,
           createdAtIso: pickTaskCreatedAtIso(task),
           durationMs: pickTaskDurationMs(task),
@@ -1687,9 +1820,7 @@ export const api = {
           title: result.template_name,
           statusLabel: statusTone === "success" ? "Выполнено" : "Ошибка",
           statusTone,
-          machine: normalizeMachineTitle(
-            machine?.display_name || machine?.hostname || result.machine_id,
-          ),
+          machine: resolveMachineDisplayName(machine, result.machine_id),
           command: task ? getTaskRenderedCommand(task) : result.template_name,
           resultAt: formatResultDateTime(result.created_at),
           resultAtIso: result.created_at,

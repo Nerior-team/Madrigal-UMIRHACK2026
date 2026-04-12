@@ -1,3 +1,4 @@
+import { MachineCommandsPanel } from "./commands/MachineCommandsPanel";
 import { MachineLogsPanel } from "./MachineLogsPanel";
 import { MachineOverviewGrid } from "./MachineOverviewGrid";
 import { MachineResultsPanel } from "./MachineResultsPanel";
@@ -11,8 +12,10 @@ export function MachineWorkspace({
   machine,
   activeSection,
   canCreateTask,
+  canManageCommands,
   taskRoleLabel,
   taskTemplateOptions,
+  commandTemplates,
   selectedTaskTemplateKey,
   selectedTaskParameterValues,
   taskUseSudo,
@@ -28,6 +31,7 @@ export function MachineWorkspace({
   tasks,
   results,
   logs,
+  onTemplatesChanged,
   onOpenTasks,
   onOpenResults,
   onOpenLogs,
@@ -51,6 +55,16 @@ export function MachineWorkspace({
       </header>
 
       <MachineOverviewGrid machine={machine} />
+
+      <MachineCommandsPanel
+        machineId={machine.id}
+        machineName={machine.name}
+        machineOs={machine.os}
+        machineRoleLabel={machine.role}
+        commandTemplates={commandTemplates}
+        canManageCommands={canManageCommands}
+        onTemplatesChanged={onTemplatesChanged}
+      />
 
       <div className="machine-details__dashboard-grid">
         <MachineTaskComposer
