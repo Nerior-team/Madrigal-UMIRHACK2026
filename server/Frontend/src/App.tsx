@@ -842,6 +842,7 @@ export function App() {
     const trimmed = candidate.trim();
     return trimmed || "Профиль";
   }, [profileDetails, profileDisplayName]);
+  const profileUserId = profileDashboard?.userId ?? null;
 
   const activeProfileSection: ProfileSectionKey =
     route.section === "workspace" && route.workspaceTab === "profile"
@@ -912,7 +913,7 @@ export function App() {
   }, [profileDetails]);
 
   useEffect(() => {
-    if (!profileDashboard) {
+    if (!profileUserId) {
       setNotificationFeed([]);
       setUnreadNotificationCount(0);
       return;
@@ -939,10 +940,10 @@ export function App() {
     return () => {
       cancelled = true;
     };
-  }, [profileDashboard]);
+  }, [profileUserId]);
 
   useEffect(() => {
-    if (workspaceTab !== "profile" || !profileDashboard) {
+    if (workspaceTab !== "profile" || !profileUserId) {
       return;
     }
 
@@ -994,7 +995,7 @@ export function App() {
     return () => {
       cancelled = true;
     };
-  }, [profileDashboard, workspaceTab]);
+  }, [profileUserId, workspaceTab]);
 
   useEffect(() => {
     setWorkspaceSearchQuery("");
@@ -4561,4 +4562,3 @@ export function App() {
     </main>
   );
 }
-

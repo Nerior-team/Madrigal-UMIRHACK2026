@@ -8,10 +8,14 @@ import {
 import { ApiError } from "../../../../core/http";
 import { buildTaskPreview } from "../../../../core/task-preview";
 import { CustomSelect } from "../../../primitives/CustomSelect";
+import {
+  buildCommandPatternFromBase,
+  buildGeneratedParameterKey,
+  deriveCommandBaseFromPattern,
+} from "./template-builder";
 
 type TemplateParameterDraft = {
   id: string;
-  key: string;
   label: string;
   allowedValuesText: string;
 };
@@ -20,7 +24,7 @@ type TemplateEditorState = {
   templateId: string | null;
   name: string;
   description: string;
-  commandPattern: string;
+  commandBase: string;
   parserKind: string;
   isEnabled: boolean;
   parameters: TemplateParameterDraft[];
@@ -34,6 +38,12 @@ type MachineCommandsPanelProps = {
   commandTemplates: CommandTemplateOption[];
   canManageCommands: boolean;
   onTemplatesChanged: (templates: CommandTemplateOption[]) => void;
+};
+
+type PreparedParameter = {
+  key: string;
+  label: string;
+  allowedValues: string[];
 };
 
 const parserKindOptions = [
@@ -55,7 +65,6 @@ function resolveShellLabel(machineOs: string): "Bash" | "Shell" {
 function createParameterDraft(): TemplateParameterDraft {
   return {
     id: `param-${Math.random().toString(36).slice(2, 10)}`,
-    key: "",
     label: "",
     allowedValuesText: "",
   };
@@ -66,7 +75,7 @@ function createEmptyEditorState(): TemplateEditorState {
     templateId: null,
     name: "",
     description: "",
-    commandPattern: "",
+    commandBase: "",
     parserKind: "none",
     isEnabled: true,
     parameters: [],
@@ -80,12 +89,13 @@ function createEditorStateFromTemplate(
     templateId: template.id ?? null,
     name: template.name,
     description: template.description ?? "",
-    commandPattern: template.commandPattern,
+    commandBase: template.parameters.length
+      ? deriveCommandBaseFromPattern(template.commandPattern)
+      : template.commandPattern,
     parserKind: template.parserKind,
     isEnabled: template.isEnabled,
     parameters: template.parameters.map((parameter, index) => ({
-      id: `${template.templateKey}-${parameter.key}-${index}`,
-      key: parameter.key,
+      id: `${template.templateKey}-${index}`,
       label: parameter.label,
       allowedValuesText: parameter.allowedValues.join(", "),
     })),
@@ -99,11 +109,38 @@ function parseAllowedValues(value: string): string[] {
     .filter(Boolean);
 }
 
+function normalizeCommandBase(value: string): string {
+  return value.replace(/\s+/g, " ").trim();
+}
+
 function formatTemplateMeta(template: CommandTemplateOption): string {
-  const parameters = template.parameters.length
+  const parameterLabel = template.parameters.length
     ? `${template.parameters.length} параметр${template.parameters.length === 1 ? "" : template.parameters.length < 5 ? "а" : "ов"}`
     : "без параметров";
-  return `${parameters} • ${template.runner === "powershell" ? "PowerShell" : "Shell"}`;
+
+  return `${parameterLabel} • ${template.runner === "powershell" ? "PowerShell" : "Shell"}`;
+}
+
+function prepareParameters(
+  drafts: TemplateParameterDraft[],
+): PreparedParameter[] {
+  return drafts.reduce<PreparedParameter[]>((accumulator, draft) => {
+    const label = draft.label.trim();
+    const allowedValues = parseAllowedValues(draft.allowedValuesText);
+    const hasAnyValue = label || draft.allowedValuesText.trim();
+
+    if (!hasAnyValue) {
+      return accumulator;
+    }
+
+    accumulator.push({
+      key: buildGeneratedParameterKey(accumulator.length),
+      label: label || `Параметр ${accumulator.length + 1}`,
+      allowedValues,
+    });
+
+    return accumulator;
+  }, []);
 }
 
 export function MachineCommandsPanel({
@@ -131,6 +168,18 @@ export function MachineCommandsPanel({
     () => commandTemplates.filter((template) => !template.isBuiltin),
     [commandTemplates],
   );
+  const preparedParameters = useMemo(
+    () => prepareParameters(editorState.parameters),
+    [editorState.parameters],
+  );
+  const generatedCommandPattern = useMemo(
+    () =>
+      buildCommandPatternFromBase(
+        editorState.commandBase,
+        preparedParameters.map((parameter) => parameter.key),
+      ),
+    [editorState.commandBase, preparedParameters],
+  );
 
   useEffect(() => {
     if (!editorState.templateId) {
@@ -149,13 +198,10 @@ export function MachineCommandsPanel({
   }, [customTemplates, editorState.templateId]);
 
   const previewCommand = useMemo(() => {
-    const params = editorState.parameters.reduce<Record<string, string>>(
+    const params = preparedParameters.reduce<Record<string, string>>(
       (accumulator, parameter) => {
-        if (!parameter.key.trim()) {
-          return accumulator;
-        }
-        const values = parseAllowedValues(parameter.allowedValuesText);
-        accumulator[parameter.key.trim()] = values[0] ?? `{${parameter.key.trim()}}`;
+        accumulator[parameter.key] =
+          parameter.allowedValues[0] ?? `{${parameter.key}}`;
         return accumulator;
       },
       {},
@@ -163,12 +209,12 @@ export function MachineCommandsPanel({
 
     return (
       buildTaskPreview({
-        commandPattern: editorState.commandPattern,
+        commandPattern: generatedCommandPattern,
         params,
         useSudo: false,
-      }) || "Введите шаблон команды и параметры, чтобы увидеть итоговую строку."
+      }) || "Введите команду и параметры, чтобы увидеть итоговую строку."
     );
-  }, [editorState.commandPattern, editorState.parameters]);
+  }, [generatedCommandPattern, preparedParameters]);
 
   const isEditing = Boolean(editorState.templateId);
   const shellLabel = resolveShellLabel(machineOs);
@@ -202,35 +248,35 @@ export function MachineCommandsPanel({
       setError("Укажите название команды.");
       return;
     }
-    if (!editorState.commandPattern.trim()) {
-      setError("Укажите шаблон команды.");
+
+    if (!normalizeCommandBase(editorState.commandBase)) {
+      setError("Укажите базовую команду.");
       return;
     }
 
     const parameters: CommandTemplateMutationInput["parameters"] = [];
-    for (const parameter of editorState.parameters) {
-      const hasAnyValue =
-        parameter.key.trim() ||
-        parameter.label.trim() ||
-        parameter.allowedValuesText.trim();
+    for (const draft of editorState.parameters) {
+      const label = draft.label.trim();
+      const allowedValues = parseAllowedValues(draft.allowedValuesText);
+      const hasAnyValue = label || draft.allowedValuesText.trim();
+
       if (!hasAnyValue) {
         continue;
       }
 
-      if (!parameter.key.trim() || !parameter.label.trim()) {
-        setError("У каждого параметра должны быть заполнены ключ и название.");
+      if (!label) {
+        setError("У каждого параметра должно быть понятное название для интерфейса.");
         return;
       }
 
-      const allowedValues = parseAllowedValues(parameter.allowedValuesText);
       if (!allowedValues.length) {
-        setError(`У параметра «${parameter.label || parameter.key}» должен быть хотя бы один вариант.`);
+        setError(`У параметра «${label}» должен быть хотя бы один вариант.`);
         return;
       }
 
       parameters.push({
-        key: parameter.key.trim(),
-        label: parameter.label.trim(),
+        key: buildGeneratedParameterKey(parameters.length),
+        label,
         allowedValues,
       });
     }
@@ -239,7 +285,10 @@ export function MachineCommandsPanel({
       name: editorState.name.trim(),
       description: editorState.description.trim() || null,
       runner: resolveRunner(machineOs),
-      commandPattern: editorState.commandPattern.trim(),
+      commandPattern: buildCommandPatternFromBase(
+        editorState.commandBase,
+        parameters.map((parameter) => parameter.key),
+      ),
       parserKind: editorState.parserKind,
       parameters,
       isEnabled: editorState.isEnabled,
@@ -265,8 +314,8 @@ export function MachineCommandsPanel({
       setEditorState(createEditorStateFromTemplate(template));
       setNotice(
         editorState.templateId
-          ? "Шаблон обновлён."
-          : "Шаблон добавлен и уже доступен для запуска задач.",
+          ? "Команда обновлена."
+          : "Команда добавлена и уже доступна для запуска задач.",
       );
     } catch (requestError) {
       setError(
@@ -294,7 +343,7 @@ export function MachineCommandsPanel({
       if (editorState.templateId === template.id) {
         setEditorState(createEmptyEditorState());
       }
-      setNotice(`Шаблон «${template.name}» удалён.`);
+      setNotice(`Шаблон «${template.name}» удален.`);
     } catch (requestError) {
       setError(
         requestError instanceof ApiError
@@ -317,7 +366,7 @@ export function MachineCommandsPanel({
           <h2>Команды для машины</h2>
           <p className="machine-details__section-note">
             Владелец и администратор управляют безопасными шаблонами для{" "}
-            {machineName}. Оператор видит только включённые команды.
+            {machineName}. Оператор видит только включенные команды.
           </p>
         </div>
         <span className="machine-details__task-role">{machineRoleLabel}</span>
@@ -357,7 +406,7 @@ export function MachineCommandsPanel({
                 className="machine-details__link-button"
                 onClick={resetEditor}
               >
-                Новый шаблон
+                Новая команда
               </button>
             </div>
             <div className="machine-commands__list">
@@ -376,7 +425,7 @@ export function MachineCommandsPanel({
                             : " machine-commands__badge--disabled"
                         }`}
                       >
-                        {template.isEnabled ? "Включён" : "Отключён"}
+                        {template.isEnabled ? "Включен" : "Отключен"}
                       </span>
                     </div>
                     <code>{template.commandPattern}</code>
@@ -405,8 +454,8 @@ export function MachineCommandsPanel({
                 ))
               ) : (
                 <div className="machine-details__empty">
-                  Пользовательских команд пока нет. Добавьте первый безопасный шаблон
-                  справа.
+                  Пользовательских команд пока нет. Добавьте первый безопасный
+                  шаблон справа.
                 </div>
               )}
             </div>
@@ -416,7 +465,7 @@ export function MachineCommandsPanel({
         <div className="machine-commands__editor">
           <div className="machine-commands__editor-head">
             <div>
-              <p className="machine-details__recent-kicker">Редактор шаблона</p>
+              <p className="machine-details__recent-kicker">Редактор команды</p>
               <h3>{isEditing ? "Изменить команду" : "Новая команда"}</h3>
             </div>
             {notice ? <p className="profile-card__notice">{notice}</p> : null}
@@ -434,7 +483,7 @@ export function MachineCommandsPanel({
                     name: event.target.value,
                   }))
                 }
-                placeholder="Например, Docker Compose Up"
+                placeholder="Например, Docker Compose"
               />
             </label>
 
@@ -454,20 +503,23 @@ export function MachineCommandsPanel({
             </label>
 
             <label className="machine-details__task-field">
-              <span>Шаблон команды</span>
-              <textarea
-                className="machine-commands__textarea"
-                value={editorState.commandPattern}
+              <span>Команда</span>
+              <input
+                className="machine-commands__input"
+                value={editorState.commandBase}
                 onChange={(event) =>
                   setEditorState((current) => ({
                     ...current,
-                    commandPattern: event.target.value,
+                    commandBase: event.target.value,
                   }))
                 }
-                placeholder="Например: docker compose {action}"
-                rows={4}
+                placeholder="Например: docker compose"
               />
             </label>
+
+            <p className="machine-commands__hint">
+              Параметры автоматически добавляются к команде в указанном порядке.
+            </p>
 
             <div className="machine-commands__form-grid">
               <label className="machine-details__task-field">
@@ -499,7 +551,7 @@ export function MachineCommandsPanel({
                     }))
                   }
                 />
-                <span>Шаблон доступен для запуска</span>
+                <span>Команда доступна для запуска</span>
               </label>
             </div>
 
@@ -522,16 +574,16 @@ export function MachineCommandsPanel({
 
               {editorState.parameters.length ? (
                 <div className="machine-commands__parameter-list">
-                  {editorState.parameters.map((parameter) => (
+                  {editorState.parameters.map((parameter, index) => (
                     <div key={parameter.id} className="machine-commands__parameter-row">
-                      <input
-                        className="machine-commands__input"
-                        value={parameter.key}
-                        onChange={(event) =>
-                          handleParameterChange(parameter.id, "key", event.target.value)
-                        }
-                        placeholder="key"
-                      />
+                      <div className="machine-commands__parameter-meta">
+                        <span className="machine-commands__parameter-chip">
+                          Параметр {index + 1}
+                        </span>
+                        <span className="machine-commands__parameter-note">
+                          В backend уйдет как {buildGeneratedParameterKey(index)}
+                        </span>
+                      </div>
                       <input
                         className="machine-commands__input"
                         value={parameter.label}
@@ -581,10 +633,17 @@ export function MachineCommandsPanel({
               )}
             </div>
 
+            <div className="machine-commands__template-preview">
+              <span>Шаблон команды</span>
+              <code>
+                {generatedCommandPattern || "Введите команду, чтобы подготовить шаблон."}
+              </code>
+            </div>
+
             <div className="machine-details__task-terminal machine-commands__preview">
               <div className="machine-details__task-terminal-head">
                 <span>{shellLabel}</span>
-                <span>Пример итоговой строки</span>
+                <span>Итоговая строка запуска</span>
               </div>
               <code>{previewCommand}</code>
             </div>
@@ -609,7 +668,7 @@ export function MachineCommandsPanel({
                   ? "Сохраняем..."
                   : isEditing
                     ? "Сохранить изменения"
-                    : "Добавить шаблон"}
+                    : "Добавить команду"}
               </button>
             </div>
           </div>

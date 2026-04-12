@@ -22,7 +22,7 @@ const RETENTION_LABELS: Record<DeletedMachineRetention, string> = {
 const TOPIC_LABELS: Record<NotificationTopic, string> = {
   tasks: "Задачи",
   warnings: "Предупреждения",
-  reports: "Отчёты",
+  reports: "Отчеты",
   security: "Безопасность",
 };
 

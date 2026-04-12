@@ -36,7 +36,7 @@ export function MachineTaskComposer({
       {
         value: "",
         label: taskTemplateOptions.length
-          ? "Выберите разрешённую команду"
+          ? "Выберите разрешенную команду"
           : "Нет доступных команд",
       },
       ...taskTemplateOptions.map((template) => ({
@@ -58,7 +58,7 @@ export function MachineTaskComposer({
         <div>
           <h2>Создать задачу</h2>
           <p className="machine-details__section-note">
-            Команда формируется только из разрешённых шаблонов и параметров.
+            Команда формируется только из разрешенных шаблонов и параметров.
           </p>
         </div>
         <span className="machine-details__task-role">{taskRoleLabel}</span>
@@ -146,7 +146,7 @@ export function MachineTaskComposer({
         <div className="machine-details__task-create-card">
           <strong>{machineName}</strong>
           <p className="machine-details__task-create-text">
-            Для этой машины можно запускать только заранее разрешённые сценарии
+            Для этой машины можно запускать только заранее разрешенные сценарии
             от владельца или администратора.
           </p>
         </div>

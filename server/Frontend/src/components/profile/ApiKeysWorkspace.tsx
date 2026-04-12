@@ -193,7 +193,7 @@ export function ApiKeysWorkspace({
             </label>
 
             <label className="profile-field">
-              <span>Разрешённые команды</span>
+              <span>Разрешенные команды</span>
               <input
                 type="text"
                 value={createForm.templateKeysText}
@@ -267,7 +267,7 @@ export function ApiKeysWorkspace({
               onClick={onCreate}
               disabled={isSubmitting}
             >
-              {isSubmitting ? "Создаём..." : "Создать ключ"}
+              {isSubmitting ? "Создаем..." : "Создать ключ"}
             </button>
           </div>
         </article>
@@ -328,7 +328,7 @@ export function ApiKeysWorkspace({
                               : "profile-api-row__status"
                           }
                         >
-                          {item.isActive ? "Активен" : "Отключён"}
+                          {item.isActive ? "Активен" : "Отключен"}
                         </span>
                       </div>
                       <p>{`${getApiKeyPermissionLabel(item.permission)} • Использований: ${item.usesCount}`}</p>

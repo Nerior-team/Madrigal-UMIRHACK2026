@@ -54,7 +54,7 @@ export function ProfileNotificationsSection({
           onClick={onMarkAllRead}
           disabled={!unreadCount}
         >
-          Прочитать всё
+          Прочитать все
         </button>
       </header>
 

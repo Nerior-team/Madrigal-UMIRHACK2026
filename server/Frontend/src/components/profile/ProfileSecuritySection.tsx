@@ -1,3 +1,7 @@
+import { useEffect, useState } from "react";
+
+import QRCode from "qrcode";
+
 import type { AccountProfileDetails, TotpSetupStart } from "../../core/account";
 
 type ProfileSecuritySectionProps = {
@@ -65,6 +69,47 @@ export function ProfileSecuritySection({
   onTelegramDisable,
   onTelegramUnlink,
 }: ProfileSecuritySectionProps) {
+  const [totpQrDataUrl, setTotpQrDataUrl] = useState<string | null>(null);
+  const [totpQrFailed, setTotpQrFailed] = useState(false);
+
+  useEffect(() => {
+    if (!totpSetup?.provisioningUri) {
+      setTotpQrDataUrl(null);
+      setTotpQrFailed(false);
+      return;
+    }
+
+    let cancelled = false;
+    setTotpQrDataUrl(null);
+    setTotpQrFailed(false);
+
+    QRCode.toDataURL(totpSetup.provisioningUri, {
+      errorCorrectionLevel: "M",
+      margin: 1,
+      width: 220,
+      color: {
+        dark: "#141316",
+        light: "#ffffff",
+      },
+    })
+      .then((dataUrl: string) => {
+        if (cancelled) {
+          return;
+        }
+        setTotpQrDataUrl(dataUrl);
+      })
+      .catch(() => {
+        if (cancelled) {
+          return;
+        }
+        setTotpQrFailed(true);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [totpSetup?.provisioningUri]);
+
   const totpEnabled = profile.enabledTwoFactorMethods.includes("totp");
   const telegramEnabled = profile.telegram.twoFactorEnabled;
 
@@ -149,20 +194,41 @@ export function ProfileSecuritySection({
             <strong>TOTP</strong>
             <span>
               {totpEnabled
-                ? "Второй фактор включён."
-                : "Google Authenticator, 1Password и аналогичные приложения."}
+                ? "Второй фактор включен."
+                : "Сканируйте QR-код в Google Authenticator, 1Password или другом приложении."}
             </span>
           </div>
 
           {totpSetup ? (
             <div className="profile-two-factor-setup">
+              <div className="profile-totp-qr">
+                <div className="profile-totp-qr__frame" aria-live="polite">
+                  {totpQrDataUrl ? (
+                    <img
+                      className="profile-totp-qr__image"
+                      src={totpQrDataUrl}
+                      alt="QR-код для подключения TOTP"
+                    />
+                  ) : (
+                    <div className="profile-totp-qr__placeholder">
+                      {totpQrFailed
+                        ? "Не удалось подготовить QR-код"
+                        : "Готовим QR-код..."}
+                    </div>
+                  )}
+                </div>
+                <div className="profile-totp-qr__copy">
+                  <strong>Отсканируйте QR-код</strong>
+                  <p>
+                    Откройте приложение-аутентификатор на телефоне и затем
+                    введите шестизначный код подтверждения.
+                  </p>
+                </div>
+              </div>
+
               <label className="profile-field">
-                <span>Секрет</span>
+                <span>Резервный секрет</span>
                 <textarea value={totpSetup.secret} readOnly rows={2} />
-              </label>
-              <label className="profile-field">
-                <span>Provisioning URI</span>
-                <textarea value={totpSetup.provisioningUri} readOnly rows={3} />
               </label>
               <label className="profile-field">
                 <span>Код подтверждения</span>
@@ -171,6 +237,7 @@ export function ProfileSecuritySection({
                   value={totpCode}
                   onChange={(event) => onTotpCodeChange(event.target.value)}
                   placeholder="6 цифр"
+                  inputMode="numeric"
                 />
               </label>
             </div>
