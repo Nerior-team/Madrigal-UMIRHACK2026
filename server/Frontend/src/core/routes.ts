@@ -39,7 +39,7 @@ export type WorkspaceAppRoute = {
   taskId?: string;
   resultId?: string;
   isAddMachine?: boolean;
-  profileSection?: "api-keys";
+  profileSection?: "general" | "security" | "sessions" | "notifications" | "api-keys";
   modal?: AppRouteModal;
 };
 
@@ -94,6 +94,23 @@ export function addMachinePath(): string {
 
 export function profileApiKeysPath(): string {
   return "/profile/api-keys";
+}
+
+export function profilePath(
+  section: "general" | "security" | "sessions" | "notifications" | "api-keys" = "general",
+): string {
+  switch (section) {
+    case "security":
+      return "/profile/security";
+    case "sessions":
+      return "/profile/sessions";
+    case "notifications":
+      return "/profile/notifications";
+    case "api-keys":
+      return "/profile/api-keys";
+    default:
+      return "/profile";
+  }
 }
 
 export function taskPath(taskId: string): string {
@@ -216,6 +233,38 @@ export function resolveAppRoute(pathname: string, search = ""): AppRoute {
       workspaceTab: "results",
       resultId: decodeURIComponent(resultMatch[1]),
       modal: { kind: "result-detail", resultId: decodeURIComponent(resultMatch[1]) },
+    };
+  }
+
+  if (normalizedPath === "/profile") {
+    return {
+      section: "workspace",
+      workspaceTab: "profile",
+      profileSection: "general",
+    };
+  }
+
+  if (normalizedPath === "/profile/security") {
+    return {
+      section: "workspace",
+      workspaceTab: "profile",
+      profileSection: "security",
+    };
+  }
+
+  if (normalizedPath === "/profile/sessions") {
+    return {
+      section: "workspace",
+      workspaceTab: "profile",
+      profileSection: "sessions",
+    };
+  }
+
+  if (normalizedPath === "/profile/notifications") {
+    return {
+      section: "workspace",
+      workspaceTab: "profile",
+      profileSection: "notifications",
     };
   }
 

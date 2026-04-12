@@ -35,7 +35,6 @@ export type SelectOption<T extends string = string> = {
 
 function formatDateInputValue(value: string): string {
   const [year, month, day] = value.split("-");
-
   if (!year || !month || !day) {
     return value;
   }
@@ -55,9 +54,9 @@ function getRangeEnd(value: string): Date | null {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
-export function buildResultsFilterOptions<T extends Pick<ResultRowLike, "machine" | "command">>(
-  rows: T[],
-): {
+export function buildResultsFilterOptions<
+  T extends Pick<ResultRowLike, "machine" | "command">,
+>(rows: T[]): {
   machineOptions: SelectOption[];
   commandOptions: SelectOption[];
 } {

@@ -1,5 +1,5 @@
-import { ModalFrame } from "../primitives/ModalFrame";
 import { CustomSelect, type CustomSelectOption } from "../primitives/CustomSelect";
+import { ModalFrame } from "../primitives/ModalFrame";
 import type { AccessDashboardResponse } from "../../core";
 
 type AccessUserRow = AccessDashboardResponse["users"][number];
@@ -34,19 +34,12 @@ export function ManageAccessModal({
 }: ManageAccessModalProps) {
   return (
     <div className="access-modal-backdrop" onClick={onClose}>
-      <div
-        className="access-modal-card"
-        onClick={(event) => event.stopPropagation()}
-      >
+      <div className="access-modal-card" onClick={(event) => event.stopPropagation()}>
         <ModalFrame
           title="Управление доступом"
           subtitle={`${row.email} • ${row.resource}`}
           actions={
-            <button
-              type="button"
-              className="access-modal__ghost"
-              onClick={onClose}
-            >
+            <button type="button" className="access-modal__ghost" onClick={onClose}>
               Закрыть
             </button>
           }
@@ -91,11 +84,7 @@ export function ManageAccessModal({
               </button>
 
               <div className="access-form__primary-actions">
-                <button
-                  type="button"
-                  className="access-modal__ghost"
-                  onClick={onClose}
-                >
+                <button type="button" className="access-modal__ghost" onClick={onClose}>
                   Отмена
                 </button>
                 <button

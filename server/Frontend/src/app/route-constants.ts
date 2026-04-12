@@ -28,5 +28,8 @@ export const WORKSPACE_ROUTE_PATHS = [
   "/reports",
   "/install",
   "/profile",
+  "/profile/security",
+  "/profile/sessions",
+  "/profile/notifications",
   "/profile/api-keys",
 ] as const;

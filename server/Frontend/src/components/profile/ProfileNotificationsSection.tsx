@@ -74,7 +74,9 @@ export function ProfileNotificationsSection({
                 <input
                   type="checkbox"
                   checked={item.siteEnabled}
-                  onChange={(event) => onToggle(item.topic, "siteEnabled", event.target.checked)}
+                  onChange={(event) =>
+                    onToggle(item.topic, "siteEnabled", event.target.checked)
+                  }
                 />
                 <span>Сайт</span>
               </label>
@@ -114,7 +116,9 @@ export function ProfileNotificationsSection({
         </div>
 
         {isLoading ? (
-          <p className="profile-notification-feed__empty">Загружаем уведомления...</p>
+          <p className="profile-notification-feed__empty">
+            Загружаем уведомления...
+          </p>
         ) : notifications.length ? (
           <div className="profile-notification-feed__list">
             {notifications.map((notification) => {
@@ -153,7 +157,9 @@ export function ProfileNotificationsSection({
             })}
           </div>
         ) : (
-          <p className="profile-notification-feed__empty">Уведомлений пока нет.</p>
+          <p className="profile-notification-feed__empty">
+            Уведомлений пока нет.
+          </p>
         )}
       </div>
     </section>

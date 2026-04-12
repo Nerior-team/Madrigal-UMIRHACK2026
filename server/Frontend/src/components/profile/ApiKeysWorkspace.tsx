@@ -90,7 +90,10 @@ export function ApiKeysWorkspace({
     <section className="profile-card profile-card--api-keys">
       <header className="profile-card__header">
         <h3>API-ключи</h3>
-        <p>Новый ключ показывается один раз. Сразу сохраните его в безопасное место.</p>
+        <p>
+          Новый ключ показывается один раз. Сразу сохраните его в безопасное
+          место.
+        </p>
       </header>
 
       <div className="profile-api-layout">
@@ -131,7 +134,9 @@ export function ApiKeysWorkspace({
               <input
                 type="text"
                 value={createForm.templateKeysText}
-                onChange={(event) => onFieldChange("templateKeysText", event.target.value)}
+                onChange={(event) =>
+                  onFieldChange("templateKeysText", event.target.value)
+                }
                 placeholder="system:basic_diagnostics, system:memory_usage"
               />
             </label>
@@ -141,7 +146,9 @@ export function ApiKeysWorkspace({
               <input
                 type="password"
                 value={createForm.reauthPassword}
-                onChange={(event) => onFieldChange("reauthPassword", event.target.value)}
+                onChange={(event) =>
+                  onFieldChange("reauthPassword", event.target.value)
+                }
                 placeholder="Пароль аккаунта"
               />
             </label>

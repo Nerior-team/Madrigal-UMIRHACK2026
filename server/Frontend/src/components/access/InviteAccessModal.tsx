@@ -1,5 +1,5 @@
-import { ModalFrame } from "../primitives/ModalFrame";
 import { CustomSelect, type CustomSelectOption } from "../primitives/CustomSelect";
+import { ModalFrame } from "../primitives/ModalFrame";
 import type { AccessDashboardResponse } from "../../core";
 
 type RoleValue = AccessDashboardResponse["machines"][number]["availableRoleValues"][number];
@@ -39,19 +39,12 @@ export function InviteAccessModal({
 }: InviteAccessModalProps) {
   return (
     <div className="access-modal-backdrop" onClick={onClose}>
-      <div
-        className="access-modal-card"
-        onClick={(event) => event.stopPropagation()}
-      >
+      <div className="access-modal-card" onClick={(event) => event.stopPropagation()}>
         <ModalFrame
           title="Новое приглашение"
           subtitle="Доступ отправится на email только после подтверждения паролем."
           actions={
-            <button
-              type="button"
-              className="access-modal__ghost"
-              onClick={onClose}
-            >
+            <button type="button" className="access-modal__ghost" onClick={onClose}>
               Закрыть
             </button>
           }
@@ -108,11 +101,7 @@ export function InviteAccessModal({
             ) : null}
 
             <div className="access-form__actions">
-              <button
-                type="button"
-                className="access-modal__ghost"
-                onClick={onClose}
-              >
+              <button type="button" className="access-modal__ghost" onClick={onClose}>
                 Отмена
               </button>
               <button

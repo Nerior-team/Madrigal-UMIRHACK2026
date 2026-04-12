@@ -13,6 +13,7 @@ type CustomSelectProps<T extends string = string> = {
   onChange: (value: T) => void;
   ariaLabel: string;
   className?: string;
+  disabled?: boolean;
 };
 
 export function CustomSelect<T extends string = string>({
@@ -21,6 +22,7 @@ export function CustomSelect<T extends string = string>({
   onChange,
   ariaLabel,
   className,
+  disabled,
 }: CustomSelectProps<T>) {
   return (
     <label className={className ? `custom-select ${className}` : "custom-select"}>
@@ -28,6 +30,7 @@ export function CustomSelect<T extends string = string>({
         className="custom-select__control"
         aria-label={ariaLabel}
         value={value}
+        disabled={disabled}
         onChange={(event) => onChange(event.target.value as T)}
       >
         {options.map((option) => (

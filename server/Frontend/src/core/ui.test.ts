@@ -1,10 +1,13 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  formatMachineHeartbeatLabel,
   formatMoscowDateTime,
+  isHeartbeatFresh,
   matchesSearchQuery,
   normalizeMachineOsLabel,
   normalizeMachineTitle,
+  resolveMachineActivityStatus,
 } from "./ui";
 
 describe("normalizeMachineTitle", () => {
@@ -40,6 +43,59 @@ describe("formatMoscowDateTime", () => {
     expect(formatMoscowDateTime("2026-04-04T09:00:00Z")).toBe(
       "04.04.2026, 12:00",
     );
+  });
+});
+
+describe("formatMachineHeartbeatLabel", () => {
+  it("shows detached state for unpaired machines", () => {
+    expect(
+      formatMachineHeartbeatLabel({
+        lastHeartbeatAt: "2026-04-04T09:00:00Z",
+        unpairedAt: "2026-04-10T09:00:00Z",
+      }),
+    ).toBe("Отвязана 10.04.2026, 12:00");
+  });
+});
+
+describe("heartbeat helpers", () => {
+  it("marks recent heartbeat as fresh", () => {
+    expect(
+      isHeartbeatFresh("2026-04-11T12:00:00Z", new Date("2026-04-11T12:03:00Z")),
+    ).toBe(true);
+  });
+
+  it("marks stale heartbeat as offline", () => {
+    expect(
+      resolveMachineActivityStatus({
+        backendStatus: "online",
+        lastHeartbeatAt: "2026-04-11T12:00:00Z",
+        hasActiveTask: true,
+        now: new Date("2026-04-11T12:10:00Z"),
+      }),
+    ).toBe("offline");
+  });
+
+  it("marks fresh machine with active task as running", () => {
+    expect(
+      resolveMachineActivityStatus({
+        backendStatus: "online",
+        lastHeartbeatAt: "2026-04-11T12:00:00Z",
+        hasActiveTask: true,
+        now: new Date("2026-04-11T12:03:00Z"),
+      }),
+    ).toBe("running");
+  });
+
+  it("marks unpaired machine as deleted", () => {
+    expect(
+      resolveMachineActivityStatus({
+        backendStatus: "offline",
+        lastHeartbeatAt: "2026-04-11T12:00:00Z",
+        unpairedAt: "2026-04-11T12:04:00Z",
+        hasActiveTask: false,
+        now: new Date("2026-04-11T12:05:00Z"),
+      }),
+    ).toBe("deleted");
   });
 });
 

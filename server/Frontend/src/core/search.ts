@@ -17,46 +17,112 @@ function normalize(value: string): string {
   return value.trim().toLowerCase().replace(/\s+/g, " ");
 }
 
+function isSubsequence(needle: string, haystack: string): boolean {
+  if (!needle) return true;
+  let needleIndex = 0;
+
+  for (const character of haystack) {
+    if (character === needle[needleIndex]) {
+      needleIndex += 1;
+      if (needleIndex === needle.length) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+function scoreToken(token: string, value: string): number {
+  if (!value) return 0;
+  if (value === token) return 180;
+  if (value.startsWith(token)) return 140;
+  if (value.includes(token)) return 90;
+  if (isSubsequence(token, value)) return 40;
+  return 0;
+}
+
+function scoreField(tokens: string[], value: string): number {
+  const normalizedValue = normalize(value);
+  if (!normalizedValue) return 0;
+
+  let score = 0;
+  for (const token of tokens) {
+    const tokenScore = scoreToken(token, normalizedValue);
+    if (tokenScore <= 0) {
+      return 0;
+    }
+    score += tokenScore;
+  }
+
+  return score;
+}
+
 function scoreTarget(query: string, target: SearchTarget): number {
   const normalizedQuery = normalize(query);
   if (!normalizedQuery) return 0;
 
-  const normalizedTitle = normalize(target.title);
-  const normalizedSubtitle = normalize(target.subtitle ?? "");
-  const normalizedKeywords = (target.keywords ?? []).map(normalize);
-  const haystack = [normalizedTitle, normalizedSubtitle, ...normalizedKeywords]
-    .filter(Boolean)
-    .join(" ");
+  const tokens = normalizedQuery.split(" ").filter(Boolean);
+  if (!tokens.length) return 0;
 
-  if (!haystack.includes(normalizedQuery)) {
-    const tokens = normalizedQuery.split(" ").filter(Boolean);
-    if (!tokens.length || !tokens.every((token) => haystack.includes(token))) {
+  const title = normalize(target.title);
+  const subtitle = normalize(target.subtitle ?? "");
+  const keywords = (target.keywords ?? []).map(normalize).filter(Boolean);
+
+  let distributedScore = 0;
+  for (const token of tokens) {
+    const bestTokenScore = Math.max(
+      scoreToken(token, title),
+      scoreToken(token, subtitle),
+      ...keywords.map((keyword) => scoreToken(token, keyword)),
+    );
+    if (bestTokenScore <= 0) {
       return 0;
     }
+    distributedScore += bestTokenScore;
   }
 
-  let score = 100;
-  if (normalizedTitle === normalizedQuery) {
-    score += 400;
-  } else if (normalizedTitle.startsWith(normalizedQuery)) {
-    score += 300;
-  } else if (normalizedTitle.includes(normalizedQuery)) {
-    score += 220;
+  const titleScore = scoreField(tokens, title);
+  const subtitleScore = scoreField(tokens, subtitle);
+  const keywordScores = keywords.map((keyword) => scoreField(tokens, keyword));
+  const bestKeywordScore = keywordScores.length ? Math.max(...keywordScores) : 0;
+  const bestFieldScore = Math.max(titleScore, subtitleScore, bestKeywordScore, distributedScore);
+  if (bestFieldScore <= 0) {
+    return 0;
   }
 
-  if (normalizedSubtitle.startsWith(normalizedQuery)) {
-    score += 120;
-  } else if (normalizedSubtitle.includes(normalizedQuery)) {
+  let score = bestFieldScore;
+
+  if (title === normalizedQuery) {
+    score += 420;
+  } else if (title.startsWith(normalizedQuery)) {
+    score += 260;
+  } else if (title.includes(normalizedQuery)) {
+    score += 180;
+  } else if (isSubsequence(normalizedQuery, title)) {
     score += 70;
   }
 
-  if (normalizedKeywords.some((keyword) => keyword.startsWith(normalizedQuery))) {
+  if (subtitle && subtitle.startsWith(normalizedQuery)) {
+    score += 120;
+  } else if (subtitle && subtitle.includes(normalizedQuery)) {
+    score += 70;
+  }
+
+  if (keywords.some((keyword) => keyword.startsWith(normalizedQuery))) {
     score += 80;
-  } else if (normalizedKeywords.some((keyword) => keyword.includes(normalizedQuery))) {
+  } else if (keywords.some((keyword) => keyword.includes(normalizedQuery))) {
     score += 40;
   }
 
-  return score;
+  const kindWeight: Record<SearchTargetKind, number> = {
+    menu: 12,
+    machine: 16,
+    task: 10,
+    result: 8,
+  };
+
+  return score + kindWeight[target.kind];
 }
 
 export function getSearchMatches(

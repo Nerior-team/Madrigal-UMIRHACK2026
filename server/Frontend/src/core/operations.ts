@@ -36,7 +36,7 @@ const TASK_SECTION_META: Array<{
   key: OperationTaskGroup;
   label: string;
 }> = [
-  { key: "completed", label: "Завершенные" },
+  { key: "completed", label: "Завершённые" },
   { key: "in_progress", label: "В процессе" },
   { key: "queued", label: "В очереди" },
   { key: "error", label: "Ошибки" },
@@ -49,7 +49,7 @@ const PRESENTATION_BY_STATUS: Record<
   queued: {
     group: "queued",
     taskStatusLabel: "В очереди",
-    resultLabel: "Задача в очереди",
+    resultLabel: "Ожидает запуска",
     resultTone: "neutral",
     logTone: "warning",
     resultStatusTone: "pending",
@@ -57,23 +57,23 @@ const PRESENTATION_BY_STATUS: Record<
   dispatched: {
     group: "queued",
     taskStatusLabel: "В очереди",
-    resultLabel: "Задача готовится к запуску",
+    resultLabel: "Передана агенту",
     resultTone: "neutral",
     logTone: "warning",
     resultStatusTone: "pending",
   },
   accepted: {
-    group: "queued",
-    taskStatusLabel: "В очереди",
-    resultLabel: "Задача принята агентом",
-    resultTone: "neutral",
+    group: "in_progress",
+    taskStatusLabel: "В процессе",
+    resultLabel: "Принята агентом",
+    resultTone: "warning",
     logTone: "warning",
     resultStatusTone: "pending",
   },
   running: {
     group: "in_progress",
     taskStatusLabel: "В процессе",
-    resultLabel: "Задача выполняется",
+    resultLabel: "Выполняется",
     resultTone: "warning",
     logTone: "warning",
     resultStatusTone: "pending",

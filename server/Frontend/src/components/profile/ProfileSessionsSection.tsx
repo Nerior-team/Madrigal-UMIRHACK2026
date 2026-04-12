@@ -17,7 +17,11 @@ type ProfileSessionsSectionProps = {
 };
 
 function getSessionIcon(session: AccountSession) {
-  return session.sessionKind === "web" ? <Smartphone size={20} /> : <Laptop size={20} />;
+  return session.sessionKind === "web" ? (
+    <Smartphone size={20} />
+  ) : (
+    <Laptop size={20} />
+  );
 }
 
 export function ProfileSessionsSection({
@@ -32,7 +36,9 @@ export function ProfileSessionsSection({
     <section className="profile-card profile-card--sessions">
       <header className="profile-card__header">
         <h3>Активные сессии</h3>
-        <p>Новая сессия не может завершать другие в течение первых 24 часов.</p>
+        <p>
+          Новая сессия не может завершать другие в течение первых 24 часов.
+        </p>
       </header>
 
       {notice ? <p className="profile-card__notice">{notice}</p> : null}
@@ -70,7 +76,9 @@ export function ProfileSessionsSection({
                     <div className="profile-session-row__title-line">
                       <strong>{getSessionKindLabel(session.sessionKind)}</strong>
                       {session.isCurrent ? (
-                        <span className="profile-session-row__current">Текущая</span>
+                        <span className="profile-session-row__current">
+                          Текущая
+                        </span>
                       ) : null}
                     </div>
                     <p>{summarizeSession(session)}</p>

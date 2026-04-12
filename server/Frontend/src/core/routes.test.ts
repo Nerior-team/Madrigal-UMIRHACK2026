@@ -6,6 +6,7 @@ import {
   machinePath,
   machineResultPath,
   machineTaskLogsPath,
+  profilePath,
   profileApiKeysPath,
   resolveAppRoute,
   resultPath,
@@ -91,7 +92,27 @@ describe("resolveAppRoute", () => {
     });
   });
 
-  it("resolves profile api keys route", () => {
+  it("resolves profile routes", () => {
+    expect(resolveAppRoute("/profile")).toEqual({
+      section: "workspace",
+      workspaceTab: "profile",
+      profileSection: "general",
+    });
+    expect(resolveAppRoute("/profile/security")).toEqual({
+      section: "workspace",
+      workspaceTab: "profile",
+      profileSection: "security",
+    });
+    expect(resolveAppRoute("/profile/sessions")).toEqual({
+      section: "workspace",
+      workspaceTab: "profile",
+      profileSection: "sessions",
+    });
+    expect(resolveAppRoute("/profile/notifications")).toEqual({
+      section: "workspace",
+      workspaceTab: "profile",
+      profileSection: "notifications",
+    });
     expect(resolveAppRoute("/profile/api-keys")).toEqual({
       section: "workspace",
       workspaceTab: "profile",
@@ -136,6 +157,10 @@ describe("secondary path helpers", () => {
     expect(machineResultPath("machine-1", "result-4")).toBe(
       "/machines/machine-1/results/result-4",
     );
+    expect(profilePath()).toBe("/profile");
+    expect(profilePath("security")).toBe("/profile/security");
+    expect(profilePath("sessions")).toBe("/profile/sessions");
+    expect(profilePath("notifications")).toBe("/profile/notifications");
     expect(profileApiKeysPath()).toBe("/profile/api-keys");
   });
 });

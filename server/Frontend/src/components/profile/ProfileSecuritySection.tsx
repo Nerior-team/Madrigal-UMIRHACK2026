@@ -79,7 +79,9 @@ export function ProfileSecuritySection({
         <article className="profile-security-panel">
           <div className="profile-security-panel__header">
             <strong>Сменить пароль</strong>
-            <span>Минимум 12 символов, цифра, разный регистр и спецсимвол.</span>
+            <span>
+              Минимум 12 символов, цифра, разный регистр и спецсимвол.
+            </span>
           </div>
 
           <div className="profile-fields">
@@ -88,7 +90,9 @@ export function ProfileSecuritySection({
               <input
                 type="password"
                 value={passwordForm.currentPassword}
-                onChange={(event) => onPasswordFieldChange("currentPassword", event.target.value)}
+                onChange={(event) =>
+                  onPasswordFieldChange("currentPassword", event.target.value)
+                }
                 placeholder="Текущий пароль"
               />
             </label>
@@ -98,7 +102,9 @@ export function ProfileSecuritySection({
               <input
                 type="password"
                 value={passwordForm.newPassword}
-                onChange={(event) => onPasswordFieldChange("newPassword", event.target.value)}
+                onChange={(event) =>
+                  onPasswordFieldChange("newPassword", event.target.value)
+                }
                 placeholder="Новый пароль"
               />
             </label>
@@ -108,7 +114,9 @@ export function ProfileSecuritySection({
               <input
                 type="password"
                 value={passwordForm.confirmPassword}
-                onChange={(event) => onPasswordFieldChange("confirmPassword", event.target.value)}
+                onChange={(event) =>
+                  onPasswordFieldChange("confirmPassword", event.target.value)
+                }
                 placeholder="Повторите новый пароль"
               />
             </label>

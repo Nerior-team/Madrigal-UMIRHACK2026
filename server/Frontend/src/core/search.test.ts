@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import { getSearchMatches, type SearchTarget } from "./search";
 
 const targets: SearchTarget[] = [
@@ -61,6 +62,15 @@ describe("getSearchMatches", () => {
     expect(matches[0]).toMatchObject({
       id: "menu-machines",
       kind: "menu",
+    });
+  });
+
+  it("supports fuzzy subsequence matching for machine names", () => {
+    const matches = getSearchMatches("wn10", targets);
+
+    expect(matches[0]).toMatchObject({
+      id: "machine-win-10",
+      kind: "machine",
     });
   });
 });
