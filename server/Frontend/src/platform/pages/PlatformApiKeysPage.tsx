@@ -1,11 +1,10 @@
 import { useMemo } from "react";
 import { CustomSelect } from "../../components/primitives/CustomSelect";
 import { formatMoscowDateTime } from "../../core/ui";
-import type { PlatformAuthState, PlatformCommandScopeOption } from "../api/platform";
+import type { PlatformCommandScopeOption } from "../api/platform";
 import { PlatformSectionCard } from "../components/PlatformSectionCard";
 
 type PlatformApiKeysPageProps = {
-  authState: PlatformAuthState;
   apiKeys: Array<{
     id: string;
     name: string;
@@ -63,7 +62,6 @@ function formatKeyDate(value?: string | null): string {
 }
 
 export function PlatformApiKeysPage({
-  authState,
   apiKeys,
   machineOptions,
   commandScopeOptions,
@@ -86,20 +84,6 @@ export function PlatformApiKeysPage({
         .map((machine) => machine.title),
     [form.machineIds, machineOptions],
   );
-
-  if (authState !== "authenticated") {
-    return (
-      <PlatformSectionCard
-        eyebrow="Authentication"
-        title="Sign in to manage developer keys"
-        detail="The docs remain public, but key creation, revocation, and usage analytics are tied to your product account."
-      >
-        <a className="platform-button platform-button--primary" href="https://nerior.store/login">
-          Sign in on nerior.store
-        </a>
-      </PlatformSectionCard>
-    );
-  }
 
   return (
     <div className="platform-page platform-page--keys">

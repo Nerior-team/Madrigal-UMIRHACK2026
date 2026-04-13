@@ -1,14 +1,13 @@
 import type { PropsWithChildren } from "react";
 import { NavLink } from "react-router-dom";
 import type { AccountProfileDetails } from "../../core";
-import type { PlatformAuthState } from "../api/platform";
 import { PLATFORM_ROUTE_ITEMS, type PlatformRouteKey } from "../routes";
 
 type PlatformShellProps = PropsWithChildren<{
   activeRoute: PlatformRouteKey;
-  authState: PlatformAuthState;
-  profile: AccountProfileDetails | null;
+  profile: AccountProfileDetails;
   generatedAt: string | null;
+  onSignOut: () => void;
 }>;
 
 function formatSyncLabel(value: string | null): string {
@@ -33,22 +32,21 @@ function formatSyncLabel(value: string | null): string {
 
 export function PlatformShell({
   activeRoute,
-  authState,
   profile,
   generatedAt,
+  onSignOut,
   children,
 }: PlatformShellProps) {
   return (
     <div className="platform-shell" data-testid="platform-shell">
-      <div className="platform-shell__backdrop" aria-hidden="true" />
-      <header className="platform-shell__header">
-        <div className="platform-shell__brand">
+      <aside className="platform-shell__sidebar">
+        <a className="platform-shell__brand" href="/">
           <span className="platform-shell__mark">N</span>
           <div>
             <strong>Nerior Platform</strong>
             <span>{formatSyncLabel(generatedAt)}</span>
           </div>
-        </div>
+        </a>
         <nav className="platform-shell__nav" aria-label="Developer portal navigation">
           {PLATFORM_ROUTE_ITEMS.map((item) => (
             <NavLink
@@ -62,25 +60,18 @@ export function PlatformShell({
           ))}
         </nav>
         <div className="platform-shell__account">
-          {authState === "authenticated" && profile ? (
-            <>
-              <span className="platform-shell__account-label">Authenticated</span>
-              <strong>{profile.email}</strong>
-              <a className="platform-inline-link" href="https://nerior.store/profile/api-keys">
-                Open profile
-              </a>
-            </>
-          ) : (
-            <>
-              <span className="platform-shell__account-label">Guest</span>
-              <strong>Public docs available</strong>
-              <a className="platform-inline-link" href="https://nerior.store/login">
-                Sign in on nerior.store
-              </a>
-            </>
-          )}
+          <span className="platform-shell__account-label">Authenticated</span>
+          <strong>{profile.email}</strong>
+          <div className="platform-shell__account-actions">
+            <a className="platform-inline-link" href="https://nerior.store/machines">
+              Open Product
+            </a>
+            <button type="button" className="platform-inline-link" onClick={onSignOut}>
+              Sign out
+            </button>
+          </div>
         </div>
-      </header>
+      </aside>
       <main className="platform-shell__content">{children}</main>
     </div>
   );

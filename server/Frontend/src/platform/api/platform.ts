@@ -8,14 +8,10 @@ import {
   type ApiKeyPermission,
   type ApiKeyRead,
 } from "../../core";
-import { ApiError } from "../../core/http";
 import { PLATFORM_ENDPOINTS } from "../docs/reference";
 
-export type PlatformAuthState = "authenticated" | "guest";
-
 export type PlatformDashboardData = {
-  authState: PlatformAuthState;
-  profile: AccountProfileDetails | null;
+  profile: AccountProfileDetails;
   apiKeys: ApiKeyRead[];
   machineOptions: AccountMachineScopeOption[];
   externalApiBaseUrl: string;
@@ -42,10 +38,6 @@ export type PlatformApiKeyStats = {
   mostRecent: ApiKeyRead[];
 };
 
-function isUnauthorized(error: unknown): boolean {
-  return error instanceof ApiError && (error.status === 401 || error.status === 403);
-}
-
 export function resolveExternalApiBaseUrl(origin?: string): string {
   const normalizedOrigin =
     (origin ?? (typeof window !== "undefined" ? window.location.origin : "")).replace(/\/$/, "");
@@ -53,37 +45,20 @@ export function resolveExternalApiBaseUrl(origin?: string): string {
 }
 
 export async function getPlatformDashboard(origin?: string): Promise<PlatformDashboardData> {
-  try {
-    const [profile, apiKeys, machineOptions] = await Promise.all([
-      accountApi.getProfileDetails(),
-      accountApi.listApiKeys(),
-      accountApi.listMachineScopeOptions(),
-    ]);
+  const [profile, apiKeys, machineOptions] = await Promise.all([
+    accountApi.getProfileDetails(),
+    accountApi.listApiKeys(),
+    accountApi.listMachineScopeOptions(),
+  ]);
 
-    return {
-      authState: "authenticated",
-      profile,
-      apiKeys,
-      machineOptions,
-      externalApiBaseUrl: resolveExternalApiBaseUrl(origin),
-      endpointCount: PLATFORM_ENDPOINTS.length,
-      generatedAt: new Date().toISOString(),
-    };
-  } catch (error) {
-    if (!isUnauthorized(error)) {
-      throw error;
-    }
-
-    return {
-      authState: "guest",
-      profile: null,
-      apiKeys: [],
-      machineOptions: [],
-      externalApiBaseUrl: resolveExternalApiBaseUrl(origin),
-      endpointCount: PLATFORM_ENDPOINTS.length,
-      generatedAt: new Date().toISOString(),
-    };
-  }
+  return {
+    profile,
+    apiKeys,
+    machineOptions,
+    externalApiBaseUrl: resolveExternalApiBaseUrl(origin),
+    endpointCount: PLATFORM_ENDPOINTS.length,
+    generatedAt: new Date().toISOString(),
+  };
 }
 
 export async function listPlatformCommandScopeOptions(

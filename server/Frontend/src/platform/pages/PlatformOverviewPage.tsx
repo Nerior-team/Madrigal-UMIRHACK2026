@@ -4,29 +4,27 @@ import { PlatformSectionCard } from "../components/PlatformSectionCard";
 import { PlatformStatCard } from "../components/PlatformStatCard";
 
 type PlatformOverviewPageProps = {
-  dashboard: PlatformDashboardData | null;
+  dashboard: PlatformDashboardData;
   stats: PlatformApiKeyStats;
 };
 
 export function PlatformOverviewPage({ dashboard, stats }: PlatformOverviewPageProps) {
-  const isAuthenticated = dashboard?.authState === "authenticated";
-
   return (
     <div className="platform-page platform-page--overview">
       <PlatformHero
         kicker="Developer platform"
         title="A precise API surface for orchestrating machines, tasks, logs, and results."
         subtitle="Same backend contracts, cleaner developer ergonomics. The portal focuses on key management, endpoint clarity, and usage visibility without adding a second platform backend."
-        primaryCtaHref={isAuthenticated ? "/keys" : "https://nerior.store/login"}
-        primaryCtaLabel={isAuthenticated ? "Manage API keys" : "Sign in"}
+        primaryCtaHref="/keys"
+        primaryCtaLabel="Manage API keys"
         secondaryCtaHref="/docs"
         secondaryCtaLabel="Read the docs"
       />
 
       <section className="platform-stats-grid">
-        <PlatformStatCard label="Endpoints" value={String(dashboard?.endpointCount ?? 0)} detail="Live routes available today" />
+        <PlatformStatCard label="Endpoints" value={String(dashboard.endpointCount)} detail="Live routes available today" />
         <PlatformStatCard label="Keys" value={String(stats.total)} detail="Developer keys in your account" />
-        <PlatformStatCard label="Machines" value={String(dashboard?.machineOptions.length ?? 0)} detail="Scopes available for keys" />
+        <PlatformStatCard label="Machines" value={String(dashboard.machineOptions.length)} detail="Scopes available for keys" />
         <PlatformStatCard label="Calls" value={String(stats.totalUses)} detail="Total recorded API key usage" />
       </section>
 
@@ -46,22 +44,12 @@ export function PlatformOverviewPage({ dashboard, stats }: PlatformOverviewPageP
 
         <PlatformSectionCard
           eyebrow="Auth"
-          title={isAuthenticated ? "Portal session is active" : "Sign in to unlock management"}
-          detail={
-            isAuthenticated
-              ? "You can manage keys here and keep product usage in the main app."
-              : "Docs stay readable without auth. Key creation and analytics require the shared web session from nerior.store."
-          }
+          title="Platform session is active"
+          detail="Platform access uses a dedicated sign-in flow while keeping the same backend identity."
         >
           <div className="platform-auth-panel">
-            <span className={isAuthenticated ? "platform-badge platform-badge--active" : "platform-badge"}>
-              {isAuthenticated ? "Authenticated" : "Guest mode"}
-            </span>
-            <p>
-              {isAuthenticated && dashboard?.profile
-                ? `${dashboard.profile.email} is ready to create and revoke scoped developer keys.`
-                : "Use your existing product account. After shared cookie-domain rollout, nerior.store and platform.nerior.store will reuse the same web session."}
-            </p>
+            <span className="platform-badge platform-badge--active">Authenticated</span>
+            <p>{`${dashboard.profile.email} is ready to create and revoke scoped developer keys.`}</p>
           </div>
         </PlatformSectionCard>
       </section>

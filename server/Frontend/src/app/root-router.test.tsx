@@ -34,6 +34,8 @@ describe("RootRouter", () => {
           hostname="platform.nerior.store"
           renderMainApp={renderMainStub}
           renderPlatformApp={renderPlatformStub}
+          initialPlatformSessionStatus="authenticated"
+          disablePlatformSessionBootstrap
         />
       </MemoryRouter>,
     );

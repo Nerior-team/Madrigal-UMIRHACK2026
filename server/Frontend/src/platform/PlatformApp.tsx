@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import type { ApiKeyExpiryPreset, ApiKeyPermission, ApiKeyRead } from "../core";
 import { ApiError } from "../core/http";
 import {
@@ -17,6 +17,7 @@ import { PlatformApiKeysPage } from "./pages/PlatformApiKeysPage";
 import { PlatformDocsPage } from "./pages/PlatformDocsPage";
 import { PlatformOverviewPage } from "./pages/PlatformOverviewPage";
 import { resolvePlatformRoute } from "./routes";
+import { usePlatformSession } from "./session";
 
 type PlatformKeyForm = {
   name: string;
@@ -38,7 +39,9 @@ const INITIAL_FORM: PlatformKeyForm = {
 
 export function PlatformApp() {
   const location = useLocation();
+  const navigate = useNavigate();
   const route = resolvePlatformRoute(location.pathname);
+  const { setGuest, signOut } = usePlatformSession();
 
   const [dashboard, setDashboard] = useState<PlatformDashboardData | null>(null);
   const [apiKeys, setApiKeys] = useState<ApiKeyRead[]>([]);
@@ -65,6 +68,11 @@ export function PlatformApp() {
       })
       .catch((loadError: unknown) => {
         if (cancelled) return;
+        if (loadError instanceof ApiError && (loadError.status === 401 || loadError.status === 403)) {
+          setGuest();
+          navigate("/login", { replace: true });
+          return;
+        }
         setError(loadError instanceof Error ? loadError.message : "Failed to load developer portal.");
       })
       .finally(() => {
@@ -76,12 +84,12 @@ export function PlatformApp() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [navigate, setGuest]);
 
   useEffect(() => {
     let cancelled = false;
 
-    if (!dashboard || dashboard.authState !== "authenticated" || !form.machineIds.length) {
+    if (!dashboard || !form.machineIds.length) {
       setCommandScopeOptions([]);
       return () => {
         cancelled = true;
@@ -155,10 +163,6 @@ export function PlatformApp() {
   };
 
   const handleCreate = async () => {
-    if (dashboard?.authState !== "authenticated") {
-      return;
-    }
-
     setNotice(null);
     setError(null);
     setLatestRawKey(null);
@@ -225,58 +229,55 @@ export function PlatformApp() {
     }
   };
 
-  const page = (() => {
-    if (isLoading && !dashboard) {
-      return <div className="platform-loading-state">Loading developer portal...</div>;
-    }
+  const handleSignOut = async () => {
+    await signOut();
+    navigate("/login", { replace: true });
+  };
 
-    if (error && !dashboard) {
-      return <div className="platform-loading-state platform-loading-state--error">{error}</div>;
-    }
+  if (isLoading && !dashboard) {
+    return <div className="platform-loading-state">Loading platform...</div>;
+  }
 
-    if (!dashboard) {
-      return null;
-    }
+  if (error && !dashboard) {
+    return <div className="platform-loading-state platform-loading-state--error">{error}</div>;
+  }
 
-    if (route.key === "keys") {
-      return (
-        <PlatformApiKeysPage
-          authState={dashboard.authState}
-          apiKeys={apiKeys}
-          machineOptions={dashboard.machineOptions}
-          commandScopeOptions={commandScopeOptions}
-          form={form}
-          latestRawKey={latestRawKey}
-          notice={notice}
-          error={error}
-          isSubmitting={isSubmitting}
-          isRevoking={isRevoking}
-          onFieldChange={handleFieldChange}
-          onToggleMachine={handleToggleMachine}
-          onToggleTemplate={handleToggleTemplate}
-          onCreate={handleCreate}
-          onRevoke={handleRevoke}
-        />
-      );
-    }
+  if (!dashboard) {
+    return null;
+  }
 
-    if (route.key === "docs") {
-      return <PlatformDocsPage apiBaseUrl={dashboard.externalApiBaseUrl} />;
-    }
-
-    if (route.key === "analytics") {
-      return <PlatformAnalyticsPage authState={dashboard.authState} apiKeys={apiKeys} stats={stats} />;
-    }
-
-    return <PlatformOverviewPage dashboard={dashboard} stats={stats} />;
-  })();
+  const page =
+    route.key === "keys" ? (
+      <PlatformApiKeysPage
+        apiKeys={apiKeys}
+        machineOptions={dashboard.machineOptions}
+        commandScopeOptions={commandScopeOptions}
+        form={form}
+        latestRawKey={latestRawKey}
+        notice={notice}
+        error={error}
+        isSubmitting={isSubmitting}
+        isRevoking={isRevoking}
+        onFieldChange={handleFieldChange}
+        onToggleMachine={handleToggleMachine}
+        onToggleTemplate={handleToggleTemplate}
+        onCreate={handleCreate}
+        onRevoke={handleRevoke}
+      />
+    ) : route.key === "docs" ? (
+      <PlatformDocsPage apiBaseUrl={dashboard.externalApiBaseUrl} />
+    ) : route.key === "analytics" ? (
+      <PlatformAnalyticsPage apiKeys={apiKeys} stats={stats} />
+    ) : (
+      <PlatformOverviewPage dashboard={dashboard} stats={stats} />
+    );
 
   return (
     <PlatformShell
       activeRoute={route.key}
-      authState={dashboard?.authState ?? "guest"}
-      profile={dashboard?.profile ?? null}
-      generatedAt={dashboard?.generatedAt ?? null}
+      profile={dashboard.profile}
+      generatedAt={dashboard.generatedAt}
+      onSignOut={handleSignOut}
     >
       {page}
     </PlatformShell>

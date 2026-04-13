@@ -13,25 +13,33 @@ function renderPlatformStub() {
 }
 
 describe("PlatformRouter", () => {
-  it("renders platform content on known portal routes", () => {
+  it("renders platform content on protected routes for authenticated sessions", () => {
     render(
       <MemoryRouter initialEntries={["/docs"]}>
-        <PlatformRouter renderApp={renderPlatformStub} />
+        <PlatformRouter
+          renderApp={renderPlatformStub}
+          initialSessionStatus="authenticated"
+          disableSessionBootstrap
+        />
       </MemoryRouter>,
     );
 
     expect(screen.getByTestId("platform-content")).toBeInTheDocument();
   });
 
-  it("redirects unknown routes to overview", () => {
+  it("redirects guests to login on protected routes", () => {
     render(
-      <MemoryRouter initialEntries={["/definitely-unknown"]}>
-        <PlatformRouter renderApp={renderPlatformStub} />
+      <MemoryRouter initialEntries={["/docs"]}>
+        <PlatformRouter
+          renderApp={renderPlatformStub}
+          initialSessionStatus="guest"
+          disableSessionBootstrap
+        />
         <LocationProbe />
       </MemoryRouter>,
     );
 
-    expect(screen.getByTestId("location-probe")).toHaveTextContent("/");
-    expect(screen.getByTestId("platform-content")).toBeInTheDocument();
+    expect(screen.getByTestId("location-probe")).toHaveTextContent("/login");
+    expect(screen.getByTestId("platform-auth-layout")).toBeInTheDocument();
   });
 });

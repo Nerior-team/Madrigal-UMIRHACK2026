@@ -1,33 +1,17 @@
 import type { ApiKeyRead } from "../../core";
-import type { PlatformAuthState, PlatformApiKeyStats } from "../api/platform";
+import type { PlatformApiKeyStats } from "../api/platform";
 import { PlatformSectionCard } from "../components/PlatformSectionCard";
 import { PlatformStatCard } from "../components/PlatformStatCard";
 
 type PlatformAnalyticsPageProps = {
-  authState: PlatformAuthState;
   apiKeys: ApiKeyRead[];
   stats: PlatformApiKeyStats;
 };
 
 export function PlatformAnalyticsPage({
-  authState,
   apiKeys,
   stats,
 }: PlatformAnalyticsPageProps) {
-  if (authState !== "authenticated") {
-    return (
-      <PlatformSectionCard
-        eyebrow="Authentication"
-        title="Analytics require an authenticated account"
-        detail="Public docs stay visible, but per-key usage is private to the account that owns the keys."
-      >
-        <a className="platform-button platform-button--primary" href="https://nerior.store/login">
-          Sign in on nerior.store
-        </a>
-      </PlatformSectionCard>
-    );
-  }
-
   return (
     <div className="platform-page platform-page--analytics">
       <section className="platform-stats-grid">
