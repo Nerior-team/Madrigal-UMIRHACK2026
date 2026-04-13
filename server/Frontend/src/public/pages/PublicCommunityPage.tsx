@@ -2,7 +2,7 @@ import { COMMUNITY_PILLARS, COMMUNITY_SECTIONS } from "../site-content";
 
 export function PublicCommunityPage() {
   return (
-    <main className="public-page">
+    <main className="public-page public-page--community">
       <section className="public-section">
         <div className="public-section__header">
           <div>
@@ -10,7 +10,7 @@ export function PublicCommunityPage() {
             <h1>Сообщество</h1>
             <p>
               Публичная зона обсуждений, материалов и командных анонсов. Финальный контент можно
-              будет наполнить без переделки структуры.
+              будет наполнить без переделки общей структуры.
             </p>
           </div>
         </div>
@@ -27,6 +27,7 @@ export function PublicCommunityPage() {
         <div className="public-stack-grid">
           {COMMUNITY_SECTIONS.map((section) => (
             <article key={section.title} className="public-story-card">
+              <span className="public-eyebrow">Раздел</span>
               <h2>{section.title}</h2>
               <p>{section.body}</p>
             </article>

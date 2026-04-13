@@ -2,6 +2,14 @@ import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { getPublicPublication, type PublicPublicationDetail } from "../api";
 
+function formatCategory(value: string): string {
+  if (value === "publication") return "Публикация";
+  if (value === "announcement") return "Анонсы";
+  if (value === "integration") return "Интеграции";
+  if (value === "release") return "Релиз";
+  return value;
+}
+
 function renderBlock(block: PublicPublicationDetail["body_blocks"][number], index: number) {
   if (block.kind === "image" && block.url) {
     return (
@@ -97,7 +105,7 @@ export function PublicArticlePage() {
     <main className="public-page public-page--article">
       <article className="public-article">
         <header className="public-article__header">
-          <span className="public-eyebrow">{article.category}</span>
+          <span className="public-eyebrow">{formatCategory(article.category)}</span>
           <h1>{article.title}</h1>
           <p>{article.summary}</p>
         </header>
@@ -109,9 +117,7 @@ export function PublicArticlePage() {
           <article className="public-empty-state">
             <span className="public-eyebrow">Контент</span>
             <h2>Тело статьи пока не загружено.</h2>
-            <p>
-              После импорта данных здесь появятся текстовые, графические и видео-блоки.
-            </p>
+            <p>После импорта данных здесь появятся текстовые, графические и видео-блоки.</p>
           </article>
         )}
       </article>

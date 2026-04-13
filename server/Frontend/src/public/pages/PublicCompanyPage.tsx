@@ -17,33 +17,35 @@ export function PublicCompanyPage() {
           <article className="public-feature-card" id="about">
             <h2>О нас</h2>
             <p>
-              Здесь будет финальное описание компании, позиционирования и продуктового контура
-              Nerior.
+              Здесь должно быть финальное описание компании, позиционирования и продуктового
+              контура Nerior.
             </p>
           </article>
           <article className="public-feature-card" id="careers">
             <h2>Карьера</h2>
-            <p>Здесь будет описание команды, ролей и найма.</p>
+            <p>Здесь должно быть описание команды, ролей, подхода к найму и направлений роста.</p>
           </article>
           <article className="public-feature-card" id="stories">
             <h2>Истории</h2>
-            <p>Здесь будут кейсы, внутренние истории и продуктовые разборы.</p>
+            <p>Здесь должны быть кейсы, внутренние истории и продуктовые разборы.</p>
           </article>
         </div>
 
         <div className="public-stack-grid">
           <article className="public-story-card">
-            <h2>Продукты</h2>
+            <span className="public-eyebrow">Продукты</span>
+            <h2>Crossplat, Smart planner и Karpik в одной экосистеме.</h2>
             <p>
-              Здесь должно быть описание того, как Crossplat, Smart-Planner и Karpik связаны внутри
-              общей экосистемы Nerior.
+              Здесь должно быть описание того, как продукты связаны внутри общей системы Nerior и
+              чем отличается каждая сервисная зона.
             </p>
           </article>
           <article className="public-story-card">
-            <h2>Следующий этап</h2>
+            <span className="public-eyebrow">Следующий этап</span>
+            <h2>Что будет дальше в развитии компании.</h2>
             <p>
-              Здесь должно быть описание будущего роста компании, новых сервисных зон и общих
-              направлений развития.
+              Здесь должно быть описание будущего роста, новых сервисных зон и общих направлений
+              развития компании.
             </p>
           </article>
         </div>

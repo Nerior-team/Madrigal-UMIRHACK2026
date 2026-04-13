@@ -286,6 +286,10 @@
   align-items: end;
 }
 
+.public-section__header--contact {
+  align-items: start;
+}
+
 .public-section__header h1,
 .public-updates-header h1 {
   font-size: clamp(3rem, 7vw, 4.8rem);
@@ -305,6 +309,10 @@
 .public-product-grid,
 .public-feature-grid {
   grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.public-feature-grid--compact {
+  grid-template-columns: 1fr;
 }
 
 .public-product-card {
@@ -548,6 +556,11 @@
   grid-template-columns: 220px minmax(0, 1fr);
 }
 
+.public-docs-hero__copy {
+  display: grid;
+  gap: 12px;
+}
+
 .public-docs-sidebar {
   position: sticky;
   top: 104px;
@@ -580,6 +593,26 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 18px;
+}
+
+.public-contact-shell {
+  display: grid;
+  grid-template-columns: minmax(0, 0.92fr) minmax(420px, 0.88fr);
+  gap: 36px;
+  padding-top: 32px;
+  align-items: start;
+}
+
+.public-contact-aside {
+  display: grid;
+  gap: 28px;
+}
+
+.public-contact-form-card {
+  border: 1px solid var(--public-line);
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.02);
+  padding: 26px;
 }
 
 .public-field {
@@ -622,6 +655,11 @@
   align-items: center;
 }
 
+.public-contact-form__status {
+  display: grid;
+  gap: 8px;
+}
+
 .public-form-feedback {
   margin: 0;
 }
@@ -652,6 +690,7 @@
   .public-feature-grid,
   .public-stack-grid,
   .public-docs-layout,
+  .public-contact-shell,
   .public-contact-form,
   .public-updates-grid,
   .public-updates-list .public-update-row {

@@ -4,7 +4,7 @@ export function PublicDocsPage() {
   return (
     <main className="public-page public-page--docs">
       <section className="public-docs-hero">
-        <div>
+        <div className="public-docs-hero__copy">
           <span className="public-eyebrow">docs.nerior.store</span>
           <h1>Публичная документация</h1>
           <p>
@@ -12,6 +12,7 @@ export function PublicDocsPage() {
             практическим сценариям.
           </p>
         </div>
+
         <div className="public-feature-grid">
           {DOCS_PILLARS.map((item) => (
             <article key={item.title} className="public-feature-card">

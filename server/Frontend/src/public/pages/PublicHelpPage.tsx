@@ -2,7 +2,7 @@ import { HELP_PILLARS, HELP_SECTIONS } from "../site-content";
 
 export function PublicHelpPage() {
   return (
-    <main className="public-page">
+    <main className="public-page public-page--help">
       <section className="public-section">
         <div className="public-section__header">
           <div>
@@ -27,6 +27,7 @@ export function PublicHelpPage() {
         <div className="public-stack-grid">
           {HELP_SECTIONS.map((section) => (
             <article key={section.title} className="public-story-card">
+              <span className="public-eyebrow">Маршрут</span>
               <h2>{section.title}</h2>
               <p>{section.body}</p>
             </article>
