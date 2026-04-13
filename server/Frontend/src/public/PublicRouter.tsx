@@ -4,6 +4,7 @@ import type { HostAppKind } from "../app/platform-host";
 import { PublicTopbar } from "./components/PublicTopbar";
 import { PublicCommunityPage } from "./pages/PublicCommunityPage";
 import { PublicContactPage } from "./pages/PublicContactPage";
+import { PublicArticlePage } from "./pages/PublicArticlePage";
 import { PublicDocsPage } from "./pages/PublicDocsPage";
 import { PublicBusinessPage } from "./pages/PublicBusinessPage";
 import { PublicCompanyPage } from "./pages/PublicCompanyPage";
@@ -96,6 +97,7 @@ export function PublicRouter({ kind }: PublicRouterProps) {
       <Routes>
         <Route path="/" element={<NeriorHomePage />} />
         <Route path="/updates" element={<NeriorUpdatesPage />} />
+        <Route path="/updates/:slug" element={<PublicArticlePage />} />
         <Route path="/business" element={<PublicBusinessPage />} />
         <Route path="/company" element={<PublicCompanyPage />} />
         <Route path="/developers" element={<PublicDevelopersPage />} />

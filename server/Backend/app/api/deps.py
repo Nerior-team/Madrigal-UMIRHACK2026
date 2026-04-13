@@ -19,6 +19,7 @@ from app.domains.integrations.external_api.service import ExternalApiClientConte
 from app.domains.integrations.telegram.repository import TelegramRepository
 from app.domains.machines.repository import MachineRepository
 from app.domains.notifications.repository import NotificationRepository
+from app.domains.publications.repository import PublicationRepository
 from app.domains.profile.repository import ProfileRepository
 from app.domains.reports.repository import ReportsRepository
 from app.domains.results.repository import ResultRepository
@@ -74,6 +75,10 @@ def get_profile_repository(db: Annotated[Session, Depends(get_db_session)]) -> P
 
 def get_notification_repository(db: Annotated[Session, Depends(get_db_session)]) -> NotificationRepository:
     return NotificationRepository(db)
+
+
+def get_publication_repository(db: Annotated[Session, Depends(get_db_session)]) -> PublicationRepository:
+    return PublicationRepository(db)
 
 
 def build_client_context(request: Request):

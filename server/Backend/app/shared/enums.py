@@ -143,3 +143,15 @@ class NotificationStatus(StrEnum):
     PENDING = "pending"
     DELIVERED = "delivered"
     READ = "read"
+
+
+class PublicationCategory(StrEnum):
+    PUBLICATION = "publication"
+    ANNOUNCEMENT = "announcement"
+    INTEGRATION = "integration"
+    RELEASE = "release"
+
+
+class PublicationStatus(StrEnum):
+    DRAFT = "draft"
+    PUBLISHED = "published"
