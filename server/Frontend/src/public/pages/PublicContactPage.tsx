@@ -72,8 +72,27 @@ export function PublicContactPage() {
         <div className="public-section__header">
           <div>
             <span className="public-eyebrow">Связаться с нами</span>
-            <h1>Оставьте запрос по продукту или будущему внедрению.</h1>
+            <h1>Оставьте запрос по продукту, внедрению или будущему сотрудничеству.</h1>
+            <p>
+              Форма отправляется в реальный backend и приходит на рабочую почту в нормальном
+              читаемом формате.
+            </p>
           </div>
+        </div>
+
+        <div className="public-feature-grid">
+          <article className="public-feature-card">
+            <h2>Crossplat</h2>
+            <p>Запросы по текущему активному продукту, демонстрациям и рабочим сценариям.</p>
+          </article>
+          <article className="public-feature-card">
+            <h2>Будущие продукты</h2>
+            <p>Smart-Planner и Karpik уже доступны в форме как отдельные направления интереса.</p>
+          </article>
+          <article className="public-feature-card">
+            <h2>Реальная отправка</h2>
+            <p>Никаких моков: форма уходит через текущий backend-контракт и почтовую доставку.</p>
+          </article>
         </div>
 
         <form className="public-contact-form" onSubmit={handleSubmit}>
