@@ -12,10 +12,12 @@ class Settings(BaseSettings):
     backend_port: int = 8000
     backend_secret_key: str
     backend_allowed_origins: str
-    backend_cookie_name: str = "predict_mv_session"
+    backend_cookie_name: str = "crossplat_session"
+    backend_api_cookie_name: str = "nerior_api_session"
     backend_cookie_secure: bool = False
     backend_cookie_domain: str | None = None
-    backend_csrf_cookie_name: str = "predict_mv_csrf"
+    backend_csrf_cookie_name: str = "crossplat_csrf"
+    backend_api_csrf_cookie_name: str = "nerior_api_csrf"
     backend_csrf_header_name: str = "X-CSRF-Token"
 
     postgres_host: str

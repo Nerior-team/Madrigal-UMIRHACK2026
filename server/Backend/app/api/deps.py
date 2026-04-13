@@ -24,6 +24,7 @@ from app.domains.profile.repository import ProfileRepository
 from app.domains.reports.repository import ReportsRepository
 from app.domains.results.repository import ResultRepository
 from app.domains.tasks.repository import TaskRepository
+from app.domains.auth.web_apps import resolve_web_app_config
 from app.infra.crypto.request_signing import build_request_target, sign_request
 from app.infra.redis import limits as redis_limits
 from app.shared.time import utc_now
@@ -101,7 +102,7 @@ def get_current_access_token(
     request: Request,
     authorization: Annotated[str | None, Header(alias="Authorization")] = None,
 ) -> str:
-    session_cookie = request.cookies.get(get_settings().backend_cookie_name)
+    session_cookie = request.cookies.get(resolve_web_app_config(request).cookie_name)
     if authorization and authorization.startswith("Bearer "):
         return authorization.removeprefix("Bearer ").strip()
     if session_cookie:

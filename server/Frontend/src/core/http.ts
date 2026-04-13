@@ -1,10 +1,22 @@
 import { readCookie } from "./cookies";
+import { resolveHostApp } from "../app/platform-host";
 
 const API_BASE_URL = (
   import.meta.env.VITE_API_BASE_URL ?? "/api/v1"
 ).replace(/\/$/, "");
-const CSRF_COOKIE_NAME = import.meta.env.VITE_CSRF_COOKIE_NAME ?? "predict_mv_csrf";
+const CSRF_COOKIE_NAME = import.meta.env.VITE_CSRF_COOKIE_NAME ?? "crossplat_csrf";
+const API_CSRF_COOKIE_NAME = import.meta.env.VITE_API_CSRF_COOKIE_NAME ?? "nerior_api_csrf";
 const CSRF_HEADER_NAME = import.meta.env.VITE_CSRF_HEADER_NAME ?? "X-CSRF-Token";
+
+function resolveCsrfCookieName(): string {
+  if (typeof window === "undefined") {
+    return CSRF_COOKIE_NAME;
+  }
+
+  return resolveHostApp(window.location.hostname) === "api"
+    ? API_CSRF_COOKIE_NAME
+    : CSRF_COOKIE_NAME;
+}
 
 export class ApiError extends Error {
   status: number;
@@ -43,7 +55,7 @@ export async function apiFetch<T>(
   }
 
   if (isMutationMethod(method) && !headers.has(CSRF_HEADER_NAME)) {
-    const csrfToken = readCookie(CSRF_COOKIE_NAME);
+    const csrfToken = readCookie(resolveCsrfCookieName());
     if (csrfToken) {
       headers.set(CSRF_HEADER_NAME, csrfToken);
     }

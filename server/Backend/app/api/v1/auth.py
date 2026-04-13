@@ -11,6 +11,7 @@ from app.api.deps import (
 )
 from app.core.config import get_settings
 from app.core.security import generate_signed_csrf_token, web_session_ttl
+from app.domains.auth.web_apps import resolve_web_app_config
 from app.domains.auth.repository import AuthRepository
 from app.domains.auth.schemas import (
     AuthSessionResponse,
@@ -43,10 +44,11 @@ from app.shared.enums import SessionKind
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
-def _set_web_cookie(response: Response, access_token: str) -> None:
+def _set_web_cookie(request: Request, response: Response, access_token: str) -> None:
     settings = get_settings()
+    web_app = resolve_web_app_config(request)
     response.set_cookie(
-        key=settings.backend_cookie_name,
+        key=web_app.cookie_name,
         value=access_token,
         httponly=True,
         secure=settings.backend_cookie_secure,
@@ -57,10 +59,11 @@ def _set_web_cookie(response: Response, access_token: str) -> None:
     )
 
 
-def _set_csrf_cookie(response: Response) -> None:
+def _set_csrf_cookie(request: Request, response: Response) -> None:
     settings = get_settings()
+    web_app = resolve_web_app_config(request)
     response.set_cookie(
-        key=settings.backend_csrf_cookie_name,
+        key=web_app.csrf_cookie_name,
         value=generate_signed_csrf_token(),
         httponly=False,
         secure=settings.backend_cookie_secure,
@@ -71,15 +74,16 @@ def _set_csrf_cookie(response: Response) -> None:
     )
 
 
-def _clear_web_cookie(response: Response) -> None:
+def _clear_web_cookie(request: Request, response: Response) -> None:
     settings = get_settings()
+    web_app = resolve_web_app_config(request)
     response.delete_cookie(
-        key=settings.backend_cookie_name,
+        key=web_app.cookie_name,
         path="/",
         domain=settings.backend_cookie_domain,
     )
     response.delete_cookie(
-        key=settings.backend_csrf_cookie_name,
+        key=web_app.csrf_cookie_name,
         path="/",
         domain=settings.backend_cookie_domain,
     )
@@ -97,68 +101,73 @@ def register(
 @router.post("/register/verify", response_model=AuthSessionResponse)
 def verify_email(
     payload: VerifyEmailRequest,
+    request: Request,
     response: Response,
     repository: Annotated[AuthRepository, Depends(get_repository)],
     client=Depends(build_client_context),
 ):
     auth_response, access_token = AuthService(repository).verify_email(payload, client)
     if payload.client_kind == SessionKind.WEB and access_token:
-        _set_web_cookie(response, access_token)
-        _set_csrf_cookie(response)
+        _set_web_cookie(request, response, access_token)
+        _set_csrf_cookie(request, response)
     return auth_response
 
 
 @router.post("/login", response_model=AuthSessionResponse)
 def login(
     payload: LoginRequest,
+    request: Request,
     response: Response,
     repository: Annotated[AuthRepository, Depends(get_repository)],
     client=Depends(build_client_context),
 ):
     auth_response, access_token = AuthService(repository).login(payload, client)
     if payload.client_kind == SessionKind.WEB and access_token:
-        _set_web_cookie(response, access_token)
-        _set_csrf_cookie(response)
+        _set_web_cookie(request, response, access_token)
+        _set_csrf_cookie(request, response)
     return auth_response
 
 
 @router.post("/login/2fa/totp", response_model=AuthSessionResponse)
 def login_totp(
     payload: LoginTwoFactorRequest,
+    request: Request,
     response: Response,
     repository: Annotated[AuthRepository, Depends(get_repository)],
     client=Depends(build_client_context),
 ):
     auth_response, access_token = AuthService(repository).login_totp(payload, client)
     if payload.client_kind == SessionKind.WEB and access_token:
-        _set_web_cookie(response, access_token)
-        _set_csrf_cookie(response)
+        _set_web_cookie(request, response, access_token)
+        _set_csrf_cookie(request, response)
     return auth_response
 
 
 @router.post("/login/2fa/telegram", response_model=AuthSessionResponse)
 def login_telegram(
     payload: LoginTelegramRequest,
+    request: Request,
     response: Response,
     repository: Annotated[AuthRepository, Depends(get_repository)],
     client=Depends(build_client_context),
 ):
     auth_response, access_token = AuthService(repository).login_telegram(payload, client)
     if payload.client_kind == SessionKind.WEB and access_token:
-        _set_web_cookie(response, access_token)
-        _set_csrf_cookie(response)
+        _set_web_cookie(request, response, access_token)
+        _set_csrf_cookie(request, response)
     return auth_response
 
 
 @router.post("/logout", response_model=MessageResponse)
 def logout(
+    request: Request,
     response: Response,
     repository: Annotated[AuthRepository, Depends(get_repository)],
     access_token: Annotated[str, Depends(get_current_access_token)],
     client=Depends(build_client_context),
 ):
     result = AuthService(repository).logout(access_token, client)
-    _clear_web_cookie(response)
+    _clear_web_cookie(request, response)
     return result
 
 
@@ -172,9 +181,9 @@ def me(
 ):
     if (
         current_session.session_kind == SessionKind.WEB
-        and request.cookies.get(get_settings().backend_csrf_cookie_name) is None
+        and request.cookies.get(resolve_web_app_config(request).csrf_cookie_name) is None
     ):
-        _set_csrf_cookie(response)
+        _set_csrf_cookie(request, response)
     return AuthService(repository).me(user=current_user, session=current_session)
 
 
@@ -190,14 +199,15 @@ def forgot_password(
 @router.post("/refresh", response_model=AuthSessionResponse)
 def refresh(
     payload: RefreshRequest,
+    request: Request,
     response: Response,
     repository: Annotated[AuthRepository, Depends(get_repository)],
     client=Depends(build_client_context),
 ):
     auth_response, access_token = AuthService(repository).refresh(payload, client)
     if auth_response.session_kind == SessionKind.WEB and access_token:
-        _set_web_cookie(response, access_token)
-        _set_csrf_cookie(response)
+        _set_web_cookie(request, response, access_token)
+        _set_csrf_cookie(request, response)
     return auth_response
 
 
@@ -301,6 +311,7 @@ def list_sessions(
 @router.delete("/sessions/{session_id}", response_model=SessionRevokeResponse)
 def revoke_session(
     session_id: str,
+    request: Request,
     response: Response,
     repository: Annotated[AuthRepository, Depends(get_repository)],
     current_user=Depends(get_current_user),
@@ -314,5 +325,5 @@ def revoke_session(
         client=client,
     )
     if result.revoked_current_session:
-        _clear_web_cookie(response)
+        _clear_web_cookie(request, response)
     return result
