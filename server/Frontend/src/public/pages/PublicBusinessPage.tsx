@@ -12,7 +12,8 @@ export function PublicBusinessPage() {
           <article className="public-story-card">
             <h2>Раздельные сервисные зоны</h2>
             <p>
-              Публичный сайт, продукт, документация, API и support не смешиваются в один интерфейс.
+              Публичный сайт, продукт, документация, API и support не смешиваются в один
+              интерфейс.
             </p>
           </article>
           <article className="public-story-card">

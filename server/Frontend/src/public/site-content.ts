@@ -50,7 +50,7 @@ export const MAIN_NAV: PublicNavItem[] = [
     href: "/company",
     menu: [
       { label: "О нас", href: "/company#about", note: "Позиционирование и принципы." },
-      { label: "Карьеры", href: "/company#careers", note: "Команда и роли." },
+      { label: "Карьера", href: "/company#careers", note: "Команда и роли." },
       { label: "Истории", href: "/company#stories", note: "Кейсы и практики." },
     ],
   },
@@ -76,7 +76,7 @@ export const UPDATE_CATEGORIES = [
 export const DOCS_SECTIONS = [
   {
     title: "Начало работы",
-    body: "Здесь должно быть описание архитектуры Nerior, сценариев использования и карты сервисов.",
+    body: "Здесь должно быть описание архитектуры Nerior, карты сервисов и общих сценариев использования.",
   },
   {
     title: "Crossplat",

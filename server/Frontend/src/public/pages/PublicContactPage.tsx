@@ -42,7 +42,14 @@ export function PublicContactPage() {
     setError(null);
     setSuccess(null);
 
-    if (!form.name.trim() || !form.email.trim() || !form.phone.trim() || !form.companyName.trim() || !form.companySize.trim() || !form.message.trim()) {
+    if (
+      !form.name.trim() ||
+      !form.email.trim() ||
+      !form.phone.trim() ||
+      !form.companyName.trim() ||
+      !form.companySize.trim() ||
+      !form.message.trim()
+    ) {
       setError("Заполните все поля формы.");
       return;
     }

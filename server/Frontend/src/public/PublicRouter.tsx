@@ -33,7 +33,7 @@ function PublicShell({
       <PublicTopbar
         title={title}
         navItems={navItems}
-        primaryActionLabel="Попробуйте бесплатно"
+        primaryActionLabel="Попробовать бесплатно"
         primaryActionHref="https://crossplat.nerior.store"
         secondaryActionLabel="Связаться с нами"
         secondaryActionHref="https://nerior.store/contact"

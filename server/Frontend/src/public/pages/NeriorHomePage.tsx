@@ -58,9 +58,7 @@ export function NeriorHomePage() {
                   Открыть <ArrowUpRight size={16} />
                 </a>
               ) : (
-                <span className="public-inline-link public-inline-link--muted">
-                  Скоро
-                </span>
+                <span className="public-inline-link public-inline-link--muted">Скоро</span>
               )}
             </article>
           ))}

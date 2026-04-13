@@ -11,11 +11,14 @@ export function PublicCompanyPage() {
         <div className="public-stack-grid">
           <article className="public-story-card" id="about">
             <h2>О нас</h2>
-            <p>Здесь будет финальное описание компании, позиционирования и продуктового контура Nerior.</p>
+            <p>
+              Здесь будет финальное описание компании, позиционирования и продуктового контура
+              Nerior.
+            </p>
           </article>
           <article className="public-story-card" id="careers">
-            <h2>Карьеры</h2>
-            <p>Здесь будет описание команд, ролей и найма.</p>
+            <h2>Карьера</h2>
+            <p>Здесь будет описание команды, ролей и найма.</p>
           </article>
           <article className="public-story-card" id="stories">
             <h2>Истории</h2>

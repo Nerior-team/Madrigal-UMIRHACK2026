@@ -109,7 +109,9 @@ export function PublicArticlePage() {
           <article className="public-empty-state">
             <span className="public-eyebrow">Контент</span>
             <h2>Тело статьи пока не загружено.</h2>
-            <p>После импорта данных здесь появятся текстовые, графические и видео-блоки.</p>
+            <p>
+              После импорта данных здесь появятся текстовые, графические и видео-блоки.
+            </p>
           </article>
         )}
       </article>

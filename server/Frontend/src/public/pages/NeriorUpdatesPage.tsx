@@ -11,11 +11,11 @@ import {
 type UpdatesView = "grid" | "list";
 
 const CATEGORY_MAP: Record<(typeof UPDATE_CATEGORIES)[number], PublicPublicationCategory | undefined> = {
-  "Все": undefined,
-  "Публикации": "publication",
-  "Анонсы": "announcement",
-  "Интеграции": "integration",
-  "Релиз": "release",
+  Все: undefined,
+  Публикации: "publication",
+  Анонсы: "announcement",
+  Интеграции: "integration",
+  Релиз: "release",
 };
 
 export function NeriorUpdatesPage() {
