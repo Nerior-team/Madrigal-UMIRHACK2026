@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     backend_allowed_origins: str
     backend_cookie_name: str = "predict_mv_session"
     backend_cookie_secure: bool = False
+    backend_cookie_domain: str | None = None
     backend_csrf_cookie_name: str = "predict_mv_csrf"
     backend_csrf_header_name: str = "X-CSRF-Token"
 
@@ -118,6 +119,14 @@ class Settings(BaseSettings):
     @field_validator("telegram_internal_signing_secret", mode="before")
     @classmethod
     def normalize_optional_secret(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        normalized = str(value).strip()
+        return normalized or None
+
+    @field_validator("backend_cookie_domain", mode="before")
+    @classmethod
+    def normalize_optional_cookie_domain(cls, value: str | None) -> str | None:
         if value is None:
             return None
         normalized = str(value).strip()

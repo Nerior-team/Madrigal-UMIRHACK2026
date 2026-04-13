@@ -52,6 +52,7 @@ def _set_web_cookie(response: Response, access_token: str) -> None:
         secure=settings.backend_cookie_secure,
         samesite="strict",
         path="/",
+        domain=settings.backend_cookie_domain,
         max_age=int(web_session_ttl().total_seconds()),
     )
 
@@ -65,13 +66,23 @@ def _set_csrf_cookie(response: Response) -> None:
         secure=settings.backend_cookie_secure,
         samesite="strict",
         path="/",
+        domain=settings.backend_cookie_domain,
         max_age=int(web_session_ttl().total_seconds()),
     )
 
 
 def _clear_web_cookie(response: Response) -> None:
-    response.delete_cookie(key=get_settings().backend_cookie_name, path="/")
-    response.delete_cookie(key=get_settings().backend_csrf_cookie_name, path="/")
+    settings = get_settings()
+    response.delete_cookie(
+        key=settings.backend_cookie_name,
+        path="/",
+        domain=settings.backend_cookie_domain,
+    )
+    response.delete_cookie(
+        key=settings.backend_csrf_cookie_name,
+        path="/",
+        domain=settings.backend_cookie_domain,
+    )
 
 
 @router.post("/register", response_model=MessageResponse, status_code=status.HTTP_201_CREATED)
