@@ -230,7 +230,8 @@
 
 .public-metrics-grid,
 .public-product-grid,
-.public-stack-grid {
+.public-stack-grid,
+.public-feature-grid {
   display: grid;
   gap: 18px;
 }
@@ -242,6 +243,7 @@
 .public-metric-card,
 .public-product-card,
 .public-story-card,
+.public-feature-card,
 .public-doc-card,
 .public-holding-card,
 .public-empty-state {
@@ -297,8 +299,13 @@
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.public-feature-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .public-product-card,
 .public-story-card,
+.public-feature-card,
 .public-doc-card,
 .public-holding-card,
 .public-empty-state {
@@ -341,6 +348,13 @@
   min-height: 280px;
   display: grid;
   gap: 16px;
+  align-content: start;
+}
+
+.public-feature-card {
+  min-height: 220px;
+  display: grid;
+  gap: 12px;
   align-content: start;
 }
 
@@ -541,8 +555,17 @@
 
 .public-page--docs {
   display: grid;
-  grid-template-columns: 260px minmax(0, 1fr);
   gap: 32px;
+}
+
+.public-docs-hero,
+.public-docs-layout {
+  display: grid;
+  gap: 28px;
+}
+
+.public-docs-layout {
+  grid-template-columns: 260px minmax(0, 1fr);
 }
 
 .public-docs-stack {
@@ -628,7 +651,8 @@
   .public-section--two-up,
   .public-product-grid,
   .public-stack-grid,
-  .public-page--docs,
+  .public-feature-grid,
+  .public-docs-layout,
   .public-contact-form,
   .public-updates-grid,
   .public-update-row {
