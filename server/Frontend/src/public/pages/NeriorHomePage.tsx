@@ -4,13 +4,13 @@ import { NERIOR_METRICS, PRODUCT_ITEMS } from "../site-content";
 export function NeriorHomePage() {
   return (
     <main className="public-page public-page--site">
-      <section className="public-hero">
+      <section className="public-hero public-hero--site">
         <div className="public-hero__copy">
           <span className="public-eyebrow">Nerior</span>
           <h1>Системы, продукты и инфраструктурные сервисы в одном контуре.</h1>
           <p>
-            Единая компания, отдельные продукты и отдельные рабочие поверхности для
-            пользователей, разработчиков и поддержки.
+            Единая компания, отдельные продукты и отдельные рабочие поверхности для пользователей,
+            разработчиков и поддержки.
           </p>
           <div className="public-hero__actions">
             <a href="https://crossplat.nerior.store" className="public-button public-button--solid">
@@ -21,6 +21,7 @@ export function NeriorHomePage() {
             </a>
           </div>
         </div>
+
         <div className="public-metrics-grid">
           {NERIOR_METRICS.map((item) => (
             <article key={item.label} className="public-metric-card">
@@ -31,7 +32,7 @@ export function NeriorHomePage() {
         </div>
       </section>
 
-      <section id="products" className="public-section">
+      <section id="products" className="public-section public-section--products">
         <div className="public-section__header">
           <span className="public-eyebrow">Продукты</span>
           <h2>Каждый продукт живёт на своём поддомене.</h2>

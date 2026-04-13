@@ -65,12 +65,10 @@ export function PublicTopbar({
                       menuItem.disabled ? (
                         <div key={menuItem.label} className="public-mega-menu__entry is-disabled">
                           <span>{menuItem.label}</span>
-                          {menuItem.note ? <small>{menuItem.note}</small> : null}
                         </div>
                       ) : (
                         <a key={menuItem.label} href={menuItem.href} className="public-mega-menu__entry">
                           <span>{menuItem.label}</span>
-                          {menuItem.note ? <small>{menuItem.note}</small> : null}
                         </a>
                       ),
                     )}

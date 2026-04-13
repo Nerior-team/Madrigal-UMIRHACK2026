@@ -12,15 +12,40 @@ type UpdatesView = "grid" | "list";
 
 const CATEGORY_MAP: Record<(typeof UPDATE_CATEGORIES)[number], PublicPublicationCategory | undefined> = {
   Все: undefined,
-  Публикации: "publication",
+  Публикация: "publication",
   Анонсы: "announcement",
   Интеграции: "integration",
   Релиз: "release",
 };
 
+function formatPublicationDate(value?: string | null): string {
+  if (!value) {
+    return "Дата будет добавлена";
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "Дата будет добавлена";
+  }
+
+  return new Intl.DateTimeFormat("ru-RU", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: "Europe/Moscow",
+  }).format(date);
+}
+
+function formatCategory(value: string): string {
+  if (value === "publication") return "Публикация";
+  if (value === "announcement") return "Анонсы";
+  if (value === "integration") return "Интеграции";
+  if (value === "release") return "Релиз";
+  return value;
+}
+
 export function NeriorUpdatesPage() {
-  const [activeCategory, setActiveCategory] =
-    useState<(typeof UPDATE_CATEGORIES)[number]>("Все");
+  const [activeCategory, setActiveCategory] = useState<(typeof UPDATE_CATEGORIES)[number]>("Все");
   const [view, setView] = useState<UpdatesView>("grid");
   const [items, setItems] = useState<PublicPublicationListItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -57,11 +82,10 @@ export function NeriorUpdatesPage() {
 
   return (
     <main className="public-page public-page--updates">
-      <section className="public-section public-section--tight">
-        <div className="public-section__header public-section__header--updates">
+      <section className="public-updates-shell">
+        <div className="public-updates-header">
           <div>
-            <span className="public-eyebrow">Обновления</span>
-            <h1>Публикации</h1>
+            <h1>Обновления</h1>
           </div>
           <div className="public-view-toggle" aria-label="Режим отображения">
             <button
@@ -96,10 +120,7 @@ export function NeriorUpdatesPage() {
           ))}
         </div>
 
-        <section
-          className={view === "grid" ? "public-updates-grid" : "public-updates-list"}
-          aria-label={`Публикации: ${activeCategory}`}
-        >
+        <section className={view === "grid" ? "public-updates-grid" : "public-updates-list"}>
           {isLoading ? (
             <article className="public-empty-state">
               <span className="public-eyebrow">Обновления</span>
@@ -115,10 +136,7 @@ export function NeriorUpdatesPage() {
             <article className="public-empty-state">
               <span className="public-eyebrow">Нет публикаций</span>
               <h2>Статьи ещё не загружены.</h2>
-              <p>
-                Страница уже подключена к реальному backend API. Контент будет добавлен позже
-                через базу данных без моков.
-              </p>
+              <p>Страница уже подключена к реальному backend API. Контент будет добавлен позже без моков.</p>
             </article>
           ) : view === "grid" ? (
             items.map((item) => (
@@ -133,6 +151,10 @@ export function NeriorUpdatesPage() {
                 <div className="public-update-card__body">
                   <h2>{item.title}</h2>
                   <p>{item.summary}</p>
+                  <div className="public-update-card__meta">
+                    <span>{formatCategory(item.category)}</span>
+                    <small>{formatPublicationDate(item.published_at)}</small>
+                  </div>
                 </div>
               </Link>
             ))
@@ -140,8 +162,8 @@ export function NeriorUpdatesPage() {
             items.map((item) => (
               <Link key={item.id} to={`/updates/${item.slug}`} className="public-update-row">
                 <div className="public-update-row__meta">
-                  <span>{item.category}</span>
-                  <small>{item.published_at ?? "Дата будет добавлена"}</small>
+                  <span>{formatCategory(item.category)}</span>
+                  <small>{formatPublicationDate(item.published_at)}</small>
                 </div>
                 <div className="public-update-row__body">
                   <h2>{item.title}</h2>

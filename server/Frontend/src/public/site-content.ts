@@ -19,7 +19,7 @@ export const PRODUCT_ITEMS = [
     status: "active" as const,
   },
   {
-    name: "Smart-Planner",
+    name: "Smart planner",
     href: "https://smart-planner.nerior.store",
     description: "Не доступно в данный момент.",
     status: "disabled" as const,
@@ -49,25 +49,26 @@ export const MAIN_NAV: PublicNavItem[] = [
     label: "Компания",
     href: "/company",
     menu: [
-      { label: "О нас", href: "/company#about", note: "Позиционирование и принципы." },
-      { label: "Карьера", href: "/company#careers", note: "Команда и роли." },
-      { label: "Истории", href: "/company#stories", note: "Кейсы и практики." },
+      { label: "О нас", href: "/company#about", note: "Изучить компанию" },
+      { label: "Карьеры", href: "/company#careers", note: "Команда и роли" },
+      { label: "Истории", href: "/company#stories", note: "Кейсы и практики" },
     ],
   },
   {
     label: "Разработчикам",
     href: "https://docs.nerior.store",
     menu: [
-      { label: "API", href: "https://api.nerior.store", note: "Ключи, доступ и usage." },
-      { label: "Документация", href: "https://docs.nerior.store", note: "Руководства и схемы." },
-      { label: "Сообщество", href: "https://community.nerior.store", note: "Обсуждения и релизы." },
+      { label: "API платформа", href: "https://api.nerior.store", note: "Ключи, доступ и usage" },
+      { label: "Документации", href: "https://docs.nerior.store", note: "Руководства и схемы" },
+      { label: "Руководства", href: "https://docs.nerior.store", note: "Практические сценарии" },
+      { label: "Сообщество", href: "https://community.nerior.store", note: "Обсуждения и релизы" },
     ],
   },
 ];
 
 export const UPDATE_CATEGORIES = [
   "Все",
-  "Публикации",
+  "Публикация",
   "Анонсы",
   "Интеграции",
   "Релиз",
@@ -185,15 +186,15 @@ export const NERIOR_METRICS = [
 export function getPublicTitle(kind: HostAppKind): string {
   switch (kind) {
     case "docs":
-      return "Документация";
+      return "Nerior";
     case "community":
-      return "Сообщество";
+      return "Nerior";
     case "help":
-      return "Справочный центр";
+      return "Nerior";
     case "smart-planner":
-      return "Smart-Planner";
+      return "Nerior";
     case "karpik":
-      return "Karpik";
+      return "Nerior";
     default:
       return "Nerior";
   }
