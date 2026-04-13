@@ -14,7 +14,6 @@ import {
 import { PlatformShell } from "./components/PlatformShell";
 import { PlatformAnalyticsPage } from "./pages/PlatformAnalyticsPage";
 import { PlatformApiKeysPage } from "./pages/PlatformApiKeysPage";
-import { PlatformDocsPage } from "./pages/PlatformDocsPage";
 import { PlatformOverviewPage } from "./pages/PlatformOverviewPage";
 import { resolvePlatformRoute } from "./routes";
 import { usePlatformSession } from "./session";
@@ -73,7 +72,7 @@ export function PlatformApp() {
           navigate("/login", { replace: true });
           return;
         }
-        setError(loadError instanceof Error ? loadError.message : "Failed to load developer portal.");
+        setError(loadError instanceof Error ? loadError.message : "Failed to load API access.");
       })
       .finally(() => {
         if (!cancelled) {
@@ -235,7 +234,7 @@ export function PlatformApp() {
   };
 
   if (isLoading && !dashboard) {
-    return <div className="platform-loading-state">Loading platform...</div>;
+    return <div className="platform-loading-state">Loading API access...</div>;
   }
 
   if (error && !dashboard) {
@@ -264,8 +263,6 @@ export function PlatformApp() {
         onCreate={handleCreate}
         onRevoke={handleRevoke}
       />
-    ) : route.key === "docs" ? (
-      <PlatformDocsPage apiBaseUrl={dashboard.externalApiBaseUrl} />
     ) : route.key === "analytics" ? (
       <PlatformAnalyticsPage apiKeys={apiKeys} stats={stats} />
     ) : (

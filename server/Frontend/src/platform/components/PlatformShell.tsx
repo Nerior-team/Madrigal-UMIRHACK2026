@@ -43,11 +43,11 @@ export function PlatformShell({
         <a className="platform-shell__brand" href="/">
           <span className="platform-shell__mark">N</span>
           <div>
-            <strong>Nerior Platform</strong>
+            <strong>Nerior API</strong>
             <span>{formatSyncLabel(generatedAt)}</span>
           </div>
         </a>
-        <nav className="platform-shell__nav" aria-label="Developer portal navigation">
+        <nav className="platform-shell__nav" aria-label="API cabinet navigation">
           {PLATFORM_ROUTE_ITEMS.map((item) => (
             <NavLink
               key={item.key}
@@ -60,11 +60,14 @@ export function PlatformShell({
           ))}
         </nav>
         <div className="platform-shell__account">
-          <span className="platform-shell__account-label">Authenticated</span>
+          <span className="platform-shell__account-label">API access</span>
           <strong>{profile.email}</strong>
           <div className="platform-shell__account-actions">
+            <a className="platform-inline-link" href="https://docs.nerior.store">
+              Open Docs
+            </a>
             <a className="platform-inline-link" href="https://crossplat.nerior.store/machines">
-              Open Product
+              Open Crossplat
             </a>
             <button type="button" className="platform-inline-link" onClick={onSignOut}>
               Sign out

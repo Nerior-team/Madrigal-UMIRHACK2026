@@ -1,4 +1,4 @@
-export type PlatformRouteKey = "overview" | "keys" | "docs" | "analytics";
+export type PlatformRouteKey = "overview" | "keys" | "analytics";
 
 export type PlatformRouteItem = {
   key: PlatformRouteKey;
@@ -12,7 +12,7 @@ export const PLATFORM_ROUTE_ITEMS: PlatformRouteItem[] = [
     key: "overview",
     path: "/",
     label: "Overview",
-    eyebrow: "Platform",
+    eyebrow: "API",
   },
   {
     key: "keys",
@@ -21,15 +21,9 @@ export const PLATFORM_ROUTE_ITEMS: PlatformRouteItem[] = [
     eyebrow: "Access",
   },
   {
-    key: "docs",
-    path: "/docs",
-    label: "Docs",
-    eyebrow: "Reference",
-  },
-  {
     key: "analytics",
     path: "/analytics",
-    label: "Analytics",
+    label: "Usage",
     eyebrow: "Usage",
   },
 ];

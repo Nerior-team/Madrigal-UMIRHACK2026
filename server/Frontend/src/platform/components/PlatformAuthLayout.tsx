@@ -7,16 +7,16 @@ export function PlatformAuthLayout({ children }: PropsWithChildren) {
         <a className="platform-auth-layout__brand" href="/">
           <span className="platform-auth-layout__mark">N</span>
           <div>
-            <strong>Nerior Platform</strong>
-            <span>Developer access</span>
+            <strong>Nerior API</strong>
+            <span>Scoped access</span>
           </div>
         </a>
         <div className="platform-auth-layout__copy">
-          <span className="platform-eyebrow">Platform</span>
-          <h1>Build on top of machines, tasks, logs, and results.</h1>
+          <span className="platform-eyebrow">API</span>
+          <h1>Manage scoped keys for Nerior services.</h1>
           <p>
-            Separate platform access, scoped API keys, and operational visibility in a workspace
-            designed for developers.
+            Separate API sign-in, product-level availability, key issuance, revocation, and usage
+            visibility from one cabinet.
           </p>
         </div>
       </aside>

@@ -69,20 +69,20 @@ export function PlatformAuthPage({ mode }: PlatformAuthPageProps) {
 
   const title =
     mode === "login"
-      ? "Sign in to Nerior Platform"
+      ? "Sign in to Nerior API"
       : mode === "register"
-        ? "Create a platform account"
+        ? "Create an API account"
         : mode === "verify"
-          ? "Verify your account"
+          ? "Verify API access"
           : mode === "forgot-password"
             ? "Reset your password"
             : "Set a new password";
 
   const subtitle =
     mode === "login"
-      ? "Platform access is separate from the product UI."
+      ? "API access uses its own session and sign-in flow."
       : mode === "register"
-        ? "Create developer access for API keys, docs, and usage analytics."
+        ? "Create access for API keys, product scopes, and usage visibility."
         : mode === "verify"
           ? "Enter the email code or two-factor code to continue."
           : mode === "forgot-password"

@@ -3,6 +3,7 @@ import { CustomSelect } from "../../components/primitives/CustomSelect";
 import { formatMoscowDateTime } from "../../core/ui";
 import type { PlatformCommandScopeOption } from "../api/platform";
 import { PlatformSectionCard } from "../components/PlatformSectionCard";
+import { PLATFORM_PRODUCTS } from "../products";
 
 type PlatformApiKeysPageProps = {
   apiKeys: Array<{
@@ -77,6 +78,8 @@ export function PlatformApiKeysPage({
   onCreate,
   onRevoke,
 }: PlatformApiKeysPageProps) {
+  const activeProduct = PLATFORM_PRODUCTS.find((item) => item.status === "available");
+
   const selectedMachineTitles = useMemo(
     () =>
       machineOptions
@@ -87,11 +90,44 @@ export function PlatformApiKeysPage({
 
   return (
     <div className="platform-page platform-page--keys">
+      <PlatformSectionCard
+        eyebrow="Products"
+        title="Service selection"
+        detail="API key issuance is live for Crossplat. Other Nerior services are listed here but are not available yet."
+      >
+        <div className="platform-product-grid">
+          {PLATFORM_PRODUCTS.map((product) => (
+            <article
+              key={product.key}
+              className={
+                product.status === "available"
+                  ? "platform-product-card"
+                  : "platform-product-card platform-product-card--disabled"
+              }
+            >
+              <div className="platform-product-card__header">
+                <strong>{product.name}</strong>
+                <span
+                  className={
+                    product.status === "available"
+                      ? "platform-badge platform-badge--active"
+                      : "platform-badge"
+                  }
+                >
+                  {product.note}
+                </span>
+              </div>
+              <p>{product.description}</p>
+            </article>
+          ))}
+        </div>
+      </PlatformSectionCard>
+
       <section className="platform-two-column platform-two-column--wide">
         <PlatformSectionCard
           eyebrow="Create"
-          title="Issue a new API key"
-          detail="Scopes stay explicit: select machines first, then narrow available command templates if needed."
+          title="Issue a Crossplat API key"
+          detail="Scopes stay explicit: select machines first, then narrow command templates if needed."
         >
           <div className="platform-form-grid">
             <label className="platform-field">
@@ -127,6 +163,11 @@ export function PlatformApiKeysPage({
             </label>
 
             <label className="platform-field">
+              <span>Service</span>
+              <input type="text" value={activeProduct?.name ?? "Crossplat"} readOnly />
+            </label>
+
+            <label className="platform-field">
               <span>Confirm with password</span>
               <input
                 type="password"
@@ -140,7 +181,7 @@ export function PlatformApiKeysPage({
           <div className="platform-scope-panel">
             <div className="platform-scope-panel__header">
               <strong>Machine scope</strong>
-              <span>{selectedMachineTitles.length ? selectedMachineTitles.join(" / ") : "Select at least one machine"}</span>
+              <span>{selectedMachineTitles.length ? selectedMachineTitles.join(" / ") : "Select at least one Crossplat machine"}</span>
             </div>
             <div className="platform-chip-grid">
               {machineOptions.map((machine) => {
@@ -165,7 +206,7 @@ export function PlatformApiKeysPage({
               <span>
                 {commandScopeOptions.length
                   ? "Optional allowlist, narrowed to the machines you selected."
-                  : "Command scopes appear after machine selection."}
+                  : "Command scopes appear after Crossplat machine selection."}
               </span>
             </div>
             <div className="platform-chip-grid">
@@ -190,7 +231,7 @@ export function PlatformApiKeysPage({
           {error ? <p className="platform-feedback platform-feedback--error">{error}</p> : null}
           {latestRawKey ? (
             <label className="platform-field">
-              <span>Copy now: raw key is shown once</span>
+              <span>Copy now: the raw key is shown once</span>
               <textarea readOnly value={latestRawKey} rows={3} />
             </label>
           ) : null}
@@ -202,7 +243,7 @@ export function PlatformApiKeysPage({
               onClick={onCreate}
               disabled={isSubmitting}
             >
-              {isSubmitting ? "Issuing key..." : "Issue API key"}
+              {isSubmitting ? "Issuing key..." : "Issue key"}
             </button>
           </div>
         </PlatformSectionCard>
@@ -267,7 +308,7 @@ export function PlatformApiKeysPage({
                 </article>
               ))
             ) : (
-              <p className="platform-empty-state">No API keys yet. Create the first key to unlock programmatic access.</p>
+              <p className="platform-empty-state">No API keys yet. Issue the first key to unlock Crossplat access.</p>
             )}
           </div>
         </PlatformSectionCard>

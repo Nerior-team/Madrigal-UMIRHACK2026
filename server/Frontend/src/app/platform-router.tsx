@@ -17,7 +17,7 @@ type PlatformAuthRouteElementProps = {
 };
 
 function PlatformLoadingState() {
-  return <div className="platform-loading-state">Loading platform...</div>;
+  return <div className="platform-loading-state">Loading API access...</div>;
 }
 
 function PlatformAuthRouteElement({ mode }: PlatformAuthRouteElementProps) {

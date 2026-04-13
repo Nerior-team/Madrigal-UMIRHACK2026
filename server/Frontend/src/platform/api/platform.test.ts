@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { buildPlatformApiKeyStats, resolveExternalApiBaseUrl } from "./platform";
 
-describe("platform api helpers", () => {
+describe("api cabinet helpers", () => {
   it("builds the external api base url from the current origin", () => {
-    expect(resolveExternalApiBaseUrl("https://platform.nerior.store/")).toBe(
-      "https://platform.nerior.store/api/v1/external",
+    expect(resolveExternalApiBaseUrl("https://api.nerior.store/")).toBe(
+      "https://api.nerior.store/api/v1/external",
     );
   });
 
