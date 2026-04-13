@@ -113,7 +113,8 @@ import { EmptyState } from "./components/primitives/EmptyState";
 import type { ProfileSectionKey } from "./components/profile/types";
 
 const apiClient = api;
-const AGENT_PAIR_COMMAND = "predict pair --backend-url https://nerior.store";
+const CROSSPLAT_BASE_URL = "https://crossplat.nerior.store";
+const AGENT_PAIR_COMMAND = `predict pair --backend-url ${CROSSPLAT_BASE_URL}`;
 
 type AuthMode =
   | "login"
@@ -347,15 +348,15 @@ const menuItems: MenuItem[] = [
 ];
 
 const WINDOWS_DAEMON_INSTALL_URL =
-  "https://nerior.store/downloads/windows/PredictMVDaemonSetup.exe";
+  `${CROSSPLAT_BASE_URL}/downloads/windows/PredictMVDaemonSetup.exe`;
 const LINUX_ARCHIVE_INSTALL_URL =
-  "https://nerior.store/downloads/linux/predictmv-linux-x64.tar.gz";
+  `${CROSSPLAT_BASE_URL}/downloads/linux/predictmv-linux-x64.tar.gz`;
 
 const linuxInstallGuideSteps: Array<{ title: string; commands: string[] }> = [
   {
     title: "Установка",
     commands: [
-      "curl -fsSL https://nerior.store/downloads/linux/install.sh -o install.sh",
+      `curl -fsSL ${CROSSPLAT_BASE_URL}/downloads/linux/install.sh -o install.sh`,
       "chmod +x install.sh",
       "sudo bash install.sh",
     ],
@@ -364,7 +365,7 @@ const linuxInstallGuideSteps: Array<{ title: string; commands: string[] }> = [
     title: "Проверка установки и связка агента",
     commands: [
       "sudo /usr/local/bin/predict version",
-      "sudo /usr/local/bin/predict pair --backend-url https://nerior.store",
+      `sudo /usr/local/bin/predict pair --backend-url ${CROSSPLAT_BASE_URL}`,
     ],
   },
   {
@@ -444,14 +445,14 @@ function getInstallActionUrl(
 function renderLinuxInstallCommandTokens(commandLine: string) {
   if (
     commandLine ===
-    "curl -fsSL https://nerior.store/downloads/linux/install.sh -o install.sh"
+    `curl -fsSL ${CROSSPLAT_BASE_URL}/downloads/linux/install.sh -o install.sh`
   ) {
     return (
       <>
         <span className="install-guide-modal__cmd-keyword">curl</span>{" "}
         <span className="install-guide-modal__cmd-flag">-fsSL</span>{" "}
         <span className="install-guide-modal__cmd-value">
-          https://nerior.store/downloads/linux/install.sh
+          {`${CROSSPLAT_BASE_URL}/downloads/linux/install.sh`}
         </span>{" "}
         <span className="install-guide-modal__cmd-flag">-o</span>{" "}
         <span className="install-guide-modal__cmd-value">install.sh</span>
@@ -479,7 +480,7 @@ function renderLinuxInstallCommandTokens(commandLine: string) {
 
   if (
     commandLine ===
-    "sudo /usr/local/bin/predict pair --backend-url https://nerior.store"
+    `sudo /usr/local/bin/predict pair --backend-url ${CROSSPLAT_BASE_URL}`
   ) {
     return (
       <>
@@ -488,7 +489,7 @@ function renderLinuxInstallCommandTokens(commandLine: string) {
         </span>{" "}
         <span className="install-guide-modal__cmd-flag">--backend-url</span>{" "}
         <span className="install-guide-modal__cmd-value">
-          https://nerior.store
+          {CROSSPLAT_BASE_URL}
         </span>
       </>
     );
@@ -3084,7 +3085,7 @@ export function App() {
         <section className="auth-card auth-card--loading">
           <div className="auth-card__content auth-card__content--loading">
             <header className="brand-block">
-              <p className="brand-block__name">PREDICT MV</p>
+              <p className="brand-block__name">CROSSPLAT</p>
               <p className="brand-block__tagline">Загрузка рабочего пространства</p>
             </header>
           </div>
@@ -4227,7 +4228,7 @@ export function App() {
             </div>
             <img
               src="/auth.jpg"
-              alt="Превью панели Predict MV"
+              alt="Превью панели Crossplat"
               className="auth-card__preview-image"
             />
           </div>
@@ -4235,7 +4236,7 @@ export function App() {
 
         <div className="auth-card__content">
           <header className="brand-block">
-            <p className="brand-block__name">PREDICT MV</p>
+            <p className="brand-block__name">CROSSPLAT</p>
             <p className="brand-block__tagline">Контроль инфраструктуры под рукой</p>
           </header>
 

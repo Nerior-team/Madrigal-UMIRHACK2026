@@ -63,7 +63,7 @@ export function PlatformShell({
           <span className="platform-shell__account-label">Authenticated</span>
           <strong>{profile.email}</strong>
           <div className="platform-shell__account-actions">
-            <a className="platform-inline-link" href="https://nerior.store/machines">
+            <a className="platform-inline-link" href="https://crossplat.nerior.store/machines">
               Open Product
             </a>
             <button type="button" className="platform-inline-link" onClick={onSignOut}>

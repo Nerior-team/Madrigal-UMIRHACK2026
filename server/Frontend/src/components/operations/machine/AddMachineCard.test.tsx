@@ -11,7 +11,7 @@ function renderHarness(
   overrides: Partial<AddMachineCardProps> = {},
 ): AddMachineCardProps {
   const props: AddMachineCardProps = {
-    command: "predict pair --backend-url https://nerior.store",
+    command: "predict pair --backend-url https://crossplat.nerior.store",
     deviceCode: "",
     displayName: "",
     errorMessage: null,
@@ -59,7 +59,7 @@ describe("AddMachineCard", () => {
       screen.getByRole("heading", { name: "Добавление машины" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByText("predict pair --backend-url https://nerior.store"),
+      screen.getByText("predict pair --backend-url https://crossplat.nerior.store"),
     ).toBeInTheDocument();
     expect(
       screen.getByLabelText("Код подтверждения устройства"),

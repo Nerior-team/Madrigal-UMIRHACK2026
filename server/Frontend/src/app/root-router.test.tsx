@@ -3,44 +3,55 @@ import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it } from "vitest";
 import { RootRouter } from "./root-router";
 
-function renderMainStub() {
-  return <div data-testid="main-app-stub">main</div>;
+function renderCrossplatStub() {
+  return <div data-testid="crossplat-app-stub">crossplat</div>;
 }
 
-function renderPlatformStub() {
-  return <div data-testid="platform-app-stub">platform</div>;
+function renderApiStub() {
+  return <div data-testid="api-app-stub">api</div>;
 }
 
 describe("RootRouter", () => {
-  it("renders the main product router for the primary host", () => {
+  it("renders the crossplat product router for the crossplat host", () => {
     render(
       <MemoryRouter initialEntries={["/machines"]}>
         <RootRouter
-          hostname="nerior.store"
-          renderMainApp={renderMainStub}
-          renderPlatformApp={renderPlatformStub}
+          hostname="crossplat.nerior.store"
+          renderCrossplatApp={renderCrossplatStub}
+          renderApiApp={renderApiStub}
         />
       </MemoryRouter>,
     );
 
-    expect(screen.getByTestId("main-app-stub")).toBeInTheDocument();
-    expect(screen.queryByTestId("platform-app-stub")).not.toBeInTheDocument();
+    expect(screen.getByTestId("crossplat-app-stub")).toBeInTheDocument();
+    expect(screen.queryByTestId("api-app-stub")).not.toBeInTheDocument();
   });
 
-  it("renders the platform router for the platform host", () => {
+  it("renders the api router for the api host", () => {
     render(
       <MemoryRouter initialEntries={["/docs"]}>
         <RootRouter
-          hostname="platform.nerior.store"
-          renderMainApp={renderMainStub}
-          renderPlatformApp={renderPlatformStub}
-          initialPlatformSessionStatus="authenticated"
-          disablePlatformSessionBootstrap
+          hostname="api.nerior.store"
+          renderCrossplatApp={renderCrossplatStub}
+          renderApiApp={renderApiStub}
+          initialApiSessionStatus="authenticated"
+          disableApiSessionBootstrap
         />
       </MemoryRouter>,
     );
 
-    expect(screen.getByTestId("platform-app-stub")).toBeInTheDocument();
-    expect(screen.queryByTestId("main-app-stub")).not.toBeInTheDocument();
+    expect(screen.getByTestId("api-app-stub")).toBeInTheDocument();
+    expect(screen.queryByTestId("crossplat-app-stub")).not.toBeInTheDocument();
+  });
+
+  it("renders the public placeholder for the company site host", () => {
+    render(
+      <MemoryRouter initialEntries={["/"]}>
+        <RootRouter hostname="nerior.store" />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole("heading", { name: /системы, продукты/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Обновления" })).toBeInTheDocument();
   });
 });

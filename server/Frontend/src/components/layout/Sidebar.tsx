@@ -35,10 +35,10 @@ export function Sidebar({
       <div className="machines-logo">
         <img
           src="/logo.png"
-          alt="Predict MV logo"
+          alt="Crossplat logo"
           className="machines-logo__mark"
         />
-        <strong>PREDICT MV</strong>
+        <strong>CROSSPLAT</strong>
       </div>
 
       <nav className="machines-nav" aria-label="Навигация">

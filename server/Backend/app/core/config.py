@@ -55,6 +55,7 @@ class Settings(BaseSettings):
     smtp_pass: str
     email_from: str
     support_email: str
+    contact_form_recipient_email: str | None = None
     brand_display_name: str
 
     telegram_bot_token: str
@@ -124,6 +125,14 @@ class Settings(BaseSettings):
         normalized = str(value).strip()
         return normalized or None
 
+    @field_validator("contact_form_recipient_email", mode="before")
+    @classmethod
+    def normalize_optional_contact_email(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        normalized = str(value).strip()
+        return normalized or None
+
     @field_validator("backend_cookie_domain", mode="before")
     @classmethod
     def normalize_optional_cookie_domain(cls, value: str | None) -> str | None:
@@ -151,6 +160,10 @@ class Settings(BaseSettings):
     @property
     def effective_telegram_internal_signing_secret(self) -> str:
         return (self.telegram_internal_signing_secret or self.telegram_webhook_secret).strip()
+
+    @property
+    def effective_contact_form_recipient_email(self) -> str:
+        return (self.contact_form_recipient_email or self.support_email).strip()
 
 
 @lru_cache(maxsize=1)

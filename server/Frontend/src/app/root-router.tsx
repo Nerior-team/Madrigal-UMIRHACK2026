@@ -1,15 +1,14 @@
 import type { ReactNode } from "react";
-import { PlatformRouter } from "./platform-router";
 import { resolveHostApp } from "./platform-host";
-import { AppRouter } from "./router";
+import { HostApp } from "./host-app";
 import type { PlatformSessionStatus } from "../platform/session";
 
 type RootRouterProps = {
   hostname?: string;
-  renderMainApp?: () => ReactNode;
-  renderPlatformApp?: () => ReactNode;
-  initialPlatformSessionStatus?: PlatformSessionStatus;
-  disablePlatformSessionBootstrap?: boolean;
+  renderCrossplatApp?: () => ReactNode;
+  renderApiApp?: () => ReactNode;
+  initialApiSessionStatus?: PlatformSessionStatus;
+  disableApiSessionBootstrap?: boolean;
 };
 
 function getBrowserHostname(): string {
@@ -22,20 +21,18 @@ function getBrowserHostname(): string {
 
 export function RootRouter({
   hostname = getBrowserHostname(),
-  renderMainApp,
-  renderPlatformApp,
-  initialPlatformSessionStatus,
-  disablePlatformSessionBootstrap = false,
+  renderCrossplatApp,
+  renderApiApp,
+  initialApiSessionStatus,
+  disableApiSessionBootstrap = false,
 }: RootRouterProps) {
-  if (resolveHostApp(hostname) === "platform") {
-    return (
-      <PlatformRouter
-        renderApp={renderPlatformApp}
-        initialSessionStatus={initialPlatformSessionStatus}
-        disableSessionBootstrap={disablePlatformSessionBootstrap}
-      />
-    );
-  }
-
-  return <AppRouter renderApp={renderMainApp} />;
+  return (
+    <HostApp
+      kind={resolveHostApp(hostname)}
+      renderCrossplatApp={renderCrossplatApp}
+      renderApiApp={renderApiApp}
+      initialApiSessionStatus={initialApiSessionStatus}
+      disableApiSessionBootstrap={disableApiSessionBootstrap}
+    />
+  );
 }
