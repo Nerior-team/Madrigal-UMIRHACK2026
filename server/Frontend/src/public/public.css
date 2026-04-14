@@ -585,8 +585,29 @@
   gap: 18px;
 }
 
+.public-doc-card {
+  display: grid;
+  gap: 14px;
+}
+
 .public-stack-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.public-link-grid,
+.public-library-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.public-card-list {
+  margin: 0;
+  padding: 0 0 0 18px;
+  display: grid;
+  gap: 10px;
+  color: var(--public-muted);
+  line-height: 1.7;
 }
 
 .public-contact-form {
@@ -688,6 +709,8 @@
   .public-section--two-up,
   .public-product-grid,
   .public-feature-grid,
+  .public-link-grid,
+  .public-library-grid,
   .public-stack-grid,
   .public-docs-layout,
   .public-contact-shell,
