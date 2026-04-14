@@ -75,8 +75,8 @@ export function PublicContactPage() {
               <span className="public-eyebrow">Связаться с нами</span>
               <h1>Оставьте запрос по продукту, внедрению или будущему сотрудничеству.</h1>
               <p>
-                Форма отправляется в реальный backend и приходит на рабочую почту в нормальном
-                читаемом формате.
+                Форма использует реальный backend-контракт и уходит в рабочий канал обработки заявок. Сюда стоит
+                писать по продукту, API, интеграции, будущим проектам и общим вопросам по экосистеме Nerior.
               </p>
             </div>
           </div>
@@ -84,15 +84,15 @@ export function PublicContactPage() {
           <div className="public-feature-grid public-feature-grid--compact">
             <article className="public-feature-card">
               <h2>Crossplat</h2>
-              <p>Запросы по текущему активному продукту, демонстрациям и рабочим сценариям.</p>
+              <p>Запросы по активному продукту, рабочим сценариям, демонстрациям и внедрению.</p>
             </article>
             <article className="public-feature-card">
               <h2>Будущие продукты</h2>
-              <p>Smart planner и Karpik уже доступны в форме как отдельные направления интереса.</p>
+              <p>Smart-Planner и Karpik уже доступны в форме как отдельные направления интереса.</p>
             </article>
             <article className="public-feature-card">
               <h2>Реальная отправка</h2>
-              <p>Никаких моков: форма уходит через текущий backend-контракт и почтовую доставку.</p>
+              <p>Никаких локальных фейков: форма отправляется через текущий backend и дальше обрабатывается в рабочем контуре.</p>
             </article>
           </div>
         </div>
@@ -106,7 +106,7 @@ export function PublicContactPage() {
                 onChange={(event) => setField("interest", event.target.value as ContactInterest)}
               >
                 <option value="crossplat">Crossplat</option>
-                <option value="smart-planner">Smart planner</option>
+                <option value="smart-planner">Smart-Planner</option>
                 <option value="karpik">Karpik</option>
                 <option value="other">Другое</option>
               </select>

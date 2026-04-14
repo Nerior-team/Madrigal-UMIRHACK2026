@@ -1,3 +1,27 @@
+const DEVELOPER_SURFACES = [
+  {
+    host: "docs.nerior.store",
+    title: "Документация",
+    body: "Публичная техническая документация с разделением по продуктам, сценариям, reference-материалам и практическим руководствам.",
+    href: "https://docs.nerior.store",
+    cta: "Перейти в docs",
+  },
+  {
+    host: "api.nerior.store",
+    title: "API",
+    body: "Отдельный кабинет API-ключей, scopes и аналитики доступа. Авторизация здесь отделена от продуктового входа.",
+    href: "https://api.nerior.store",
+    cta: "Открыть API",
+  },
+  {
+    host: "community.nerior.store",
+    title: "Сообщество",
+    body: "Публичная зона анонсов, обсуждений и переходов к связанным слоям: docs, help и обновлениям.",
+    href: "https://community.nerior.store",
+    cta: "Открыть сообщество",
+  },
+];
+
 export function PublicDevelopersPage() {
   return (
     <main className="public-page public-page--developers">
@@ -5,38 +29,25 @@ export function PublicDevelopersPage() {
         <div className="public-section__header">
           <div>
             <span className="public-eyebrow">Разработчикам</span>
-            <h1>Документы, API и сообщество в отдельных пространствах.</h1>
+            <h1>Документация, API и сообщество вынесены в отдельные пространства.</h1>
             <p>
-              У Nerior публичная документация, отдельный кабинет API и отдельная зона сообщества.
-              Каждая поверхность решает свою задачу и не смешивается с продуктовым интерфейсом.
+              У Nerior отдельный публичный docs-site, отдельный авторизованный API cabinet и отдельная зона
+              сообщества. Эти поверхности не смешиваются с рабочим продуктом и не теряются внутри corporate-сайта.
             </p>
           </div>
         </div>
+
         <div className="public-stack-grid">
-          <article className="public-story-card">
-            <span className="public-eyebrow">docs.nerior.store</span>
-            <h2>Документация</h2>
-            <p>Публичная техническая документация со структурой под разные типы материалов.</p>
-            <a href="https://docs.nerior.store" className="public-inline-link">
-              Перейти в docs
-            </a>
-          </article>
-          <article className="public-story-card">
-            <span className="public-eyebrow">api.nerior.store</span>
-            <h2>API</h2>
-            <p>Отдельный авторизованный кабинет ключей и доступов для продуктов Nerior.</p>
-            <a href="https://api.nerior.store" className="public-inline-link">
-              Открыть API
-            </a>
-          </article>
-          <article className="public-story-card">
-            <span className="public-eyebrow">community.nerior.store</span>
-            <h2>Сообщество</h2>
-            <p>Публичная зона обсуждений, материалов и обновлений для внешней аудитории.</p>
-            <a href="https://community.nerior.store" className="public-inline-link">
-              Открыть сообщество
-            </a>
-          </article>
+          {DEVELOPER_SURFACES.map((surface) => (
+            <article key={surface.host} className="public-story-card">
+              <span className="public-eyebrow">{surface.host}</span>
+              <h2>{surface.title}</h2>
+              <p>{surface.body}</p>
+              <a href={surface.href} className="public-inline-link">
+                {surface.cta}
+              </a>
+            </article>
+          ))}
         </div>
       </section>
     </main>

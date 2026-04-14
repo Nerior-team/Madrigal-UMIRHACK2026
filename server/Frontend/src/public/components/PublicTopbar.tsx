@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, NavLink } from "react-router-dom";
 import { ChevronRight, Menu } from "lucide-react";
 import type { PublicNavItem } from "../site-content";
@@ -21,75 +21,116 @@ export function PublicTopbar({
   secondaryActionHref,
 }: PublicTopbarProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
+  const closeTimer = useRef<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (closeTimer.current !== null) {
+        window.clearTimeout(closeTimer.current);
+      }
+    };
+  }, []);
+
+  function scheduleClose() {
+    if (closeTimer.current !== null) {
+      window.clearTimeout(closeTimer.current);
+    }
+    closeTimer.current = window.setTimeout(() => setActiveDropdown(null), 120);
+  }
+
+  function openDropdown(label: string) {
+    if (closeTimer.current !== null) {
+      window.clearTimeout(closeTimer.current);
+    }
+    setActiveDropdown(label);
+  }
 
   function isExternal(href: string): boolean {
     return href.startsWith("http://") || href.startsWith("https://");
   }
 
   return (
-    <header className="public-topbar">
-      <div className="public-topbar__inner">
-        <Link to="/" className="public-topbar__brand">
-          {title}
-        </Link>
+    <>
+      {activeDropdown ? <div className="public-topbar__backdrop" onMouseEnter={scheduleClose} /> : null}
+      <header className="public-topbar">
+        <div className="public-topbar__inner">
+          <Link to="/" className="public-topbar__brand">
+            {title}
+          </Link>
 
-        <button
-          type="button"
-          className="public-topbar__mobile-trigger"
-          onClick={() => setMobileOpen((current) => !current)}
-          aria-expanded={mobileOpen}
-          aria-label="Открыть меню"
-        >
-          <Menu size={18} />
-        </button>
+          <button
+            type="button"
+            className="public-topbar__mobile-trigger"
+            onClick={() => setMobileOpen((current) => !current)}
+            aria-expanded={mobileOpen}
+            aria-label="Открыть меню"
+          >
+            <Menu size={18} />
+          </button>
 
-        <nav className={mobileOpen ? "public-topbar__nav is-open" : "public-topbar__nav"}>
-          {navItems.map((item) => (
-            <div key={item.label} className="public-nav-item">
-              {isExternal(item.href) ? (
-                <a href={item.href} className="public-nav-item__link">
-                  <span>{item.label}</span>
-                </a>
-              ) : (
-                <NavLink to={item.href} className="public-nav-item__link">
-                  <span>{item.label}</span>
-                </NavLink>
-              )}
-              {item.menu?.length ? (
-                <div className="public-mega-menu" role="menu" aria-label={item.label}>
-                  <div className="public-mega-menu__label">
-                    {item.label === "Продукты" ? "Изучить продукты" : "Изучить раздел"}
+          <nav className={mobileOpen ? "public-topbar__nav is-open" : "public-topbar__nav"}>
+            {navItems.map((item) => (
+              <div
+                key={item.label}
+                className="public-nav-item"
+                onMouseEnter={() => (item.menu?.length ? openDropdown(item.label) : setActiveDropdown(null))}
+                onMouseLeave={item.menu?.length ? scheduleClose : undefined}
+              >
+                {isExternal(item.href) ? (
+                  <a href={item.href} className="public-nav-item__link">
+                    <span>{item.label}</span>
+                  </a>
+                ) : (
+                  <NavLink to={item.href} className="public-nav-item__link">
+                    <span>{item.label}</span>
+                  </NavLink>
+                )}
+
+                {item.menu?.length ? (
+                  <div
+                    className={activeDropdown === item.label ? "public-mega-menu is-open" : "public-mega-menu"}
+                    role="menu"
+                    aria-label={item.label}
+                    onMouseEnter={() => openDropdown(item.label)}
+                    onMouseLeave={scheduleClose}
+                  >
+                    <div className="public-mega-menu__label">
+                      {item.label === "Продукты" ? "Изучить продукты" : "Изучить раздел"}
+                    </div>
+                    <div className="public-mega-menu__items">
+                      {item.menu.map((menuItem) =>
+                        menuItem.disabled ? (
+                          <div key={menuItem.label} className="public-mega-menu__entry is-disabled">
+                            <span>{menuItem.label}</span>
+                            {menuItem.note ? <small>{menuItem.note}</small> : null}
+                          </div>
+                        ) : (
+                          <a key={menuItem.label} href={menuItem.href} className="public-mega-menu__entry">
+                            <span>{menuItem.label}</span>
+                            {menuItem.note ? <small>{menuItem.note}</small> : null}
+                          </a>
+                        ),
+                      )}
+                    </div>
                   </div>
-                  <div className="public-mega-menu__items">
-                    {item.menu.map((menuItem) =>
-                      menuItem.disabled ? (
-                        <div key={menuItem.label} className="public-mega-menu__entry is-disabled">
-                          <span>{menuItem.label}</span>
-                        </div>
-                      ) : (
-                        <a key={menuItem.label} href={menuItem.href} className="public-mega-menu__entry">
-                          <span>{menuItem.label}</span>
-                        </a>
-                      ),
-                    )}
-                  </div>
-                </div>
-              ) : null}
-            </div>
-          ))}
-        </nav>
+                ) : null}
+              </div>
+            ))}
+          </nav>
 
-        <div className="public-topbar__actions">
-          <a href={secondaryActionHref} className="public-button public-button--ghost">
-            <span>{secondaryActionLabel}</span>
-            <ChevronRight size={16} />
-          </a>
-          <a href={primaryActionHref} className="public-button public-button--solid">
-            <span>{primaryActionLabel}</span>
-            <ChevronRight size={16} />
-          </a>
+          <div className="public-topbar__actions">
+            <a href={secondaryActionHref} className="public-button public-button--ghost">
+              <span>{secondaryActionLabel}</span>
+              <ChevronRight size={16} />
+            </a>
+            <a href={primaryActionHref} className="public-button public-button--solid">
+              <span>{primaryActionLabel}</span>
+              <ChevronRight size={16} />
+            </a>
+          </div>
         </div>
-      </div>
-    </header>
+      </header>
+    </>
   );
 }

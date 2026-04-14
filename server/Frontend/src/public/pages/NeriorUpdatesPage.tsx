@@ -12,10 +12,10 @@ type UpdatesView = "grid" | "list";
 
 const CATEGORY_MAP: Record<(typeof UPDATE_CATEGORIES)[number], PublicPublicationCategory | undefined> = {
   Все: undefined,
-  Публикация: "publication",
+  Публикации: "publication",
   Анонсы: "announcement",
   Интеграции: "integration",
-  Релиз: "release",
+  Релизы: "release",
 };
 
 function formatPublicationDate(value?: string | null): string {
@@ -38,8 +38,8 @@ function formatPublicationDate(value?: string | null): string {
 
 function formatCategory(value: string): string {
   if (value === "publication") return "Публикация";
-  if (value === "announcement") return "Анонсы";
-  if (value === "integration") return "Интеграции";
+  if (value === "announcement") return "Анонс";
+  if (value === "integration") return "Интеграция";
   if (value === "release") return "Релиз";
   return value;
 }
@@ -85,7 +85,8 @@ export function NeriorUpdatesPage() {
       <section className="public-updates-shell">
         <div className="public-updates-header">
           <div>
-            <h1>Обновления</h1>
+            <span className="public-eyebrow">Обновления</span>
+            <h1>Публикации, релизы и анонсы Nerior.</h1>
           </div>
           <div className="public-view-toggle" aria-label="Режим отображения">
             <button
@@ -134,9 +135,12 @@ export function NeriorUpdatesPage() {
             </article>
           ) : items.length === 0 ? (
             <article className="public-empty-state">
-              <span className="public-eyebrow">Нет публикаций</span>
-              <h2>Статьи ещё не загружены.</h2>
-              <p>Страница уже подключена к реальному backend API. Контент будет добавлен позже без моков.</p>
+              <span className="public-eyebrow">Пока пусто</span>
+              <h2>Публикации ещё не загружены в базу.</h2>
+              <p>
+                Раздел уже подключён к реальному backend API. Когда статьи появятся в системе, они автоматически
+                отобразятся здесь без моков и без отдельной правки фронта.
+              </p>
             </article>
           ) : view === "grid" ? (
             items.map((item) => (

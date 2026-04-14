@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { getPublicPublication, type PublicPublicationDetail } from "../api";
 
 function formatCategory(value: string): string {
   if (value === "publication") return "Публикация";
-  if (value === "announcement") return "Анонсы";
-  if (value === "integration") return "Интеграции";
+  if (value === "announcement") return "Анонс";
+  if (value === "integration") return "Интеграция";
   if (value === "release") return "Релиз";
   return value;
 }
@@ -80,9 +80,9 @@ export function PublicArticlePage() {
 
   if (isLoading) {
     return (
-      <main className="public-page">
+      <main className="public-page public-page--article">
         <article className="public-empty-state">
-          <span className="public-eyebrow">Публикация</span>
+          <span className="public-eyebrow">Статья</span>
           <h2>Загрузка статьи...</h2>
         </article>
       </main>
@@ -91,11 +91,14 @@ export function PublicArticlePage() {
 
   if (error || !article) {
     return (
-      <main className="public-page">
+      <main className="public-page public-page--article">
         <article className="public-empty-state">
-          <span className="public-eyebrow">Публикация</span>
+          <span className="public-eyebrow">Статья</span>
           <h2>Статья не найдена.</h2>
           <p>{error ?? "Контент ещё не загружен."}</p>
+          <Link to="/updates" className="public-inline-link">
+            Вернуться к обновлениям
+          </Link>
         </article>
       </main>
     );
@@ -117,7 +120,7 @@ export function PublicArticlePage() {
           <article className="public-empty-state">
             <span className="public-eyebrow">Контент</span>
             <h2>Тело статьи пока не загружено.</h2>
-            <p>После импорта данных здесь появятся текстовые, графические и видео-блоки.</p>
+            <p>После импорта данных здесь появятся текстовые блоки, изображения и встроенное видео.</p>
           </article>
         )}
       </article>

@@ -3,22 +3,22 @@ import { HELP_GROUPS, HELP_PILLARS, HELP_SECTIONS } from "../site-content";
 const HELP_LINKS = [
   {
     eyebrow: "Связаться с нами",
-    title: "Маршрут в форму обратной связи",
-    body: "Здесь должно быть описание того, когда вопрос нужно вести в форму связи, а не оставлять внутри справочного центра.",
+    title: "Форма обратной связи",
+    body: "Если вопрос нельзя закрыть через help и docs, основной маршрут ведёт в форму связи на корпоративном сайте.",
     href: "https://nerior.store/contact",
     linkLabel: "Открыть форму",
   },
   {
     eyebrow: "Документация",
     title: "Глубокие технические материалы",
-    body: "Здесь должно быть описание того, какие проблемы закрываются справкой, а какие уводятся в docs.",
+    body: "Технические инструкции, reference и продуктовые материалы живут в docs, а help остаётся быстрым маршрутом входа.",
     href: "https://docs.nerior.store",
     linkLabel: "Перейти в docs",
   },
   {
     eyebrow: "Сообщество",
     title: "Открытые обсуждения и публикации",
-    body: "Здесь должно быть описание того, какие темы логичнее направлять в сообщество и публичные материалы.",
+    body: "Community и updates отвечают за анонсы и внешний контентный поток, а help не превращается в публичный журнал.",
     href: "https://community.nerior.store",
     linkLabel: "Открыть community",
   },
@@ -33,8 +33,8 @@ export function PublicHelpPage() {
             <span className="public-eyebrow">help.nerior.store</span>
             <h1>Справочный центр</h1>
             <p>
-              Публичная справочная поверхность для новых пользователей, команд и точек эскалации. Макет уже готов под FAQ,
-              пошаговые инструкции, маршруты диагностики и переходы в соседние сервисы.
+              Публичная справочная поверхность для новых пользователей, команд и support-маршрутов. Здесь
+              собраны быстрые ответы, пути диагностики и переходы в связанные сервисы.
             </p>
           </div>
         </div>
@@ -53,7 +53,7 @@ export function PublicHelpPage() {
         <div className="public-section__header">
           <div>
             <span className="public-eyebrow">Категории</span>
-            <h2>Справка уже разделена по типам аудитории и сценариям обращения.</h2>
+            <h2>Справка уже разделена по аудитории и сценарию обращения.</h2>
           </div>
         </div>
 
@@ -76,7 +76,7 @@ export function PublicHelpPage() {
         <div className="public-section__header">
           <div>
             <span className="public-eyebrow">Маршруты</span>
-            <h2>У каждого запроса есть понятное продолжение: docs, community или прямой контакт.</h2>
+            <h2>У каждого вопроса есть продолжение: docs, community или прямой контакт.</h2>
           </div>
         </div>
 
@@ -100,7 +100,7 @@ export function PublicHelpPage() {
         <div className="public-section__header">
           <div>
             <span className="public-eyebrow">Разделы</span>
-            <h2>Готовые блоки под будущие статьи, ответы, диагностику и FAQ-материалы.</h2>
+            <h2>Готовые блоки под статьи, FAQ, диагностику и маршруты поддержки.</h2>
           </div>
         </div>
 
