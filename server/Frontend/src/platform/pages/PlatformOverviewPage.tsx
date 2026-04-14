@@ -1,4 +1,4 @@
-import type { PlatformDashboardData, PlatformApiKeyStats } from "../api/platform";
+﻿import type { PlatformDashboardData, PlatformApiKeyStats } from "../api/platform";
 import { PlatformHero } from "../components/PlatformHero";
 import { PlatformSectionCard } from "../components/PlatformSectionCard";
 import { PlatformStatCard } from "../components/PlatformStatCard";
@@ -15,102 +15,80 @@ export function PlatformOverviewPage({ dashboard, stats }: PlatformOverviewPageP
   return (
     <div className="platform-page platform-page--overview">
       <PlatformHero
-        kicker="API доступ"
-        title="Управление ключами доступа для сервисов Nerior."
-        subtitle="Кабинет отвечает за выпуск ключей, доступные продукты, scope-границы и usage-видимость. Документация вынесена отдельно на docs.nerior.store."
+        kicker={"\u0041\u0050\u0049 \u0434\u043e\u0441\u0442\u0443\u043f"}
+        title={"\u0423\u043f\u0440\u0430\u0432\u043b\u0435\u043d\u0438\u0435 \u043a\u043b\u044e\u0447\u0430\u043c\u0438 \u0434\u043e\u0441\u0442\u0443\u043f\u0430 \u0434\u043b\u044f \u0441\u0435\u0440\u0432\u0438\u0441\u043e\u0432 Nerior."}
+        subtitle={"\u041a\u0430\u0431\u0438\u043d\u0435\u0442 \u043e\u0442\u0432\u0435\u0447\u0430\u0435\u0442 \u0437\u0430 \u0432\u044b\u043f\u0443\u0441\u043a \u043a\u043b\u044e\u0447\u0435\u0439, \u0434\u043e\u0441\u0442\u0443\u043f\u043d\u044b\u0435 \u043f\u0440\u043e\u0434\u0443\u043a\u0442\u044b, \u0433\u0440\u0430\u043d\u0438\u0446\u044b scope \u0438 \u0432\u0438\u0434\u0438\u043c\u043e\u0441\u0442\u044c \u0438\u0441\u043f\u043e\u043b\u044c\u0437\u043e\u0432\u0430\u043d\u0438\u044f. \u0414\u043e\u043a\u0443\u043c\u0435\u043d\u0442\u0430\u0446\u0438\u044f \u0432\u044b\u043d\u0435\u0441\u0435\u043d\u0430 \u043e\u0442\u0434\u0435\u043b\u044c\u043d\u043e \u043d\u0430 docs.nerior.store."}
         primaryCtaHref="/keys"
-        primaryCtaLabel="Открыть ключи"
+        primaryCtaLabel={"\u041e\u0442\u043a\u0440\u044b\u0442\u044c \u043a\u043b\u044e\u0447\u0438"}
         secondaryCtaHref="https://docs.nerior.store"
-        secondaryCtaLabel="Открыть docs"
+        secondaryCtaLabel={"\u041e\u0442\u043a\u0440\u044b\u0442\u044c docs"}
       />
 
       <section className="platform-stats-grid">
-        <PlatformStatCard label="Сервисы" value={String(PLATFORM_PRODUCTS.length)} detail="Продукты, показанные в кабинете" />
-        <PlatformStatCard label="Активны" value={String(availableProducts)} detail="Продукты с доступным API прямо сейчас" />
-        <PlatformStatCard label="Ключи" value={String(stats.total)} detail="Ключи, связанные с этим аккаунтом" />
-        <PlatformStatCard label="Машины" value={String(dashboard.machineOptions.length)} detail="Доступные scope Crossplat" />
-        <PlatformStatCard label="Вызовы" value={String(stats.totalUses)} detail="Общее число зафиксированных обращений" />
+        <PlatformStatCard label={"\u0421\u0435\u0440\u0432\u0438\u0441\u044b"} value={String(PLATFORM_PRODUCTS.length)} detail={"\u041f\u0440\u043e\u0434\u0443\u043a\u0442\u044b, \u043f\u043e\u043a\u0430\u0437\u0430\u043d\u043d\u044b\u0435 \u0432 \u043a\u0430\u0431\u0438\u043d\u0435\u0442\u0435"} />
+        <PlatformStatCard label={"\u0410\u043a\u0442\u0438\u0432\u043d\u044b"} value={String(availableProducts)} detail={"\u041f\u0440\u043e\u0434\u0443\u043a\u0442\u044b \u0441 \u0434\u043e\u0441\u0442\u0443\u043f\u043d\u044b\u043c API \u043f\u0440\u044f\u043c\u043e \u0441\u0435\u0439\u0447\u0430\u0441"} />
+        <PlatformStatCard label={"\u041a\u043b\u044e\u0447\u0438"} value={String(stats.total)} detail={"\u041a\u043b\u044e\u0447\u0438, \u0441\u0432\u044f\u0437\u0430\u043d\u043d\u044b\u0435 \u0441 \u044d\u0442\u0438\u043c \u0430\u043a\u043a\u0430\u0443\u043d\u0442\u043e\u043c"} />
+        <PlatformStatCard label={"\u041c\u0430\u0448\u0438\u043d\u044b"} value={String(dashboard.machineOptions.length)} detail={"\u0414\u043e\u0441\u0442\u0443\u043f\u043d\u044b\u0435 scope Crossplat"} />
+        <PlatformStatCard label={"\u0412\u044b\u0437\u043e\u0432\u044b"} value={String(stats.totalUses)} detail={"\u041e\u0431\u0449\u0435\u0435 \u0447\u0438\u0441\u043b\u043e \u0437\u0430\u0444\u0438\u043a\u0441\u0438\u0440\u043e\u0432\u0430\u043d\u043d\u044b\u0445 \u043e\u0431\u0440\u0430\u0449\u0435\u043d\u0438\u0439"} />
       </section>
 
       <section className="platform-two-column">
-        <PlatformSectionCard
-          eyebrow="Продукты"
-          title="Доступность сервисов"
-          detail="Для новых ключей можно выбирать только сервисы с живыми API-контрактами."
-        >
+        <PlatformSectionCard eyebrow={"\u041f\u0440\u043e\u0434\u0443\u043a\u0442\u044b"} title={"\u0414\u043e\u0441\u0442\u0443\u043f\u043d\u043e\u0441\u0442\u044c \u0441\u0435\u0440\u0432\u0438\u0441\u043e\u0432"} detail={"\u0414\u043b\u044f \u043d\u043e\u0432\u044b\u0445 \u043a\u043b\u044e\u0447\u0435\u0439 \u043c\u043e\u0436\u043d\u043e \u0432\u044b\u0431\u0438\u0440\u0430\u0442\u044c \u0442\u043e\u043b\u044c\u043a\u043e \u0441\u0435\u0440\u0432\u0438\u0441\u044b \u0441 \u0436\u0438\u0432\u044b\u043c\u0438 API-\u043a\u043e\u043d\u0442\u0440\u0430\u043a\u0442\u0430\u043c\u0438."}>
           <div className="platform-product-grid">
             {PLATFORM_PRODUCTS.map((product) => (
               <article
                 key={product.key}
-                className={
-                  product.status === "available"
-                    ? "platform-product-card"
-                    : "platform-product-card platform-product-card--disabled"
-                }
+                className={product.status === "available" ? "platform-product-card" : "platform-product-card platform-product-card--disabled"}
               >
                 <div className="platform-product-card__header">
                   <strong>{product.name}</strong>
-                  <span
-                    className={
-                      product.status === "available"
-                        ? "platform-badge platform-badge--active"
-                        : "platform-badge"
-                    }
-                  >
+                  <span className={product.status === "available" ? "platform-badge platform-badge--active" : "platform-badge"}>
                     {product.note}
                   </span>
                 </div>
                 <p>{product.description}</p>
                 {product.href ? (
                   <a className="platform-inline-link" href={product.href}>
-                    Открыть продукт
+                    {"\u041e\u0442\u043a\u0440\u044b\u0442\u044c \u043f\u0440\u043e\u0434\u0443\u043a\u0442"}
                   </a>
                 ) : (
-                  <span className="platform-disabled-link">Не доступно</span>
+                  <span className="platform-disabled-link">{"\u041d\u0435 \u0434\u043e\u0441\u0442\u0443\u043f\u043d\u043e"}</span>
                 )}
               </article>
             ))}
           </div>
         </PlatformSectionCard>
 
-        <PlatformSectionCard
-          eyebrow="Сессия"
-          title="API-сессия активна"
-          detail="API использует отдельный вход и отдельные cookies, независимо от Crossplat."
-        >
+        <PlatformSectionCard eyebrow={"\u0421\u0435\u0441\u0441\u0438\u044f"} title={"\u0041\u0050\u0049-\u0441\u0435\u0441\u0441\u0438\u044f \u0430\u043a\u0442\u0438\u0432\u043d\u0430"} detail={"\u0041\u0050\u0049 \u0438\u0441\u043f\u043e\u043b\u044c\u0437\u0443\u0435\u0442 \u043e\u0442\u0434\u0435\u043b\u044c\u043d\u044b\u0439 \u0432\u0445\u043e\u0434 \u0438 \u043e\u0442\u0434\u0435\u043b\u044c\u043d\u044b\u0435 cookies, \u043d\u0435\u0437\u0430\u0432\u0438\u0441\u0438\u043c\u043e \u043e\u0442 Crossplat."}>
           <div className="platform-auth-panel">
-            <span className="platform-badge platform-badge--active">Авторизовано</span>
-            <p>{`${dashboard.profile.email} может выпускать, отзывать и просматривать API-ключи с ограниченными scope.`}</p>
+            <span className="platform-badge platform-badge--active">{"\u0410\u0432\u0442\u043e\u0440\u0438\u0437\u043e\u0432\u0430\u043d\u043e"}</span>
+            <p>{`${dashboard.profile.email} \u043c\u043e\u0436\u0435\u0442 \u0432\u044b\u043f\u0443\u0441\u043a\u0430\u0442\u044c, \u043e\u0442\u0437\u044b\u0432\u0430\u0442\u044c \u0438 \u043f\u0440\u043e\u0441\u043c\u0430\u0442\u0440\u0438\u0432\u0430\u0442\u044c API-\u043a\u043b\u044e\u0447\u0438 \u0441 \u043e\u0433\u0440\u0430\u043d\u0438\u0447\u0435\u043d\u043d\u044b\u043c\u0438 scopes.`}</p>
           </div>
         </PlatformSectionCard>
       </section>
 
       <section className="platform-two-column">
-        <PlatformSectionCard
-          eyebrow="Сценарий"
-          title="Поток работы с Crossplat API"
-          detail="Для активного продукта уже используются реальные external-роуты backend."
-        >
+        <PlatformSectionCard eyebrow={"\u0421\u0446\u0435\u043d\u0430\u0440\u0438\u0439"} title={"\u041f\u043e\u0442\u043e\u043a \u0440\u0430\u0431\u043e\u0442\u044b \u0441 Crossplat API"} detail={"\u0414\u043b\u044f \u0430\u043a\u0442\u0438\u0432\u043d\u043e\u0433\u043e \u043f\u0440\u043e\u0434\u0443\u043a\u0442\u0430 \u0443\u0436\u0435 \u0438\u0441\u043f\u043e\u043b\u044c\u0437\u0443\u044e\u0442\u0441\u044f \u0440\u0435\u0430\u043b\u044c\u043d\u044b\u0435 external-\u043c\u0430\u0440\u0448\u0440\u0443\u0442\u044b backend."}>
           <ul className="platform-list">
-            <li>Создайте ключ только для тех машин, которые действительно нужны.</li>
+            <li>{"\u0421\u043e\u0437\u0434\u0430\u0439\u0442\u0435 \u043a\u043b\u044e\u0447 \u0442\u043e\u043b\u044c\u043a\u043e \u0434\u043b\u044f \u0442\u0435\u0445 \u043c\u0430\u0448\u0438\u043d, \u043a\u043e\u0442\u043e\u0440\u044b\u0435 \u0434\u0435\u0439\u0441\u0442\u0432\u0438\u0442\u0435\u043b\u044c\u043d\u043e \u043d\u0443\u0436\u043d\u044b."}</li>
             <li>
-              Используйте bearer-токен для <code>{dashboard.externalApiBaseUrl}</code>.
+              {"\u0418\u0441\u043f\u043e\u043b\u044c\u0437\u0443\u0439\u0442\u0435 bearer-\u0442\u043e\u043a\u0435\u043d \u0434\u043b\u044f "}<code>{dashboard.externalApiBaseUrl}</code>.
             </li>
-            <li>Проверьте шаблоны команд машины перед созданием задачи.</li>
-            <li>Отслеживайте выполнение через state, логи, summary и export результатов.</li>
+            <li>{"\u041f\u0440\u043e\u0432\u0435\u0440\u044c\u0442\u0435 \u0448\u0430\u0431\u043b\u043e\u043d\u044b \u043a\u043e\u043c\u0430\u043d\u0434 \u043c\u0430\u0448\u0438\u043d\u044b \u043f\u0435\u0440\u0435\u0434 \u0441\u043e\u0437\u0434\u0430\u043d\u0438\u0435\u043c \u0437\u0430\u0434\u0430\u0447\u0438."}</li>
+            <li>{"\u041e\u0442\u0441\u043b\u0435\u0436\u0438\u0432\u0430\u0439\u0442\u0435 \u0432\u044b\u043f\u043e\u043b\u043d\u0435\u043d\u0438\u0435 \u0447\u0435\u0440\u0435\u0437 state, \u043b\u043e\u0433\u0438, summary \u0438 export \u0440\u0435\u0437\u0443\u043b\u044c\u0442\u0430\u0442\u043e\u0432."}</li>
           </ul>
         </PlatformSectionCard>
 
-        <PlatformSectionCard
-          eyebrow="Навигация"
-          title="Что открыть дальше"
-          detail="Кабинет отвечает за доступ, а публичный docs-сайт за описание endpoint-ов."
-        >
+        <PlatformSectionCard eyebrow={"\u041d\u0430\u0432\u0438\u0433\u0430\u0446\u0438\u044f"} title={"\u0427\u0442\u043e \u043e\u0442\u043a\u0440\u044b\u0442\u044c \u0434\u0430\u043b\u044c\u0448\u0435"} detail={"\u041a\u0430\u0431\u0438\u043d\u0435\u0442 \u043e\u0442\u0432\u0435\u0447\u0430\u0435\u0442 \u0437\u0430 \u0434\u043e\u0441\u0442\u0443\u043f, \u0430 \u043f\u0443\u0431\u043b\u0438\u0447\u043d\u044b\u0439 docs-site \u0437\u0430 \u043e\u043f\u0438\u0441\u0430\u043d\u0438\u0435 endpoint-\u043e\u0432."}>
           <ul className="platform-list">
-            <li>Сейчас описано {dashboard.endpointCount} live external endpoint-ов.</li>
-            <li>Сейчас доступно {stats.active} активных ключей.</li>
-            <li>{stats.runEnabled} ключей могут создавать задачи.</li>
-            <li>{stats.mostUsed[0] ? `${stats.mostUsed[0].name} сейчас является самым используемым ключом.` : "Usage появится здесь после первых API-запросов."}</li>
+            <li>{`\u0421\u0435\u0439\u0447\u0430\u0441 \u043e\u043f\u0438\u0441\u0430\u043d\u043e ${dashboard.endpointCount} live external endpoint-\u043e\u0432.`}</li>
+            <li>{`\u0421\u0435\u0439\u0447\u0430\u0441 \u0434\u043e\u0441\u0442\u0443\u043f\u043d\u043e ${stats.active} \u0430\u043a\u0442\u0438\u0432\u043d\u044b\u0445 \u043a\u043b\u044e\u0447\u0435\u0439.`}</li>
+            <li>{`${stats.runEnabled} \u043a\u043b\u044e\u0447\u0435\u0439 \u043c\u043e\u0433\u0443\u0442 \u0441\u043e\u0437\u0434\u0430\u0432\u0430\u0442\u044c \u0437\u0430\u0434\u0430\u0447\u0438.`}</li>
+            <li>
+              {stats.mostUsed[0]
+                ? `${stats.mostUsed[0].name} \u0441\u0435\u0439\u0447\u0430\u0441 \u044f\u0432\u043b\u044f\u0435\u0442\u0441\u044f \u0441\u0430\u043c\u044b\u043c \u0438\u0441\u043f\u043e\u043b\u044c\u0437\u0443\u0435\u043c\u044b\u043c \u043a\u043b\u044e\u0447\u043e\u043c.`
+                : "\u0418\u0441\u043f\u043e\u043b\u044c\u0437\u043e\u0432\u0430\u043d\u0438\u0435 \u043f\u043e\u044f\u0432\u0438\u0442\u0441\u044f \u0437\u0434\u0435\u0441\u044c \u043f\u043e\u0441\u043b\u0435 \u043f\u0435\u0440\u0432\u044b\u0445 API-\u0437\u0430\u043f\u0440\u043e\u0441\u043e\u0432."}
+            </li>
           </ul>
         </PlatformSectionCard>
       </section>

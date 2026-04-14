@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+﻿import { useMemo, useState, type FormEvent } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { api } from "../core";
 import { ApiError } from "../core/http";
@@ -42,11 +42,11 @@ function extractApiErrorMessage(error: unknown, fallback: string): string {
 
 function validatePlatformPassword(password: string): string[] {
   const issues: string[] = [];
-  if (password.length < 12) issues.push("Используйте минимум 12 символов.");
-  if (!/[a-z]/.test(password)) issues.push("Добавьте строчную букву.");
-  if (!/[A-Z]/.test(password)) issues.push("Добавьте заглавную букву.");
-  if (!/\d/.test(password)) issues.push("Добавьте цифру.");
-  if (!/[^A-Za-z0-9]/.test(password)) issues.push("Добавьте специальный символ.");
+  if (password.length < 12) issues.push("\u0418\u0441\u043f\u043e\u043b\u044c\u0437\u0443\u0439\u0442\u0435 \u043c\u0438\u043d\u0438\u043c\u0443\u043c 12 \u0441\u0438\u043c\u0432\u043e\u043b\u043e\u0432.");
+  if (!/[a-z]/.test(password)) issues.push("\u0414\u043e\u0431\u0430\u0432\u044c\u0442\u0435 \u0441\u0442\u0440\u043e\u0447\u043d\u0443\u044e \u0431\u0443\u043a\u0432\u0443.");
+  if (!/[A-Z]/.test(password)) issues.push("\u0414\u043e\u0431\u0430\u0432\u044c\u0442\u0435 \u0437\u0430\u0433\u043b\u0430\u0432\u043d\u0443\u044e \u0431\u0443\u043a\u0432\u0443.");
+  if (!/\d/.test(password)) issues.push("\u0414\u043e\u0431\u0430\u0432\u044c\u0442\u0435 \u0446\u0438\u0444\u0440\u0443.");
+  if (!/[^A-Za-z0-9]/.test(password)) issues.push("\u0414\u043e\u0431\u0430\u0432\u044c\u0442\u0435 \u0441\u043f\u0435\u0446\u0438\u0430\u043b\u044c\u043d\u044b\u0439 \u0441\u0438\u043c\u0432\u043e\u043b.");
   return issues;
 }
 
@@ -69,30 +69,30 @@ export function PlatformAuthPage({ mode }: PlatformAuthPageProps) {
 
   const title =
     mode === "login"
-      ? "Вход в Nerior API"
+      ? "\u0412\u0445\u043e\u0434 \u0432 Nerior API"
       : mode === "register"
-        ? "Создание API-аккаунта"
+        ? "\u0421\u043e\u0437\u0434\u0430\u043d\u0438\u0435 API-\u0430\u043a\u043a\u0430\u0443\u043d\u0442\u0430"
         : mode === "verify"
-          ? "Подтверждение доступа"
+          ? "\u041f\u043e\u0434\u0442\u0432\u0435\u0440\u0436\u0434\u0435\u043d\u0438\u0435 \u0434\u043e\u0441\u0442\u0443\u043f\u0430"
           : mode === "forgot-password"
-            ? "Сброс пароля"
-            : "Новый пароль";
+            ? "\u0421\u0431\u0440\u043e\u0441 \u043f\u0430\u0440\u043e\u043b\u044f"
+            : "\u041d\u043e\u0432\u044b\u0439 \u043f\u0430\u0440\u043e\u043b\u044c";
 
   const subtitle =
     mode === "login"
-      ? "API использует отдельный вход и отдельную сессию."
+      ? "API \u0438\u0441\u043f\u043e\u043b\u044c\u0437\u0443\u0435\u0442 \u043e\u0442\u0434\u0435\u043b\u044c\u043d\u044b\u0439 \u0432\u0445\u043e\u0434 \u0438 \u043e\u0442\u0434\u0435\u043b\u044c\u043d\u0443\u044e \u0441\u0435\u0441\u0441\u0438\u044e."
       : mode === "register"
-        ? "Создайте доступ для API-ключей, продуктовых scope и usage-аналитики."
+        ? "\u0421\u043e\u0437\u0434\u0430\u0439\u0442\u0435 \u0434\u043e\u0441\u0442\u0443\u043f \u0434\u043b\u044f API-\u043a\u043b\u044e\u0447\u0435\u0439, \u043f\u0440\u043e\u0434\u0443\u043a\u0442\u043e\u0432\u044b\u0445 scopes \u0438 \u0430\u043d\u0430\u043b\u0438\u0442\u0438\u043a\u0438 \u0438\u0441\u043f\u043e\u043b\u044c\u0437\u043e\u0432\u0430\u043d\u0438\u044f."
         : mode === "verify"
-          ? "Введите код из письма или код двухфакторной проверки."
+          ? "\u0412\u0432\u0435\u0434\u0438\u0442\u0435 \u043a\u043e\u0434 \u0438\u0437 \u043f\u0438\u0441\u044c\u043c\u0430 \u0438\u043b\u0438 \u043a\u043e\u0434 \u0434\u0432\u0443\u0445\u0444\u0430\u043a\u0442\u043e\u0440\u043d\u043e\u0439 \u043f\u0440\u043e\u0432\u0435\u0440\u043a\u0438."
           : mode === "forgot-password"
-            ? "Мы отправим ссылку для сброса на вашу почту."
-            : "Используйте токен из письма, чтобы задать новый пароль.";
+            ? "\u041c\u044b \u043e\u0442\u043f\u0440\u0430\u0432\u0438\u043c \u0441\u0441\u044b\u043b\u043a\u0443 \u0434\u043b\u044f \u0441\u0431\u0440\u043e\u0441\u0430 \u043d\u0430 \u0432\u0430\u0448\u0443 \u043f\u043e\u0447\u0442\u0443."
+            : "\u0418\u0441\u043f\u043e\u043b\u044c\u0437\u0443\u0439\u0442\u0435 \u0442\u043e\u043a\u0435\u043d \u0438\u0437 \u043f\u0438\u0441\u044c\u043c\u0430, \u0447\u0442\u043e\u0431\u044b \u0437\u0430\u0434\u0430\u0442\u044c \u043d\u043e\u0432\u044b\u0439 \u043f\u0430\u0440\u043e\u043b\u044c.";
 
   const handleLoginSubmit = async () => {
     const normalizedEmail = email.trim();
     if (!normalizedEmail || !password) {
-      setError("Введите email и пароль.");
+      setError("\u0412\u0432\u0435\u0434\u0438\u0442\u0435 email \u0438 \u043f\u0430\u0440\u043e\u043b\u044c.");
       return;
     }
 
@@ -113,43 +113,39 @@ export function PlatformAuthPage({ mode }: PlatformAuthPageProps) {
   const handleRegisterSubmit = async () => {
     const normalizedEmail = email.trim();
     if (!normalizedEmail || !password || !confirmPassword) {
-      setError("Заполните все обязательные поля.");
+      setError("\u0417\u0430\u043f\u043e\u043b\u043d\u0438\u0442\u0435 \u0432\u0441\u0435 \u043e\u0431\u044f\u0437\u0430\u0442\u0435\u043b\u044c\u043d\u044b\u0435 \u043f\u043e\u043b\u044f.");
       return;
     }
     if (!acceptTerms) {
-      setError("Подтвердите согласие с условиями.");
+      setError("\u041f\u043e\u0434\u0442\u0432\u0435\u0440\u0434\u0438\u0442\u0435 \u0441\u043e\u0433\u043b\u0430\u0441\u0438\u0435 \u0441 \u0443\u0441\u043b\u043e\u0432\u0438\u044f\u043c\u0438.");
       return;
     }
     if (password !== confirmPassword) {
-      setError("Подтверждение пароля не совпадает.");
+      setError("\u041f\u043e\u0434\u0442\u0432\u0435\u0440\u0436\u0434\u0435\u043d\u0438\u0435 \u043f\u0430\u0440\u043e\u043b\u044f \u043d\u0435 \u0441\u043e\u0432\u043f\u0430\u0434\u0430\u0435\u0442.");
       return;
     }
 
     const issues = validatePlatformPassword(password);
     if (issues.length) {
-      setError(issues[0] ?? "Пароль не соответствует политике.");
+      setError(issues[0] ?? "\u041f\u0430\u0440\u043e\u043b\u044c \u043d\u0435 \u0441\u043e\u043e\u0442\u0432\u0435\u0442\u0441\u0442\u0432\u0443\u0435\u0442 \u043f\u043e\u043b\u0438\u0442\u0438\u043a\u0435.");
       return;
     }
 
     await api.register(normalizedEmail, password);
     setPlatformPendingEmail(normalizedEmail);
     setPlatformPendingChallenge(null);
-    setNotice("Код подтверждения отправлен. Завершите верификацию email.");
+    setNotice("\u041a\u043e\u0434 \u043f\u043e\u0434\u0442\u0432\u0435\u0440\u0436\u0434\u0435\u043d\u0438\u044f \u043e\u0442\u043f\u0440\u0430\u0432\u043b\u0435\u043d. \u0417\u0430\u0432\u0435\u0440\u0448\u0438\u0442\u0435 \u0432\u0435\u0440\u0438\u0444\u0438\u043a\u0430\u0446\u0438\u044e email.");
     navigate(platformAuthPath("verify"), { replace: true, state: { next: nextPath } });
   };
 
   const handleVerifySubmit = async () => {
     const pendingEmail = email.trim() || getPlatformPendingEmail();
     if (!pendingEmail || !verificationCode.trim()) {
-      setError("Введите email и код подтверждения.");
+      setError("\u0412\u0432\u0435\u0434\u0438\u0442\u0435 email \u0438 \u043a\u043e\u0434 \u043f\u043e\u0434\u0442\u0432\u0435\u0440\u0436\u0434\u0435\u043d\u0438\u044f.");
       return;
     }
 
-    await api.confirm(
-      pendingEmail,
-      verificationCode.trim(),
-      getPlatformPendingChallenge() ?? undefined,
-    );
+    await api.confirm(pendingEmail, verificationCode.trim(), getPlatformPendingChallenge() ?? undefined);
     clearPlatformPendingChallenge();
     clearPlatformPendingEmail();
     await refreshSession();
@@ -159,7 +155,7 @@ export function PlatformAuthPage({ mode }: PlatformAuthPageProps) {
   const handleForgotPasswordSubmit = async () => {
     const normalizedEmail = email.trim();
     if (!normalizedEmail) {
-      setError("Введите email.");
+      setError("\u0412\u0432\u0435\u0434\u0438\u0442\u0435 email.");
       return;
     }
     const response = await api.forgotPassword(normalizedEmail);
@@ -168,16 +164,16 @@ export function PlatformAuthPage({ mode }: PlatformAuthPageProps) {
 
   const handleResetPasswordSubmit = async () => {
     if (!resetToken.trim() || !password || !confirmPassword) {
-      setError("Введите токен сброса и новый пароль.");
+      setError("\u0412\u0432\u0435\u0434\u0438\u0442\u0435 \u0442\u043e\u043a\u0435\u043d \u0441\u0431\u0440\u043e\u0441\u0430 \u0438 \u043d\u043e\u0432\u044b\u0439 \u043f\u0430\u0440\u043e\u043b\u044c.");
       return;
     }
     if (password !== confirmPassword) {
-      setError("Подтверждение пароля не совпадает.");
+      setError("\u041f\u043e\u0434\u0442\u0432\u0435\u0440\u0436\u0434\u0435\u043d\u0438\u0435 \u043f\u0430\u0440\u043e\u043b\u044f \u043d\u0435 \u0441\u043e\u0432\u043f\u0430\u0434\u0430\u0435\u0442.");
       return;
     }
     const issues = validatePlatformPassword(password);
     if (issues.length) {
-      setError(issues[0] ?? "Пароль не соответствует политике.");
+      setError(issues[0] ?? "\u041f\u0430\u0440\u043e\u043b\u044c \u043d\u0435 \u0441\u043e\u043e\u0442\u0432\u0435\u0442\u0441\u0442\u0432\u0443\u0435\u0442 \u043f\u043e\u043b\u0438\u0442\u0438\u043a\u0435.");
       return;
     }
 
@@ -186,7 +182,7 @@ export function PlatformAuthPage({ mode }: PlatformAuthPageProps) {
     navigate(platformAuthPath("login"), { replace: true });
   };
 
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setNotice(null);
     setError(null);
@@ -208,14 +204,14 @@ export function PlatformAuthPage({ mode }: PlatformAuthPageProps) {
         extractApiErrorMessage(
           submitError,
           mode === "register"
-            ? "Не удалось создать аккаунт."
+            ? "\u041d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u0441\u043e\u0437\u0434\u0430\u0442\u044c \u0430\u043a\u043a\u0430\u0443\u043d\u0442."
             : mode === "verify"
-              ? "Не удалось подтвердить аккаунт."
+              ? "\u041d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u043f\u043e\u0434\u0442\u0432\u0435\u0440\u0434\u0438\u0442\u044c \u0430\u043a\u043a\u0430\u0443\u043d\u0442."
               : mode === "forgot-password"
-                ? "Не удалось отправить письмо для сброса."
+                ? "\u041d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u043e\u0442\u043f\u0440\u0430\u0432\u0438\u0442\u044c \u043f\u0438\u0441\u044c\u043c\u043e \u0434\u043b\u044f \u0441\u0431\u0440\u043e\u0441\u0430."
                 : mode === "reset-password"
-                  ? "Не удалось сбросить пароль."
-                  : "Не удалось выполнить вход.",
+                  ? "\u041d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u0441\u0431\u0440\u043e\u0441\u0438\u0442\u044c \u043f\u0430\u0440\u043e\u043b\u044c."
+                  : "\u041d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u0432\u044b\u043f\u043e\u043b\u043d\u0438\u0442\u044c \u0432\u0445\u043e\u0434.",
         ),
       );
     } finally {
@@ -231,115 +227,81 @@ export function PlatformAuthPage({ mode }: PlatformAuthPageProps) {
         <p>{subtitle}</p>
 
         <form className="platform-auth-form" onSubmit={handleSubmit}>
-          {(mode === "login" ||
-            mode === "register" ||
-            mode === "verify" ||
-            mode === "forgot-password") && (
+          {(mode === "login" || mode === "register" || mode === "verify" || mode === "forgot-password") && (
             <label className="platform-field">
               <span>Email</span>
-              <input
-                type="email"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                placeholder="name@company.com"
-              />
+              <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="name@company.com" />
             </label>
           )}
 
           {(mode === "login" || mode === "register" || mode === "reset-password") && (
             <label className="platform-field">
-              <span>{mode === "reset-password" ? "Новый пароль" : "Пароль"}</span>
-              <input
-                type="password"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                placeholder="Введите пароль"
-              />
+              <span>{mode === "reset-password" ? "\u041d\u043e\u0432\u044b\u0439 \u043f\u0430\u0440\u043e\u043b\u044c" : "\u041f\u0430\u0440\u043e\u043b\u044c"}</span>
+              <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder={"\u0412\u0432\u0435\u0434\u0438\u0442\u0435 \u043f\u0430\u0440\u043e\u043b\u044c"} />
             </label>
           )}
 
-          {mode === "register" || mode === "reset-password" ? (
+          {(mode === "register" || mode === "reset-password") && (
             <label className="platform-field">
-              <span>Подтвердите пароль</span>
-              <input
-                type="password"
-                value={confirmPassword}
-                onChange={(event) => setConfirmPassword(event.target.value)}
-                placeholder="Повторите пароль"
-              />
+              <span>{"\u041f\u043e\u0434\u0442\u0432\u0435\u0440\u0434\u0438\u0442\u0435 \u043f\u0430\u0440\u043e\u043b\u044c"}</span>
+              <input type="password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} placeholder={"\u041f\u043e\u0432\u0442\u043e\u0440\u0438\u0442\u0435 \u043f\u0430\u0440\u043e\u043b\u044c"} />
             </label>
-          ) : null}
+          )}
 
-          {mode === "verify" ? (
+          {mode === "verify" && (
             <label className="platform-field">
-              <span>Код подтверждения</span>
-              <input
-                type="text"
-                value={verificationCode}
-                onChange={(event) => setVerificationCode(event.target.value)}
-                placeholder="123456"
-              />
+              <span>{"\u041a\u043e\u0434 \u043f\u043e\u0434\u0442\u0432\u0435\u0440\u0436\u0434\u0435\u043d\u0438\u044f"}</span>
+              <input type="text" value={verificationCode} onChange={(event) => setVerificationCode(event.target.value)} placeholder="123456" />
             </label>
-          ) : null}
+          )}
 
-          {mode === "reset-password" ? (
+          {mode === "reset-password" && (
             <label className="platform-field">
-              <span>Токен сброса</span>
-              <input
-                type="text"
-                value={resetToken}
-                onChange={(event) => setResetToken(event.target.value)}
-                placeholder="Вставьте токен из письма"
-              />
+              <span>{"\u0422\u043e\u043a\u0435\u043d \u0441\u0431\u0440\u043e\u0441\u0430"}</span>
+              <input type="text" value={resetToken} onChange={(event) => setResetToken(event.target.value)} placeholder={"\u0412\u0441\u0442\u0430\u0432\u044c\u0442\u0435 \u0442\u043e\u043a\u0435\u043d \u0438\u0437 \u043f\u0438\u0441\u044c\u043c\u0430"} />
             </label>
-          ) : null}
+          )}
 
-          {mode === "register" ? (
+          {mode === "register" && (
             <label className="platform-auth-form__checkbox">
-              <input
-                type="checkbox"
-                checked={acceptTerms}
-                onChange={(event) => setAcceptTerms(event.target.checked)}
-              />
-              <span>Я принимаю условия и политику конфиденциальности.</span>
+              <input type="checkbox" checked={acceptTerms} onChange={(event) => setAcceptTerms(event.target.checked)} />
+              <span>{"\u042f \u043f\u0440\u0438\u043d\u0438\u043c\u0430\u044e \u0443\u0441\u043b\u043e\u0432\u0438\u044f \u0438 \u043f\u043e\u043b\u0438\u0442\u0438\u043a\u0443 \u043a\u043e\u043d\u0444\u0438\u0434\u0435\u043d\u0446\u0438\u0430\u043b\u044c\u043d\u043e\u0441\u0442\u0438."}</span>
             </label>
-          ) : null}
+          )}
 
           {notice ? <p className="platform-feedback platform-feedback--notice">{notice}</p> : null}
           {error ? <p className="platform-feedback platform-feedback--error">{error}</p> : null}
 
-          {mode === "register" ? (
+          {mode === "register" && (
             <div className="platform-auth-form__hint">
-              Требования к паролю:
+              {"\u0422\u0440\u0435\u0431\u043e\u0432\u0430\u043d\u0438\u044f \u043a \u043f\u0430\u0440\u043e\u043b\u044e:"}
               <ul className="platform-list">
                 {validatePlatformPassword(password || "short").map((issue) => (
                   <li key={issue}>{issue}</li>
                 ))}
               </ul>
             </div>
-          ) : null}
+          )}
 
           <button type="submit" className="platform-button platform-button--primary" disabled={isSubmitting}>
             {isSubmitting
-              ? "Подождите..."
+              ? "\u041f\u043e\u0434\u043e\u0436\u0434\u0438\u0442\u0435..."
               : mode === "login"
-                ? "Войти"
+                ? "\u0412\u043e\u0439\u0442\u0438"
                 : mode === "register"
-                  ? "Создать аккаунт"
+                  ? "\u0421\u043e\u0437\u0434\u0430\u0442\u044c \u0430\u043a\u043a\u0430\u0443\u043d\u0442"
                   : mode === "verify"
-                    ? "Подтвердить"
+                    ? "\u041f\u043e\u0434\u0442\u0432\u0435\u0440\u0434\u0438\u0442\u044c"
                     : mode === "forgot-password"
-                      ? "Отправить ссылку"
-                      : "Обновить пароль"}
+                      ? "\u041e\u0442\u043f\u0440\u0430\u0432\u0438\u0442\u044c \u0441\u0441\u044b\u043b\u043a\u0443"
+                      : "\u041e\u0431\u043d\u043e\u0432\u0438\u0442\u044c \u043f\u0430\u0440\u043e\u043b\u044c"}
           </button>
         </form>
 
         <div className="platform-auth-card__links">
-          {mode !== "login" ? <Link to={platformAuthPath("login")}>Войти</Link> : null}
-          {mode !== "register" ? <Link to={platformAuthPath("register")}>Создать аккаунт</Link> : null}
-          {mode !== "forgot-password" ? (
-            <Link to={platformAuthPath("forgot-password")}>Забыли пароль?</Link>
-          ) : null}
+          {mode !== "login" ? <Link to={platformAuthPath("login")}>{"\u0412\u043e\u0439\u0442\u0438"}</Link> : null}
+          {mode !== "register" ? <Link to={platformAuthPath("register")}>{"\u0421\u043e\u0437\u0434\u0430\u0442\u044c \u0430\u043a\u043a\u0430\u0443\u043d\u0442"}</Link> : null}
+          {mode !== "forgot-password" ? <Link to={platformAuthPath("forgot-password")}>{"\u0417\u0430\u0431\u044b\u043b\u0438 \u043f\u0430\u0440\u043e\u043b\u044c?"}</Link> : null}
         </div>
       </div>
     </PlatformAuthLayout>

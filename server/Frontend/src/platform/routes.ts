@@ -1,4 +1,4 @@
-export type PlatformRouteKey = "overview" | "keys" | "analytics";
+﻿export type PlatformRouteKey = "overview" | "keys" | "analytics";
 
 export type PlatformRouteItem = {
   key: PlatformRouteKey;
@@ -11,20 +11,20 @@ export const PLATFORM_ROUTE_ITEMS: PlatformRouteItem[] = [
   {
     key: "overview",
     path: "/",
-    label: "Обзор",
+    label: "\u041e\u0431\u0437\u043e\u0440",
     eyebrow: "API",
   },
   {
     key: "keys",
     path: "/keys",
-    label: "Ключи",
-    eyebrow: "Доступ",
+    label: "\u041a\u043b\u044e\u0447\u0438",
+    eyebrow: "\u0414\u043e\u0441\u0442\u0443\u043f",
   },
   {
     key: "analytics",
     path: "/analytics",
-    label: "Аналитика",
-    eyebrow: "Статистика",
+    label: "\u0410\u043d\u0430\u043b\u0438\u0442\u0438\u043a\u0430",
+    eyebrow: "\u0421\u0442\u0430\u0442\u0438\u0441\u0442\u0438\u043a\u0430",
   },
 ];
 

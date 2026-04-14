@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import type { ApiKeyExpiryPreset, ApiKeyPermission, ApiKeyRead } from "../core";
 import { ApiError } from "../core/http";
@@ -72,7 +72,7 @@ export function PlatformApp() {
           navigate("/login", { replace: true });
           return;
         }
-        setError(loadError instanceof Error ? loadError.message : "Failed to load API access.");
+        setError(loadError instanceof Error ? loadError.message : "\u041d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044c API-\u043a\u0430\u0431\u0438\u043d\u0435\u0442.");
       })
       .finally(() => {
         if (!cancelled) {
@@ -103,7 +103,7 @@ export function PlatformApp() {
       })
       .catch((loadError: unknown) => {
         if (!cancelled) {
-          setError(loadError instanceof Error ? loadError.message : "Failed to load command scopes.");
+          setError(loadError instanceof Error ? loadError.message : "\u041d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044c scope \u043a\u043e\u043c\u0430\u043d\u0434.");
         }
       });
 
@@ -167,17 +167,17 @@ export function PlatformApp() {
     setLatestRawKey(null);
 
     if (!form.name.trim()) {
-      setError("Enter a key name.");
+      setError("\u0412\u0432\u0435\u0434\u0438\u0442\u0435 \u043d\u0430\u0437\u0432\u0430\u043d\u0438\u0435 \u043a\u043b\u044e\u0447\u0430.");
       return;
     }
 
     if (!form.machineIds.length) {
-      setError("Select at least one machine scope.");
+      setError("\u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u0445\u043e\u0442\u044f \u0431\u044b \u043e\u0434\u043d\u0443 \u043c\u0430\u0448\u0438\u043d\u0443 \u0434\u043b\u044f scope.");
       return;
     }
 
     if (!form.password.trim()) {
-      setError("Confirm the action with your account password.");
+      setError("\u041f\u043e\u0434\u0442\u0432\u0435\u0440\u0434\u0438\u0442\u0435 \u0434\u0435\u0439\u0441\u0442\u0432\u0438\u0435 \u043f\u0430\u0440\u043e\u043b\u0435\u043c \u0430\u043a\u043a\u0430\u0443\u043d\u0442\u0430.");
       return;
     }
 
@@ -193,10 +193,10 @@ export function PlatformApp() {
       });
       setApiKeys((current) => [response.key, ...current]);
       setLatestRawKey(response.rawKey);
-      setNotice("API key issued. Copy the raw key now; it will not be shown again.");
+      setNotice("API-\u043a\u043b\u044e\u0447 \u0432\u044b\u043f\u0443\u0449\u0435\u043d. \u0421\u043a\u043e\u043f\u0438\u0440\u0443\u0439\u0442\u0435 raw key \u0441\u0435\u0439\u0447\u0430\u0441: \u043e\u043d \u0431\u043e\u043b\u044c\u0448\u0435 \u043d\u0435 \u0431\u0443\u0434\u0435\u0442 \u043f\u043e\u043a\u0430\u0437\u0430\u043d.");
       setForm(INITIAL_FORM);
     } catch (actionError) {
-      setError(actionError instanceof ApiError ? actionError.body : "Failed to issue the API key.");
+      setError(actionError instanceof ApiError ? actionError.body : "\u041d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u0432\u044b\u043f\u0443\u0441\u0442\u0438\u0442\u044c API-\u043a\u043b\u044e\u0447.");
     } finally {
       setIsSubmitting(false);
     }
@@ -204,7 +204,7 @@ export function PlatformApp() {
 
   const handleRevoke = async (keyId: string) => {
     if (!form.password.trim()) {
-      setError("Enter your account password before revoking a key.");
+      setError("\u0412\u0432\u0435\u0434\u0438\u0442\u0435 \u043f\u0430\u0440\u043e\u043b\u044c \u0430\u043a\u043a\u0430\u0443\u043d\u0442\u0430 \u043f\u0435\u0440\u0435\u0434 \u043e\u0442\u0437\u044b\u0432\u043e\u043c \u043a\u043b\u044e\u0447\u0430.");
       return;
     }
 
@@ -220,9 +220,9 @@ export function PlatformApp() {
             : item,
         ),
       );
-      setNotice("API key revoked.");
+      setNotice("API-\u043a\u043b\u044e\u0447 \u043e\u0442\u043e\u0437\u0432\u0430\u043d.");
     } catch (actionError) {
-      setError(actionError instanceof ApiError ? actionError.body : "Failed to revoke the API key.");
+      setError(actionError instanceof ApiError ? actionError.body : "\u041d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u043e\u0442\u043e\u0437\u0432\u0430\u0442\u044c API-\u043a\u043b\u044e\u0447.");
     } finally {
       setIsRevoking(false);
     }
@@ -234,7 +234,7 @@ export function PlatformApp() {
   };
 
   if (isLoading && !dashboard) {
-    return <div className="platform-loading-state">Loading API access...</div>;
+    return <div className="platform-loading-state">{"\u0417\u0430\u0433\u0440\u0443\u0437\u043a\u0430 API-\u043a\u0430\u0431\u0438\u043d\u0435\u0442\u0430..."}</div>;
   }
 
   if (error && !dashboard) {
