@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+﻿import { useEffect, useRef, useState } from "react";
 import { Link, NavLink } from "react-router-dom";
 import { ChevronRight, Menu } from "lucide-react";
 import type { PublicNavItem } from "../site-content";
@@ -64,7 +64,7 @@ export function PublicTopbar({
             className="public-topbar__mobile-trigger"
             onClick={() => setMobileOpen((current) => !current)}
             aria-expanded={mobileOpen}
-            aria-label="Открыть меню"
+            aria-label={"\u041e\u0442\u043a\u0440\u044b\u0442\u044c \u043c\u0435\u043d\u044e"}
           >
             <Menu size={18} />
           </button>
@@ -96,7 +96,9 @@ export function PublicTopbar({
                     onMouseLeave={scheduleClose}
                   >
                     <div className="public-mega-menu__label">
-                      {item.label === "Продукты" ? "Изучить продукты" : "Изучить раздел"}
+                      {item.label === "\u041f\u0440\u043e\u0434\u0443\u043a\u0442\u044b"
+                        ? "\u0418\u0437\u0443\u0447\u0438\u0442\u044c \u043f\u0440\u043e\u0434\u0443\u043a\u0442\u044b"
+                        : "\u0418\u0437\u0443\u0447\u0438\u0442\u044c \u0440\u0430\u0437\u0434\u0435\u043b"}
                     </div>
                     <div className="public-mega-menu__items">
                       {item.menu.map((menuItem) =>

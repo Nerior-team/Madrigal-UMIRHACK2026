@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+﻿import type { ReactNode } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import type { HostAppKind } from "../app/platform-host";
 import { PublicTopbar } from "./components/PublicTopbar";
@@ -33,9 +33,9 @@ function PublicShell({
       <PublicTopbar
         title={title}
         navItems={navItems}
-        primaryActionLabel="Попробуйте бесплатно"
+        primaryActionLabel={"\u041f\u043e\u043f\u0440\u043e\u0431\u0443\u0439\u0442\u0435 \u0431\u0435\u0441\u043f\u043b\u0430\u0442\u043d\u043e"}
         primaryActionHref="https://crossplat.nerior.store"
-        secondaryActionLabel="Связаться с нами"
+        secondaryActionLabel={"\u0421\u0432\u044f\u0437\u0430\u0442\u044c\u0441\u044f \u0441 \u043d\u0430\u043c\u0438"}
         secondaryActionHref="https://nerior.store/contact"
       />
       {children}
