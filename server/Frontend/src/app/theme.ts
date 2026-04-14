@@ -1,6 +1,6 @@
 export type ThemeMode = "light" | "dark";
 
-export const THEME_STORAGE_KEY = "predictmv-theme-mode";
+export const THEME_STORAGE_KEY = "crossplat-theme-mode";
 
 export function normalizeThemeMode(value: string | null | undefined): ThemeMode {
   return value === "dark" ? "dark" : "light";

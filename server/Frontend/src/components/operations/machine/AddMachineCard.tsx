@@ -30,8 +30,8 @@ export function AddMachineCard({
       <div className="machine-pairing-card__copy">
         <h2>Добавление машины</h2>
         <p>
-          Подключение идёт через реальный daemon pairing flow. Команда ниже
-          одинаково подходит для Windows и Linux-агента.
+          Подключение идёт через реальный daemon pairing flow. Команда ниже одинаково подходит
+          для Windows и Linux-агента.
         </p>
 
         <ol className="machine-pairing-card__steps">

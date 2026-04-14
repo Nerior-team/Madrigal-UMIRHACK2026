@@ -7,9 +7,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { AddMachineCard, type AddMachineCardProps } from "./AddMachineCard";
 
-function renderHarness(
-  overrides: Partial<AddMachineCardProps> = {},
-): AddMachineCardProps {
+function renderHarness(overrides: Partial<AddMachineCardProps> = {}): AddMachineCardProps {
   const props: AddMachineCardProps = {
     command: "predict pair --backend-url https://crossplat.nerior.store",
     deviceCode: "",
@@ -19,9 +17,7 @@ function renderHarness(
     onDeviceCodeChange: vi.fn(),
     onDisplayNameChange: vi.fn(),
     onReset: vi.fn(),
-    onSubmit: vi.fn((event: FormEvent<HTMLFormElement>) =>
-      event.preventDefault(),
-    ),
+    onSubmit: vi.fn((event: FormEvent<HTMLFormElement>) => event.preventDefault()),
     onCopyCommand: vi.fn(),
     ...overrides,
   };
@@ -55,25 +51,16 @@ describe("AddMachineCard", () => {
   it("renders pairing instructions and the backend command", () => {
     renderHarness();
 
-    expect(
-      screen.getByRole("heading", { name: "Добавление машины" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText("predict pair --backend-url https://crossplat.nerior.store"),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByLabelText("Код подтверждения устройства"),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Добавление машины" })).toBeInTheDocument();
+    expect(screen.getByText("predict pair --backend-url https://crossplat.nerior.store")).toBeInTheDocument();
+    expect(screen.getByLabelText("Код подтверждения устройства")).toBeInTheDocument();
   });
 
   it("routes copy, reset and submit actions through callbacks", async () => {
     const user = userEvent.setup();
     const props = renderHarness();
 
-    await user.type(
-      screen.getByLabelText("Код подтверждения устройства"),
-      "761861",
-    );
+    await user.type(screen.getByLabelText("Код подтверждения устройства"), "761861");
     await user.type(screen.getByLabelText("Имя машины"), "prod-linux");
     await user.click(screen.getByRole("button", { name: "Скопировать" }));
     await user.click(screen.getByRole("button", { name: "Сбросить" }));
@@ -93,11 +80,7 @@ describe("AddMachineCard", () => {
       isSubmitting: true,
     });
 
-    expect(screen.getByRole("alert")).toHaveTextContent(
-      "Не удалось подтвердить code.",
-    );
-    expect(
-      screen.getByRole("button", { name: "Подтверждаем..." }),
-    ).toBeDisabled();
+    expect(screen.getByRole("alert")).toHaveTextContent("Не удалось подтвердить code.");
+    expect(screen.getByRole("button", { name: "Подтверждаем..." })).toBeDisabled();
   });
 });

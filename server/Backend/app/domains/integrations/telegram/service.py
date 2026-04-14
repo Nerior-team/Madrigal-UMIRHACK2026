@@ -381,7 +381,7 @@ class TelegramIntegrationService:
                     telegram_user_id=link.telegram_user_id,
                     telegram_chat_id=link.telegram_chat_id,
                     user_email=user.email,
-                    prompt_text="Подтвердить вход в Predict MV?",
+                    prompt_text="Подтвердить вход в Crossplat?",
                     expires_at=challenge.expires_at,
                 )
             )
