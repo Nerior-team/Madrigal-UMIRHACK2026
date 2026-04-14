@@ -1,61 +1,20 @@
+﻿const INTRO = {
+  eyebrow: "\u041a\u043e\u043c\u043f\u0430\u043d\u0438\u044f",
+  title: "\u041e \u043a\u043e\u043c\u043f\u0430\u043d\u0438\u0438, \u043f\u0440\u043e\u0434\u0443\u043a\u0442\u0430\u0445 \u0438 \u0441\u043b\u0435\u0434\u0443\u044e\u0449\u0435\u043c \u043a\u043e\u043d\u0442\u0443\u0440\u0435 \u0440\u043e\u0441\u0442\u0430.",
+  body: "\u041f\u0443\u0431\u043b\u0438\u0447\u043d\u0430\u044f \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u0430 \u043a\u043e\u043c\u043f\u0430\u043d\u0438\u0438 \u0434\u043e\u043b\u0436\u043d\u0430 \u043e\u0431\u044a\u044f\u0441\u043d\u044f\u0442\u044c, \u043a\u0430\u043a \u0443\u0441\u0442\u0440\u043e\u0435\u043d Nerior, \u043a\u0430\u043a\u0438\u0435 \u043f\u0440\u043e\u0434\u0443\u043a\u0442\u044b \u0443\u0436\u0435 \u0430\u043a\u0442\u0438\u0432\u043d\u044b, \u043a\u0430\u043a\u0438\u0435 \u043f\u043e\u044f\u0432\u044f\u0442\u0441\u044f \u043f\u043e\u0437\u0436\u0435 \u0438 \u043f\u043e\u0447\u0435\u043c\u0443 \u044d\u043a\u043e\u0441\u0438\u0441\u0442\u0435\u043c\u0430 \u0440\u0430\u0437\u0434\u0435\u043b\u0435\u043d\u0430 \u043d\u0430 \u043e\u0442\u0434\u0435\u043b\u044c\u043d\u044b\u0435 \u0434\u043e\u043c\u0435\u043d\u044b \u0438 \u0441\u0435\u0440\u0432\u0438\u0441\u043d\u044b\u0435 \u0437\u043e\u043d\u044b.",
+} as const;
+
+const FEATURES = [
+  ["about", "\u041e \u043d\u0430\u0441", "Nerior \u0441\u0442\u0440\u043e\u0438\u0442 \u0438\u043d\u0444\u0440\u0430\u0441\u0442\u0440\u0443\u043a\u0442\u0443\u0440\u0443 \u0432\u043e\u043a\u0440\u0443\u0433 \u043f\u0440\u043e\u0434\u0443\u043a\u0442\u043e\u0432, \u0440\u0430\u0431\u043e\u0447\u0438\u0445 \u0438\u043d\u0442\u0435\u0440\u0444\u0435\u0439\u0441\u043e\u0432, \u0434\u043e\u043a\u0443\u043c\u0435\u043d\u0442\u0430\u0446\u0438\u0438 \u0438 \u0441\u0435\u0440\u0432\u0438\u0441\u043d\u044b\u0445 \u0437\u043e\u043d \u0442\u0430\u043a, \u0447\u0442\u043e\u0431\u044b \u043a\u043e\u043c\u043f\u0430\u043d\u0438\u044f \u043c\u043e\u0433\u043b\u0430 \u0440\u0430\u0441\u0442\u0438 \u0431\u0435\u0437 \u0445\u0430\u043e\u0442\u0438\u0447\u043d\u043e\u0433\u043e \u043d\u0430\u043a\u043e\u043f\u043b\u0435\u043d\u0438\u044f \u0438\u043d\u0442\u0435\u0440\u0444\u0435\u0439\u0441\u043e\u0432 \u0438 \u0442\u0435\u0445\u043d\u0438\u0447\u0435\u0441\u043a\u0438\u0445 \u0441\u043b\u043e\u0451\u0432."],
+  ["careers", "\u041a\u0430\u0440\u044c\u0435\u0440\u0430", "\u041a\u043e\u043c\u043f\u0430\u043d\u0438\u044f \u0440\u0430\u0441\u0442\u0451\u0442 \u0432\u043e\u043a\u0440\u0443\u0433 \u043f\u0440\u043e\u0434\u0443\u043a\u0442\u043e\u0432\u043e\u0439 \u0434\u0438\u0441\u0446\u0438\u043f\u043b\u0438\u043d\u044b, \u0438\u043d\u0444\u0440\u0430\u0441\u0442\u0440\u0443\u043a\u0442\u0443\u0440\u044b \u0438 \u0440\u0430\u0437\u0440\u0430\u0431\u043e\u0442\u0447\u0435\u0441\u043a\u043e\u0433\u043e \u043a\u043e\u043d\u0442\u0443\u0440\u0430. \u0417\u0434\u0435\u0441\u044c \u0434\u043e\u043b\u0436\u0435\u043d \u0431\u044b\u0442\u044c \u0431\u043b\u043e\u043a \u043f\u0440\u043e \u043a\u043e\u043c\u0430\u043d\u0434\u0443, \u0440\u043e\u043b\u0438 \u0438 \u043f\u043e\u0434\u0445\u043e\u0434 \u043a \u043d\u0430\u0439\u043c\u0443."],
+  ["stories", "\u0418\u0441\u0442\u043e\u0440\u0438\u0438", "\u0420\u0430\u0437\u0434\u0435\u043b \u043f\u043e\u0434 \u0431\u0443\u0434\u0443\u0449\u0438\u0435 \u043a\u0435\u0439\u0441\u044b, \u0432\u043d\u0443\u0442\u0440\u0435\u043d\u043d\u0438\u0435 \u0440\u0430\u0437\u0431\u043e\u0440\u044b, \u043f\u0440\u043e\u0434\u0443\u043a\u0442\u043e\u0432\u044b\u0435 \u043f\u043e\u0432\u043e\u0440\u043e\u0442\u044b \u0438 \u043e\u0431\u044a\u044f\u0441\u043d\u0435\u043d\u0438\u0435 \u0442\u043e\u0433\u043e, \u043a\u0430\u043a \u044d\u043a\u043e\u0441\u0438\u0441\u0442\u0435\u043c\u0430 Nerior \u0440\u0430\u0437\u0432\u0438\u0432\u0430\u043b\u0430\u0441\u044c \u0434\u043e \u0442\u0435\u043a\u0443\u0449\u0435\u0439 \u0441\u0442\u0440\u0443\u043a\u0442\u0443\u0440\u044b."],
+] as const;
+
+const STORIES = [
+  ["\u041f\u0440\u043e\u0434\u0443\u043a\u0442\u044b", "Crossplat, Smart-Planner \u0438 Karpik \u0432 \u043e\u0434\u043d\u043e\u0439 \u044d\u043a\u043e\u0441\u0438\u0441\u0442\u0435\u043c\u0435.", "Crossplat \u0443\u0436\u0435 \u0430\u043a\u0442\u0438\u0432\u0435\u043d \u043a\u0430\u043a \u0440\u0430\u0431\u043e\u0447\u0438\u0439 \u043f\u0440\u043e\u0434\u0443\u043a\u0442. Smart-Planner \u0438 Karpik \u043f\u043e\u043a\u0430 \u043d\u0435 \u0434\u043e\u0441\u0442\u0443\u043f\u043d\u044b \u043f\u0443\u0431\u043b\u0438\u0447\u043d\u043e, \u043d\u043e \u0443\u0436\u0435 \u0432\u0441\u0442\u0440\u043e\u0435\u043d\u044b \u0432 \u0434\u043e\u043c\u0435\u043d\u043d\u0443\u044e \u0438 \u043d\u0430\u0432\u0438\u0433\u0430\u0446\u0438\u043e\u043d\u043d\u0443\u044e \u0441\u0442\u0440\u0443\u043a\u0442\u0443\u0440\u0443."],
+  ["\u0421\u043b\u0435\u0434\u0443\u044e\u0449\u0438\u0439 \u044d\u0442\u0430\u043f", "\u0420\u043e\u0441\u0442 \u0431\u0435\u0437 \u043f\u0435\u0440\u0435\u0438\u0437\u043e\u0431\u0440\u0435\u0442\u0435\u043d\u0438\u044f \u043e\u0431\u0449\u0435\u0439 \u0441\u0438\u0441\u0442\u0435\u043c\u044b.", "\u0421\u043b\u0435\u0434\u0443\u044e\u0449\u0438\u0435 \u043f\u0440\u043e\u0434\u0443\u043a\u0442\u044b, developer surfaces \u0438 support-\u0440\u0430\u0437\u0434\u0435\u043b\u044b \u0432\u043a\u043b\u044e\u0447\u0430\u044e\u0442\u0441\u044f \u0432 \u0443\u0436\u0435 \u0441\u0443\u0449\u0435\u0441\u0442\u0432\u0443\u044e\u0449\u0443\u044e \u0441\u0445\u0435\u043c\u0443 \u0434\u043e\u043c\u0435\u043d\u043e\u0432, \u043d\u0435 \u043b\u043e\u043c\u0430\u044f \u043f\u0443\u0431\u043b\u0438\u0447\u043d\u044b\u0439 \u0441\u0430\u0439\u0442 \u0438 \u043d\u0435 \u0441\u043c\u0435\u0448\u0438\u0432\u0430\u044f \u0441\u0446\u0435\u043d\u0430\u0440\u0438\u0438 \u0432 \u043e\u0434\u043d\u043e\u043c \u043c\u0435\u0441\u0442\u0435."],
+] as const;
+
 export function PublicCompanyPage() {
-  return (
-    <main className="public-page">
-      <section className="public-section">
-        <div className="public-section__header">
-          <div>
-            <span className="public-eyebrow">Компания</span>
-            <h1>О компании, продуктах и следующем контуре роста.</h1>
-            <p>
-              Публичная страница компании должна объяснять, как устроен Nerior, какие продукты уже активны, какие
-              появятся позже и почему экосистема разделена на отдельные домены и сервисные зоны.
-            </p>
-          </div>
-        </div>
-
-        <div className="public-feature-grid">
-          <article className="public-feature-card" id="about">
-            <h2>О нас</h2>
-            <p>
-              Nerior строит инфраструктуру вокруг продуктов, рабочих интерфейсов, документации и сервисных зон так,
-              чтобы компания могла расти без хаотичного накопления интерфейсов и технических слоёв.
-            </p>
-          </article>
-          <article className="public-feature-card" id="careers">
-            <h2>Карьера</h2>
-            <p>
-              Компания растёт вокруг продуктовой дисциплины, инфраструктуры и разработческого контура. Здесь
-              должен быть блок про команду, роли и подход к найму.
-            </p>
-          </article>
-          <article className="public-feature-card" id="stories">
-            <h2>Истории</h2>
-            <p>
-              Раздел под будущие кейсы, внутренние разборы, продуктовые повороты и объяснение того, как экосистема
-              Nerior развивалась до текущей структуры.
-            </p>
-          </article>
-        </div>
-
-        <div className="public-stack-grid">
-          <article className="public-story-card">
-            <span className="public-eyebrow">Продукты</span>
-            <h2>Crossplat, Smart-Planner и Karpik в одной экосистеме.</h2>
-            <p>
-              Crossplat уже активен как рабочий продукт. Smart-Planner и Karpik пока не доступны публично, но
-              уже встроены в доменную и навигационную структуру.
-            </p>
-          </article>
-          <article className="public-story-card">
-            <span className="public-eyebrow">Следующий этап</span>
-            <h2>Рост без переизобретения общей системы.</h2>
-            <p>
-              Следующие продукты, developer surfaces и support-разделы включаются в уже существующую схему
-              доменов, не ломая публичный сайт и не смешивая сценарии в одном месте.
-            </p>
-          </article>
-        </div>
-      </section>
-    </main>
-  );
+  return <main className="public-page"><section className="public-section"><div className="public-section__header"><div><span className="public-eyebrow">{INTRO.eyebrow}</span><h1>{INTRO.title}</h1><p>{INTRO.body}</p></div></div><div className="public-feature-grid">{FEATURES.map(([id, title, body]) => <article key={id} className="public-feature-card" id={id}><h2>{title}</h2><p>{body}</p></article>)}</div><div className="public-stack-grid">{STORIES.map(([eyebrow, title, body]) => <article key={title} className="public-story-card"><span className="public-eyebrow">{eyebrow}</span><h2>{title}</h2><p>{body}</p></article>)}</div></section></main>;
 }

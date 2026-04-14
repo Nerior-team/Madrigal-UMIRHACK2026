@@ -1,55 +1,9 @@
-const DEVELOPER_SURFACES = [
-  {
-    host: "docs.nerior.store",
-    title: "Документация",
-    body: "Публичная техническая документация с разделением по продуктам, сценариям, reference-материалам и практическим руководствам.",
-    href: "https://docs.nerior.store",
-    cta: "Перейти в docs",
-  },
-  {
-    host: "api.nerior.store",
-    title: "API",
-    body: "Отдельный кабинет API-ключей, scopes и аналитики доступа. Авторизация здесь отделена от продуктового входа.",
-    href: "https://api.nerior.store",
-    cta: "Открыть API",
-  },
-  {
-    host: "community.nerior.store",
-    title: "Сообщество",
-    body: "Публичная зона анонсов, обсуждений и переходов к связанным слоям: docs, help и обновлениям.",
-    href: "https://community.nerior.store",
-    cta: "Открыть сообщество",
-  },
-];
+﻿const DEVELOPER_SURFACES = [
+  { host: "docs.nerior.store", title: "\u0414\u043e\u043a\u0443\u043c\u0435\u043d\u0442\u0430\u0446\u0438\u044f", body: "\u041f\u0443\u0431\u043b\u0438\u0447\u043d\u0430\u044f \u0442\u0435\u0445\u043d\u0438\u0447\u0435\u0441\u043a\u0430\u044f \u0434\u043e\u043a\u0443\u043c\u0435\u043d\u0442\u0430\u0446\u0438\u044f \u0441 \u0440\u0430\u0437\u0434\u0435\u043b\u0435\u043d\u0438\u0435\u043c \u043f\u043e \u043f\u0440\u043e\u0434\u0443\u043a\u0442\u0430\u043c, \u0441\u0446\u0435\u043d\u0430\u0440\u0438\u044f\u043c, reference-\u043c\u0430\u0442\u0435\u0440\u0438\u0430\u043b\u0430\u043c \u0438 \u043f\u0440\u0430\u043a\u0442\u0438\u0447\u0435\u0441\u043a\u0438\u043c \u0440\u0443\u043a\u043e\u0432\u043e\u0434\u0441\u0442\u0432\u0430\u043c.", href: "https://docs.nerior.store", cta: "\u041f\u0435\u0440\u0435\u0439\u0442\u0438 \u0432 docs" },
+  { host: "api.nerior.store", title: "API", body: "\u041e\u0442\u0434\u0435\u043b\u044c\u043d\u044b\u0439 \u043a\u0430\u0431\u0438\u043d\u0435\u0442 API-\u043a\u043b\u044e\u0447\u0435\u0439, scopes \u0438 \u0430\u043d\u0430\u043b\u0438\u0442\u0438\u043a\u0438 \u0434\u043e\u0441\u0442\u0443\u043f\u0430. \u0410\u0432\u0442\u043e\u0440\u0438\u0437\u0430\u0446\u0438\u044f \u0437\u0434\u0435\u0441\u044c \u043e\u0442\u0434\u0435\u043b\u0435\u043d\u0430 \u043e\u0442 \u043f\u0440\u043e\u0434\u0443\u043a\u0442\u043e\u0432\u043e\u0433\u043e \u0432\u0445\u043e\u0434\u0430.", href: "https://api.nerior.store", cta: "\u041e\u0442\u043a\u0440\u044b\u0442\u044c API" },
+  { host: "community.nerior.store", title: "\u0421\u043e\u043e\u0431\u0449\u0435\u0441\u0442\u0432\u043e", body: "\u041f\u0443\u0431\u043b\u0438\u0447\u043d\u0430\u044f \u0437\u043e\u043d\u0430 \u0430\u043d\u043e\u043d\u0441\u043e\u0432, \u043e\u0431\u0441\u0443\u0436\u0434\u0435\u043d\u0438\u0439 \u0438 \u043f\u0435\u0440\u0435\u0445\u043e\u0434\u043e\u0432 \u043a \u0441\u0432\u044f\u0437\u0430\u043d\u043d\u044b\u043c \u0441\u043b\u043e\u044f\u043c: docs, help \u0438 \u043e\u0431\u043d\u043e\u0432\u043b\u0435\u043d\u0438\u044f\u043c.", href: "https://community.nerior.store", cta: "\u041e\u0442\u043a\u0440\u044b\u0442\u044c \u0441\u043e\u043e\u0431\u0449\u0435\u0441\u0442\u0432\u043e" },
+] as const;
 
 export function PublicDevelopersPage() {
-  return (
-    <main className="public-page public-page--developers">
-      <section className="public-section">
-        <div className="public-section__header">
-          <div>
-            <span className="public-eyebrow">Разработчикам</span>
-            <h1>Документация, API и сообщество вынесены в отдельные пространства.</h1>
-            <p>
-              У Nerior отдельный публичный docs-site, отдельный авторизованный API cabinet и отдельная зона
-              сообщества. Эти поверхности не смешиваются с рабочим продуктом и не теряются внутри corporate-сайта.
-            </p>
-          </div>
-        </div>
-
-        <div className="public-stack-grid">
-          {DEVELOPER_SURFACES.map((surface) => (
-            <article key={surface.host} className="public-story-card">
-              <span className="public-eyebrow">{surface.host}</span>
-              <h2>{surface.title}</h2>
-              <p>{surface.body}</p>
-              <a href={surface.href} className="public-inline-link">
-                {surface.cta}
-              </a>
-            </article>
-          ))}
-        </div>
-      </section>
-    </main>
-  );
+  return <main className="public-page public-page--developers"><section className="public-section"><div className="public-section__header"><div><span className="public-eyebrow">{"\u0420\u0430\u0437\u0440\u0430\u0431\u043e\u0442\u0447\u0438\u043a\u0430\u043c"}</span><h1>{"\u0414\u043e\u043a\u0443\u043c\u0435\u043d\u0442\u0430\u0446\u0438\u044f, API \u0438 \u0441\u043e\u043e\u0431\u0449\u0435\u0441\u0442\u0432\u043e \u0432\u044b\u043d\u0435\u0441\u0435\u043d\u044b \u0432 \u043e\u0442\u0434\u0435\u043b\u044c\u043d\u044b\u0435 \u043f\u0440\u043e\u0441\u0442\u0440\u0430\u043d\u0441\u0442\u0432\u0430."}</h1><p>{"\u0423 Nerior \u043e\u0442\u0434\u0435\u043b\u044c\u043d\u044b\u0439 \u043f\u0443\u0431\u043b\u0438\u0447\u043d\u044b\u0439 docs-site, \u043e\u0442\u0434\u0435\u043b\u044c\u043d\u044b\u0439 \u0430\u0432\u0442\u043e\u0440\u0438\u0437\u043e\u0432\u0430\u043d\u043d\u044b\u0439 API cabinet \u0438 \u043e\u0442\u0434\u0435\u043b\u044c\u043d\u0430\u044f \u0437\u043e\u043d\u0430 \u0441\u043e\u043e\u0431\u0449\u0435\u0441\u0442\u0432\u0430. \u042d\u0442\u0438 \u043f\u043e\u0432\u0435\u0440\u0445\u043d\u043e\u0441\u0442\u0438 \u043d\u0435 \u0441\u043c\u0435\u0448\u0438\u0432\u0430\u044e\u0442\u0441\u044f \u0441 \u0440\u0430\u0431\u043e\u0447\u0438\u043c \u043f\u0440\u043e\u0434\u0443\u043a\u0442\u043e\u043c \u0438 \u043d\u0435 \u0442\u0435\u0440\u044f\u044e\u0442\u0441\u044f \u0432\u043d\u0443\u0442\u0440\u0438 corporate-\u0441\u0430\u0439\u0442\u0430."}</p></div></div><div className="public-stack-grid">{DEVELOPER_SURFACES.map((surface) => <article key={surface.host} className="public-story-card"><span className="public-eyebrow">{surface.host}</span><h2>{surface.title}</h2><p>{surface.body}</p><a href={surface.href} className="public-inline-link">{surface.cta}</a></article>)}</div></section></main>;
 }
