@@ -735,7 +735,7 @@ class TaskService:
     def get_task_logs(self, *, actor_user_id: str, task_id: str) -> list[TaskLogEntryRead]:
         task = self.task_repository.get_task(task_id)
         if task is None:
-            raise AppError("task_not_found", "Р—Р°РґР°С‡Р° РЅРµ РЅР°Р№РґРµРЅР°.", 404)
+            raise AppError("task_not_found", "Задача не найдена.", 404)
         _, access, _ = self._require_machine_access(machine_id=task.machine_id, actor_user_id=actor_user_id)
         ensure_can_view_machine(access.role)
         return [

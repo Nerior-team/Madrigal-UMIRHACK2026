@@ -348,9 +348,9 @@ const menuItems: MenuItem[] = [
 ];
 
 const WINDOWS_DAEMON_INSTALL_URL =
-  `${CROSSPLAT_BASE_URL}/downloads/windows/PredictMVDaemonSetup.exe`;
+  `${CROSSPLAT_BASE_URL}/downloads/windows/CrossplatDaemonSetup.exe`;
 const LINUX_ARCHIVE_INSTALL_URL =
-  `${CROSSPLAT_BASE_URL}/downloads/linux/predictmv-linux-x64.tar.gz`;
+  `${CROSSPLAT_BASE_URL}/downloads/linux/crossplat-linux-x64.tar.gz`;
 
 const linuxInstallGuideSteps: Array<{ title: string; commands: string[] }> = [
   {

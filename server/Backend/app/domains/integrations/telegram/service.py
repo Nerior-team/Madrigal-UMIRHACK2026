@@ -211,7 +211,7 @@ class TelegramIntegrationService:
             raise AppError("telegram_not_linked", "Telegram-аккаунт не привязан.", 404)
         user = self.auth_repository.get_user_by_id(link.user_id)
         if user is None:
-            raise AppError("user_not_found", "РџРѕР»СЊР·РѕРІР°С‚РµР»СЊ РЅРµ РЅР°Р№РґРµРЅ.", 404)
+            raise AppError("user_not_found", "Пользователь не найден.", 404)
         return user, link
 
     def handle_bot_start(self, *, payload: TelegramBotStartRequest, client: TelegramClientContext) -> TelegramBotStartResponse:

@@ -24,8 +24,8 @@ if ($DryRun) {
         linux_manifest_source = $LinuxManifestSource
         linux_install_source = $LinuxInstallSource
         linux_uninstall_source = $LinuxUninstallSource
-        windows_target = (Join-Path $WindowsTargetDir "PredictMVDaemonSetup.exe")
-        linux_archive_target = (Join-Path $LinuxTargetDir "predictmv-linux-x64.tar.gz")
+        windows_target = (Join-Path $WindowsTargetDir "CrossplatDaemonSetup.exe")
+        linux_archive_target = (Join-Path $LinuxTargetDir "crossplat-linux-x64.tar.gz")
     } | ConvertTo-Json -Depth 3
     exit 0
 }
@@ -44,10 +44,18 @@ $LegacyLinuxArchive = Join-Path $LinuxTargetDir "predict-mv-daemon-linux-x64.tar
 if (Test-Path $LegacyLinuxArchive) {
     Remove-Item -LiteralPath $LegacyLinuxArchive -Force
 }
+$PreviousLinuxArchive = Join-Path $LinuxTargetDir "predictmv-linux-x64.tar.gz"
+if (Test-Path $PreviousLinuxArchive) {
+    Remove-Item -LiteralPath $PreviousLinuxArchive -Force
+}
+$PreviousWindowsInstaller = Join-Path $WindowsTargetDir "PredictMVDaemonSetup.exe"
+if (Test-Path $PreviousWindowsInstaller) {
+    Remove-Item -LiteralPath $PreviousWindowsInstaller -Force
+}
 
-Copy-Item $WindowsSource (Join-Path $WindowsTargetDir "PredictMVDaemonSetup.exe") -Force
+Copy-Item $WindowsSource (Join-Path $WindowsTargetDir "CrossplatDaemonSetup.exe") -Force
 Copy-Item $WindowsManifestSource (Join-Path $WindowsTargetDir "manifest.json") -Force
-Copy-Item $LinuxArchiveSource (Join-Path $LinuxTargetDir "predictmv-linux-x64.tar.gz") -Force
+Copy-Item $LinuxArchiveSource (Join-Path $LinuxTargetDir "crossplat-linux-x64.tar.gz") -Force
 Copy-Item $LinuxManifestSource (Join-Path $LinuxTargetDir "manifest.json") -Force
 Copy-Item $LinuxInstallSource (Join-Path $LinuxTargetDir "install.sh") -Force
 Copy-Item $LinuxUninstallSource (Join-Path $LinuxTargetDir "uninstall.sh") -Force

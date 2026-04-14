@@ -33,10 +33,12 @@ for path in "${WINDOWS_SOURCE}" "${WINDOWS_MANIFEST_SOURCE}" "${LINUX_ARCHIVE_SO
 done
 
 mkdir -p "${DOWNLOADS_ROOT}/windows" "${DOWNLOADS_ROOT}/linux"
+rm -f "${DOWNLOADS_ROOT}/windows/PredictMVDaemonSetup.exe"
 rm -f "${DOWNLOADS_ROOT}/linux/predict-mv-daemon-linux-x64.tar.gz"
-cp "${WINDOWS_SOURCE}" "${DOWNLOADS_ROOT}/windows/PredictMVDaemonSetup.exe"
+rm -f "${DOWNLOADS_ROOT}/linux/predictmv-linux-x64.tar.gz"
+cp "${WINDOWS_SOURCE}" "${DOWNLOADS_ROOT}/windows/CrossplatDaemonSetup.exe"
 cp "${WINDOWS_MANIFEST_SOURCE}" "${DOWNLOADS_ROOT}/windows/manifest.json"
-cp "${LINUX_ARCHIVE_SOURCE}" "${DOWNLOADS_ROOT}/linux/predictmv-linux-x64.tar.gz"
+cp "${LINUX_ARCHIVE_SOURCE}" "${DOWNLOADS_ROOT}/linux/crossplat-linux-x64.tar.gz"
 cp "${LINUX_MANIFEST_SOURCE}" "${DOWNLOADS_ROOT}/linux/manifest.json"
 cp "${LINUX_INSTALL_SOURCE}" "${DOWNLOADS_ROOT}/linux/install.sh"
 cp "${LINUX_UNINSTALL_SOURCE}" "${DOWNLOADS_ROOT}/linux/uninstall.sh"
