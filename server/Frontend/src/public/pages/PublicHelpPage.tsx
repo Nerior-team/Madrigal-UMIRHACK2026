@@ -1,11 +1,119 @@
-﻿import { HELP_GROUPS, HELP_PILLARS, HELP_SECTIONS } from "../site-content";
+import { HELP_GROUPS, HELP_PILLARS, HELP_SECTIONS } from "../site-content";
 
 const HELP_LINKS = [
-  { eyebrow: "\u0421\u0432\u044f\u0437\u0430\u0442\u044c\u0441\u044f \u0441 \u043d\u0430\u043c\u0438", title: "\u0424\u043e\u0440\u043c\u0430 \u043e\u0431\u0440\u0430\u0442\u043d\u043e\u0439 \u0441\u0432\u044f\u0437\u0438", body: "\u0415\u0441\u043b\u0438 \u0432\u043e\u043f\u0440\u043e\u0441 \u043d\u0435\u043b\u044c\u0437\u044f \u0437\u0430\u043a\u0440\u044b\u0442\u044c \u0447\u0435\u0440\u0435\u0437 help \u0438 docs, \u043e\u0441\u043d\u043e\u0432\u043d\u043e\u0439 \u043c\u0430\u0440\u0448\u0440\u0443\u0442 \u0432\u0435\u0434\u0451\u0442 \u0432 \u0444\u043e\u0440\u043c\u0443 \u0441\u0432\u044f\u0437\u0438 \u043d\u0430 \u043a\u043e\u0440\u043f\u043e\u0440\u0430\u0442\u0438\u0432\u043d\u043e\u043c \u0441\u0430\u0439\u0442\u0435.", href: "https://nerior.store/contact", linkLabel: "\u041e\u0442\u043a\u0440\u044b\u0442\u044c \u0444\u043e\u0440\u043c\u0443" },
-  { eyebrow: "\u0414\u043e\u043a\u0443\u043c\u0435\u043d\u0442\u0430\u0446\u0438\u044f", title: "\u0413\u043b\u0443\u0431\u043e\u043a\u0438\u0435 \u0442\u0435\u0445\u043d\u0438\u0447\u0435\u0441\u043a\u0438\u0435 \u043c\u0430\u0442\u0435\u0440\u0438\u0430\u043b\u044b", body: "\u0422\u0435\u0445\u043d\u0438\u0447\u0435\u0441\u043a\u0438\u0435 \u0438\u043d\u0441\u0442\u0440\u0443\u043a\u0446\u0438\u0438, reference \u0438 \u043f\u0440\u043e\u0434\u0443\u043a\u0442\u043e\u0432\u044b\u0435 \u043c\u0430\u0442\u0435\u0440\u0438\u0430\u043b\u044b \u0436\u0438\u0432\u0443\u0442 \u0432 docs, \u0430 help \u043e\u0441\u0442\u0430\u0451\u0442\u0441\u044f \u0431\u044b\u0441\u0442\u0440\u044b\u043c \u043c\u0430\u0440\u0448\u0440\u0443\u0442\u043e\u043c \u0432\u0445\u043e\u0434\u0430.", href: "https://docs.nerior.store", linkLabel: "\u041f\u0435\u0440\u0435\u0439\u0442\u0438 \u0432 docs" },
-  { eyebrow: "\u0421\u043e\u043e\u0431\u0449\u0435\u0441\u0442\u0432\u043e", title: "\u041e\u0442\u043a\u0440\u044b\u0442\u044b\u0435 \u043e\u0431\u0441\u0443\u0436\u0434\u0435\u043d\u0438\u044f \u0438 \u043f\u0443\u0431\u043b\u0438\u043a\u0430\u0446\u0438\u0438", body: "Community \u0438 updates \u043e\u0442\u0432\u0435\u0447\u0430\u044e\u0442 \u0437\u0430 \u0430\u043d\u043e\u043d\u0441\u044b \u0438 \u0432\u043d\u0435\u0448\u043d\u0438\u0439 \u043a\u043e\u043d\u0442\u0435\u043d\u0442\u043d\u044b\u0439 \u043f\u043e\u0442\u043e\u043a, \u0430 help \u043d\u0435 \u043f\u0440\u0435\u0432\u0440\u0430\u0449\u0430\u0435\u0442\u0441\u044f \u0432 \u043f\u0443\u0431\u043b\u0438\u0447\u043d\u044b\u0439 \u0436\u0443\u0440\u043d\u0430\u043b.", href: "https://community.nerior.store", linkLabel: "\u041e\u0442\u043a\u0440\u044b\u0442\u044c community" },
+  {
+    eyebrow: "Связаться с нами",
+    title: "Форма обратной связи",
+    body: "Если вопрос нельзя закрыть через help и docs, основной маршрут ведёт в форму связи на корпоративном сайте.",
+    href: "https://nerior.store/contact",
+    linkLabel: "Открыть форму",
+  },
+  {
+    eyebrow: "Документация",
+    title: "Глубокие технические материалы",
+    body: "Технические инструкции, reference и продуктовые материалы живут в docs, а help остаётся быстрым маршрутом входа.",
+    href: "https://docs.nerior.store",
+    linkLabel: "Перейти в docs",
+  },
+  {
+    eyebrow: "Сообщество",
+    title: "Открытые обсуждения и публикации",
+    body: "Community и updates отвечают за анонсы и внешний контентный поток, а help не превращается в публичный журнал.",
+    href: "https://community.nerior.store",
+    linkLabel: "Открыть community",
+  },
 ] as const;
 
 export function PublicHelpPage() {
-  return <main className="public-page public-page--help"><section className="public-section"><div className="public-section__header"><div><span className="public-eyebrow">help.nerior.store</span><h1>{"\u0421\u043f\u0440\u0430\u0432\u043e\u0447\u043d\u044b\u0439 \u0446\u0435\u043d\u0442\u0440"}</h1><p>{"\u041f\u0443\u0431\u043b\u0438\u0447\u043d\u0430\u044f \u0441\u043f\u0440\u0430\u0432\u043e\u0447\u043d\u0430\u044f \u043f\u043e\u0432\u0435\u0440\u0445\u043d\u043e\u0441\u0442\u044c \u0434\u043b\u044f \u043d\u043e\u0432\u044b\u0445 \u043f\u043e\u043b\u044c\u0437\u043e\u0432\u0430\u0442\u0435\u043b\u0435\u0439, \u043a\u043e\u043c\u0430\u043d\u0434 \u0438 support-\u043c\u0430\u0440\u0448\u0440\u0443\u0442\u043e\u0432. \u0417\u0434\u0435\u0441\u044c \u0441\u043e\u0431\u0440\u0430\u043d\u044b \u0431\u044b\u0441\u0442\u0440\u044b\u0435 \u043e\u0442\u0432\u0435\u0442\u044b, \u043f\u0443\u0442\u0438 \u0434\u0438\u0430\u0433\u043d\u043e\u0441\u0442\u0438\u043a\u0438 \u0438 \u043f\u0435\u0440\u0435\u0445\u043e\u0434\u044b \u0432 \u0441\u0432\u044f\u0437\u0430\u043d\u043d\u044b\u0435 \u0441\u0435\u0440\u0432\u0438\u0441\u044b."}</p></div></div><div className="public-feature-grid">{HELP_PILLARS.map((item) => <article key={item.title} className="public-feature-card"><h2>{item.title}</h2><p>{item.body}</p></article>)}</div></section><section className="public-section"><div className="public-section__header"><div><span className="public-eyebrow">{"\u041a\u0430\u0442\u0435\u0433\u043e\u0440\u0438\u0438"}</span><h2>{"\u0421\u043f\u0440\u0430\u0432\u043a\u0430 \u0443\u0436\u0435 \u0440\u0430\u0437\u0434\u0435\u043b\u0435\u043d\u0430 \u043f\u043e \u0430\u0443\u0434\u0438\u0442\u043e\u0440\u0438\u0438 \u0438 \u0441\u0446\u0435\u043d\u0430\u0440\u0438\u044e \u043e\u0431\u0440\u0430\u0449\u0435\u043d\u0438\u044f."}</h2></div></div><div className="public-library-grid">{HELP_GROUPS.map((group) => <article key={group.title} className="public-story-card"><span className="public-eyebrow">{"\u0413\u0440\u0443\u043f\u043f\u0430"}</span><h2>{group.title}</h2><ul className="public-card-list">{group.items.map((item) => <li key={item}>{item}</li>)}</ul></article>)}</div></section><section className="public-section"><div className="public-section__header"><div><span className="public-eyebrow">{"\u041c\u0430\u0440\u0448\u0440\u0443\u0442\u044b"}</span><h2>{"\u0423 \u043a\u0430\u0436\u0434\u043e\u0433\u043e \u0432\u043e\u043f\u0440\u043e\u0441\u0430 \u0435\u0441\u0442\u044c \u043f\u0440\u043e\u0434\u043e\u043b\u0436\u0435\u043d\u0438\u0435: docs, community \u0438\u043b\u0438 \u043f\u0440\u044f\u043c\u043e\u0439 \u043a\u043e\u043d\u0442\u0430\u043a\u0442."}</h2></div></div><div className="public-link-grid">{HELP_LINKS.map((item) => <article key={item.title} className="public-story-card"><span className="public-eyebrow">{item.eyebrow}</span><h2>{item.title}</h2><p>{item.body}</p><div className="public-story-card__links"><a href={item.href} className="public-inline-link">{item.linkLabel}</a></div></article>)}</div></section><section className="public-section"><div className="public-section__header"><div><span className="public-eyebrow">{"\u0420\u0430\u0437\u0434\u0435\u043b\u044b"}</span><h2>{"\u0413\u043e\u0442\u043e\u0432\u044b\u0435 \u0431\u043b\u043e\u043a\u0438 \u043f\u043e\u0434 \u0441\u0442\u0430\u0442\u044c\u0438, FAQ, \u0434\u0438\u0430\u0433\u043d\u043e\u0441\u0442\u0438\u043a\u0443 \u0438 \u043c\u0430\u0440\u0448\u0440\u0443\u0442\u044b \u043f\u043e\u0434\u0434\u0435\u0440\u0436\u043a\u0438."}</h2></div></div><div className="public-stack-grid">{HELP_SECTIONS.map((section) => <article key={section.title} className="public-story-card"><span className="public-eyebrow">{"\u041c\u0430\u0440\u0448\u0440\u0443\u0442"}</span><h2>{section.title}</h2><p>{section.body}</p></article>)}</div></section></main>;
+  return (
+    <main className="public-page public-page--help">
+      <section className="public-section">
+        <div className="public-section__header">
+          <div>
+            <span className="public-eyebrow">help.nerior.store</span>
+            <h1>Справочный центр</h1>
+            <p>
+              Публичная справочная поверхность для новых пользователей, команд и support-маршрутов. Здесь
+              собраны быстрые ответы, пути диагностики и переходы в связанные сервисы.
+            </p>
+          </div>
+        </div>
+
+        <div className="public-feature-grid">
+          {HELP_PILLARS.map((item) => (
+            <article key={item.title} className="public-feature-card">
+              <h2>{item.title}</h2>
+              <p>{item.body}</p>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="public-section">
+        <div className="public-section__header">
+          <div>
+            <span className="public-eyebrow">Категории</span>
+            <h2>Справка уже разделена по аудитории и сценарию обращения.</h2>
+          </div>
+        </div>
+
+        <div className="public-library-grid">
+          {HELP_GROUPS.map((group) => (
+            <article key={group.title} className="public-story-card">
+              <span className="public-eyebrow">Группа</span>
+              <h2>{group.title}</h2>
+              <ul className="public-card-list">
+                {group.items.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="public-section">
+        <div className="public-section__header">
+          <div>
+            <span className="public-eyebrow">Маршруты</span>
+            <h2>У каждого вопроса есть продолжение: docs, community или прямой контакт.</h2>
+          </div>
+        </div>
+
+        <div className="public-link-grid">
+          {HELP_LINKS.map((item) => (
+            <article key={item.title} className="public-story-card">
+              <span className="public-eyebrow">{item.eyebrow}</span>
+              <h2>{item.title}</h2>
+              <p>{item.body}</p>
+              <div className="public-story-card__links">
+                <a href={item.href} className="public-inline-link">
+                  {item.linkLabel}
+                </a>
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="public-section">
+        <div className="public-section__header">
+          <div>
+            <span className="public-eyebrow">Разделы</span>
+            <h2>Готовые блоки под статьи, FAQ, диагностику и маршруты поддержки.</h2>
+          </div>
+        </div>
+
+        <div className="public-stack-grid">
+          {HELP_SECTIONS.map((section) => (
+            <article key={section.title} className="public-story-card">
+              <span className="public-eyebrow">Маршрут</span>
+              <h2>{section.title}</h2>
+              <p>{section.body}</p>
+            </article>
+          ))}
+        </div>
+      </section>
+    </main>
+  );
 }

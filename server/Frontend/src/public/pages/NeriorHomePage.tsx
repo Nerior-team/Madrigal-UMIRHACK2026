@@ -1,25 +1,11 @@
-﻿import { ArrowUpRight } from "lucide-react";
+import { ArrowUpRight } from "lucide-react";
 import { NERIOR_METRICS, PRODUCT_ITEMS } from "../site-content";
 
 const API_ROUTES = [
-  { code: "GET /api/v1/external/machines", label: "\u0421\u043f\u0438\u0441\u043e\u043a \u043c\u0430\u0448\u0438\u043d" },
-  { code: "POST /api/v1/external/tasks", label: "\u0421\u043e\u0437\u0434\u0430\u0442\u044c \u0437\u0430\u0434\u0430\u0447\u0443" },
-  { code: "GET /api/v1/external/results/{id}/export/json", label: "\u042d\u043a\u0441\u043f\u043e\u0440\u0442 \u0440\u0435\u0437\u0443\u043b\u044c\u0442\u0430\u0442\u0430" },
+  { code: "GET /api/v1/external/machines", label: "Список машин" },
+  { code: "POST /api/v1/external/tasks", label: "Создать задачу" },
+  { code: "GET /api/v1/external/results/{id}/export/json", label: "Экспорт результата" },
 ];
-
-const COPY = {
-  heroTitle: "\u0418\u043d\u0444\u0440\u0430\u0441\u0442\u0440\u0443\u043a\u0442\u0443\u0440\u0430 \u0434\u043b\u044f \u043f\u0440\u043e\u0434\u0443\u043a\u0442\u043e\u0432, \u043a\u043e\u0442\u043e\u0440\u044b\u0435 \u0440\u0430\u0431\u043e\u0442\u0430\u044e\u0442.",
-  heroBody: "Nerior \u0441\u043e\u0431\u0438\u0440\u0430\u0435\u0442 \u043a\u043e\u0440\u043f\u043e\u0440\u0430\u0442\u0438\u0432\u043d\u044b\u0439 \u0441\u0430\u0439\u0442, \u043f\u0440\u043e\u0434\u0443\u043a\u0442\u043e\u0432\u044b\u0435 \u0438\u043d\u0442\u0435\u0440\u0444\u0435\u0439\u0441\u044b, \u0434\u043e\u043a\u0443\u043c\u0435\u043d\u0442\u0430\u0446\u0438\u044e, API \u0438 support-\u043a\u043e\u043d\u0442\u0443\u0440 \u0432 \u043e\u0434\u043d\u0443 \u044d\u043a\u043e\u0441\u0438\u0441\u0442\u0435\u043c\u0443, \u0433\u0434\u0435 \u043a\u0430\u0436\u0434\u0430\u044f \u043f\u043e\u0432\u0435\u0440\u0445\u043d\u043e\u0441\u0442\u044c \u043e\u0442\u0432\u0435\u0447\u0430\u0435\u0442 \u0437\u0430 \u0441\u0432\u043e\u044e \u0437\u0430\u0434\u0430\u0447\u0443 \u0438 \u043d\u0435 \u043f\u0435\u0440\u0435\u0433\u0440\u0443\u0436\u0430\u0435\u0442 \u043e\u0441\u0442\u0430\u043b\u044c\u043d\u044b\u0435.",
-  productsTitle: "\u041a\u0430\u0436\u0434\u044b\u0439 \u043f\u0440\u043e\u0434\u0443\u043a\u0442 \u0436\u0438\u0432\u0451\u0442 \u043d\u0430 \u0441\u0432\u043e\u0451\u043c \u043f\u043e\u0434\u0434\u043e\u043c\u0435\u043d\u0435 \u0438 \u043d\u0435 \u0441\u043c\u0435\u0448\u0438\u0432\u0430\u0435\u0442\u0441\u044f \u0441 \u0441\u043e\u0441\u0435\u0434\u043d\u0438\u043c\u0438 \u0441\u0446\u0435\u043d\u0430\u0440\u0438\u044f\u043c\u0438.",
-  businessTitle: "\u0420\u0430\u0437\u0434\u0435\u043b\u0451\u043d\u043d\u044b\u0439 \u043a\u043e\u043d\u0442\u0443\u0440 \u0434\u043b\u044f \u043a\u043e\u043c\u0430\u043d\u0434, \u043a\u043e\u0442\u043e\u0440\u044b\u043c \u0432\u0430\u0436\u043d\u044b \u0443\u043f\u0440\u0430\u0432\u043b\u044f\u0435\u043c\u043e\u0441\u0442\u044c \u0438 \u044f\u0441\u043d\u0430\u044f \u0430\u0440\u0445\u0438\u0442\u0435\u043a\u0442\u0443\u0440\u0430.",
-  businessBody: "\u041e\u0441\u043d\u043e\u0432\u043d\u043e\u0439 \u0441\u0430\u0439\u0442, \u0440\u0430\u0431\u043e\u0447\u0438\u0439 \u043f\u0440\u043e\u0434\u0443\u043a\u0442, \u0434\u043e\u043a\u0443\u043c\u0435\u043d\u0442\u0430\u0446\u0438\u044f, API \u0438 support \u0432\u044b\u043d\u0435\u0441\u0435\u043d\u044b \u0432 \u043e\u0442\u0434\u0435\u043b\u044c\u043d\u044b\u0435 \u043f\u043e\u0432\u0435\u0440\u0445\u043d\u043e\u0441\u0442\u0438, \u0447\u0442\u043e\u0431\u044b \u043f\u043e\u043b\u044c\u0437\u043e\u0432\u0430\u0442\u0435\u043b\u044e, \u043a\u043e\u043c\u0430\u043d\u0434\u0435 \u0438 \u0440\u0430\u0437\u0440\u0430\u0431\u043e\u0442\u0447\u0438\u043a\u0443 \u043d\u0435 \u043f\u0440\u0438\u0445\u043e\u0434\u0438\u043b\u043e\u0441\u044c \u0440\u0430\u0431\u043e\u0442\u0430\u0442\u044c \u0432 \u043e\u0434\u043d\u043e\u043c \u043f\u0435\u0440\u0435\u0433\u0440\u0443\u0436\u0435\u043d\u043d\u043e\u043c \u0438\u043d\u0442\u0435\u0440\u0444\u0435\u0439\u0441\u0435.",
-  developersTitle: "\u0414\u043e\u043a\u0443\u043c\u0435\u043d\u0442\u0430\u0446\u0438\u044f, API \u0438 \u0441\u043e\u043e\u0431\u0449\u0435\u0441\u0442\u0432\u043e \u0432\u044b\u043d\u0435\u0441\u0435\u043d\u044b \u0432 \u043e\u0442\u0434\u0435\u043b\u044c\u043d\u044b\u0435 \u043f\u0440\u043e\u0441\u0442\u0440\u0430\u043d\u0441\u0442\u0432\u0430 \u0441 \u0441\u043e\u0431\u0441\u0442\u0432\u0435\u043d\u043d\u043e\u0439 \u043d\u0430\u0432\u0438\u0433\u0430\u0446\u0438\u0435\u0439.",
-  developersBody: "Docs, API cabinet \u0438 community \u0431\u043e\u043b\u044c\u0448\u0435 \u043d\u0435 \u043f\u0440\u044f\u0447\u0443\u0442\u0441\u044f \u0432\u043d\u0443\u0442\u0440\u0438 \u043f\u0440\u043e\u0434\u0443\u043a\u0442\u0430. \u0423 \u043a\u0430\u0436\u0434\u043e\u0433\u043e \u0441\u043b\u043e\u044f \u0441\u0432\u043e\u0439 \u043a\u043e\u043d\u0442\u0435\u043a\u0441\u0442, \u0441\u0432\u043e\u0438 \u043c\u0430\u0440\u0448\u0440\u0443\u0442\u044b \u0438 \u0441\u0432\u043e\u044f \u0437\u0430\u0434\u0430\u0447\u0430.",
-  apiTitle: "API-\u0441\u043b\u043e\u0439 \u0443\u0436\u0435 \u0440\u0430\u0437\u0434\u0435\u043b\u0451\u043d \u043f\u043e \u043c\u0430\u0440\u0448\u0440\u0443\u0442\u0430\u043c \u0438 \u0433\u043e\u0442\u043e\u0432 \u0434\u043b\u044f \u043e\u0442\u0434\u0435\u043b\u044c\u043d\u044b\u0445 \u043a\u043b\u044e\u0447\u0435\u0439 \u0434\u043e\u0441\u0442\u0443\u043f\u0430.",
-  apiBody: "\u0414\u043b\u044f \u0438\u043d\u0442\u0435\u0433\u0440\u0430\u0446\u0438\u0439 \u0438\u0441\u043f\u043e\u043b\u044c\u0437\u0443\u0435\u0442\u0441\u044f \u043e\u0442\u0434\u0435\u043b\u044c\u043d\u044b\u0439 \u043a\u0430\u0431\u0438\u043d\u0435\u0442 \u043d\u0430 api.nerior.store, \u0430 \u0434\u043e\u043a\u0443\u043c\u0435\u043d\u0442\u0430\u0446\u0438\u044f \u043f\u043e \u0432\u043d\u0435\u0448\u043d\u0438\u043c \u043c\u0430\u0440\u0448\u0440\u0443\u0442\u0430\u043c \u0438 \u0441\u0446\u0435\u043d\u0430\u0440\u0438\u044f\u043c \u0434\u043e\u0441\u0442\u0443\u043f\u0430 \u0432\u044b\u043d\u0435\u0441\u0435\u043d\u0430 \u0432 docs.nerior.store.",
-  nextTitle: "\u041f\u043e\u043f\u0440\u043e\u0431\u0443\u0439\u0442\u0435 Crossplat \u0438\u043b\u0438 \u0441\u0432\u044f\u0436\u0438\u0442\u0435\u0441\u044c \u0441 \u043d\u0430\u043c\u0438 \u043f\u043e \u043f\u0440\u043e\u0434\u0443\u043a\u0442\u0443, \u0432\u043d\u0435\u0434\u0440\u0435\u043d\u0438\u044e \u0438 \u0438\u043d\u0442\u0435\u0433\u0440\u0430\u0446\u0438\u0438.",
-  nextBody: "\u041f\u0443\u0431\u043b\u0438\u0447\u043d\u044b\u0439 \u0441\u0430\u0439\u0442 \u0432\u0435\u0434\u0451\u0442 \u0432 \u0440\u0430\u0431\u043e\u0447\u0438\u0439 \u043f\u0440\u043e\u0434\u0443\u043a\u0442, \u0434\u043e\u043a\u0443\u043c\u0435\u043d\u0442\u0430\u0446\u0438\u044e \u0438 \u0444\u043e\u0440\u043c\u0443 \u0441\u0432\u044f\u0437\u0438 \u0431\u0435\u0437 \u043b\u0438\u0448\u043d\u0438\u0445 \u043f\u0440\u043e\u043c\u0435\u0436\u0443\u0442\u043e\u0447\u043d\u044b\u0445 \u0441\u043b\u043e\u0451\u0432.",
-} as const;
 
 export function NeriorHomePage() {
   return (
@@ -27,28 +13,143 @@ export function NeriorHomePage() {
       <section className="public-hero public-hero--site">
         <div className="public-hero__copy">
           <span className="public-eyebrow">Nerior</span>
-          <h1>{COPY.heroTitle}</h1>
-          <p>{COPY.heroBody}</p>
+          <h1>Инфраструктура для продуктов, которые работают.</h1>
+          <p>
+            Nerior собирает корпоративный сайт, продуктовые интерфейсы, документацию, API и support-контур в
+            одну экосистему, где каждая поверхность отвечает за свою задачу и не перегружает остальные.
+          </p>
           <div className="public-hero__actions">
-            <a href="https://crossplat.nerior.store" className="public-button public-button--solid">{"\u041e\u0442\u043a\u0440\u044b\u0442\u044c Crossplat"}</a>
-            <a href="https://docs.nerior.store" className="public-button public-button--ghost">{"\u0414\u043e\u043a\u0443\u043c\u0435\u043d\u0442\u0430\u0446\u0438\u044f"}</a>
+            <a href="https://crossplat.nerior.store" className="public-button public-button--solid">
+              Открыть Crossplat
+            </a>
+            <a href="https://docs.nerior.store" className="public-button public-button--ghost">
+              Документация
+            </a>
           </div>
         </div>
-        <div className="public-metrics-grid">{NERIOR_METRICS.map((item) => <article key={item.label} className="public-metric-card"><span>{item.label}</span><strong>{item.value}</strong></article>)}</div>
+
+        <div className="public-metrics-grid">
+          {NERIOR_METRICS.map((item) => (
+            <article key={item.label} className="public-metric-card">
+              <span>{item.label}</span>
+              <strong>{item.value}</strong>
+            </article>
+          ))}
+        </div>
       </section>
+
       <section id="products" className="public-section public-section--products">
-        <div className="public-section__header"><div><span className="public-eyebrow">{"\u041f\u0440\u043e\u0434\u0443\u043a\u0442\u044b"}</span><h2>{COPY.productsTitle}</h2></div></div>
-        <div className="public-product-grid">{PRODUCT_ITEMS.map((product) => <article key={product.name} className={product.status === "active" ? "public-product-card" : "public-product-card public-product-card--disabled"}><div><span className="public-product-card__status">{product.status === "active" ? "\u0414\u043e\u0441\u0442\u0443\u043f\u043d\u043e" : "\u041d\u0435 \u0434\u043e\u0441\u0442\u0443\u043f\u043d\u043e \u0432 \u0434\u0430\u043d\u043d\u044b\u0439 \u043c\u043e\u043c\u0435\u043d\u0442"}</span><h3>{product.name}</h3><p>{product.description}</p></div>{product.status === "active" ? <a href={product.href} className="public-inline-link">{"\u041e\u0442\u043a\u0440\u044b\u0442\u044c"} <ArrowUpRight size={16} /></a> : <span className="public-inline-link public-inline-link--muted">{"\u0421\u043a\u043e\u0440\u043e"}</span>}</article>)}</div>
+        <div className="public-section__header">
+          <div>
+            <span className="public-eyebrow">Продукты</span>
+            <h2>Каждый продукт живёт на своём поддомене и не смешивается с соседними сценариями.</h2>
+          </div>
+        </div>
+        <div className="public-product-grid">
+          {PRODUCT_ITEMS.map((product) => (
+            <article
+              key={product.name}
+              className={
+                product.status === "active"
+                  ? "public-product-card"
+                  : "public-product-card public-product-card--disabled"
+              }
+            >
+              <div>
+                <span className="public-product-card__status">
+                  {product.status === "active" ? "Доступно" : "Не доступно в данный момент"}
+                </span>
+                <h3>{product.name}</h3>
+                <p>{product.description}</p>
+              </div>
+              {product.status === "active" ? (
+                <a href={product.href} className="public-inline-link">
+                  Открыть <ArrowUpRight size={16} />
+                </a>
+              ) : (
+                <span className="public-inline-link public-inline-link--muted">Скоро</span>
+              )}
+            </article>
+          ))}
+        </div>
       </section>
+
       <section className="public-section public-section--two-up">
-        <article className="public-story-card"><span className="public-eyebrow">{"\u0411\u0438\u0437\u043d\u0435\u0441"}</span><h2>{COPY.businessTitle}</h2><p>{COPY.businessBody}</p><a href="/business" className="public-inline-link">{"\u041f\u0435\u0440\u0435\u0439\u0442\u0438 \u0432 \u0440\u0430\u0437\u0434\u0435\u043b"}</a></article>
-        <article className="public-story-card"><span className="public-eyebrow">{"\u0420\u0430\u0437\u0440\u0430\u0431\u043e\u0442\u0447\u0438\u043a\u0430\u043c"}</span><h2>{COPY.developersTitle}</h2><p>{COPY.developersBody}</p><div className="public-story-card__links"><a href="https://docs.nerior.store" className="public-inline-link">Docs</a><a href="https://api.nerior.store" className="public-inline-link">API</a><a href="https://community.nerior.store" className="public-inline-link">Community</a></div></article>
+        <article className="public-story-card">
+          <span className="public-eyebrow">Бизнес</span>
+          <h2>Разделённый контур для команд, которым важны управляемость и ясная архитектура.</h2>
+          <p>
+            Основной сайт, рабочий продукт, документация, API и support вынесены в отдельные поверхности, чтобы
+            пользователю, команде и разработчику не приходилось работать в одном перегруженном интерфейсе.
+          </p>
+          <a href="/business" className="public-inline-link">
+            Перейти в раздел
+          </a>
+        </article>
+
+        <article className="public-story-card">
+          <span className="public-eyebrow">Разработчикам</span>
+          <h2>Документация, API и сообщество вынесены в отдельные пространства с собственной навигацией.</h2>
+          <p>
+            Docs, API cabinet и community больше не прячутся внутри продукта. У каждого слоя свой контекст, свои
+            маршруты и своя задача.
+          </p>
+          <div className="public-story-card__links">
+            <a href="https://docs.nerior.store" className="public-inline-link">
+              Docs
+            </a>
+            <a href="https://api.nerior.store" className="public-inline-link">
+              API
+            </a>
+            <a href="https://community.nerior.store" className="public-inline-link">
+              Community
+            </a>
+          </div>
+        </article>
       </section>
+
       <section className="public-section public-section--two-up">
-        <article className="public-story-card"><span className="public-eyebrow">{"\u0412\u043d\u0435\u0448\u043d\u0438\u0439 API"}</span><h2>{COPY.apiTitle}</h2><p>{COPY.apiBody}</p><a href="https://api.nerior.store" className="public-inline-link">{"\u041e\u0442\u043a\u0440\u044b\u0442\u044c API cabinet"}</a></article>
-        <div className="public-route-stack">{API_ROUTES.map((route) => <article key={route.code} className="public-route-card"><code>{route.code}</code><span>{route.label}</span></article>)}</div>
+        <article className="public-story-card">
+          <span className="public-eyebrow">Внешний API</span>
+          <h2>API-слой уже разделён по маршрутам и готов для отдельных ключей доступа.</h2>
+          <p>
+            Для интеграций используется отдельный кабинет на api.nerior.store, а документация по внешним маршрутам
+            и сценариям доступа вынесена в docs.nerior.store.
+          </p>
+          <a href="https://api.nerior.store" className="public-inline-link">
+            Открыть API cabinet
+          </a>
+        </article>
+
+        <div className="public-route-stack">
+          {API_ROUTES.map((route) => (
+            <article key={route.code} className="public-route-card">
+              <code>{route.code}</code>
+              <span>{route.label}</span>
+            </article>
+          ))}
+        </div>
       </section>
-      <section className="public-section"><article className="public-cta-strip"><div><span className="public-eyebrow">{"\u0421\u043b\u0435\u0434\u0443\u044e\u0449\u0438\u0439 \u0448\u0430\u0433"}</span><h2>{COPY.nextTitle}</h2><p>{COPY.nextBody}</p></div><div className="public-story-card__links"><a href="https://crossplat.nerior.store" className="public-button public-button--solid">{"\u041f\u043e\u043f\u0440\u043e\u0431\u043e\u0432\u0430\u0442\u044c \u0431\u0435\u0441\u043f\u043b\u0430\u0442\u043d\u043e"}</a><a href="/contact" className="public-button public-button--ghost">{"\u0421\u0432\u044f\u0437\u0430\u0442\u044c\u0441\u044f \u0441 \u043d\u0430\u043c\u0438"}</a></div></article></section>
+
+      <section className="public-section">
+        <article className="public-cta-strip">
+          <div>
+            <span className="public-eyebrow">Следующий шаг</span>
+            <h2>Попробуйте Crossplat или свяжитесь с нами по продукту, внедрению и интеграции.</h2>
+            <p>
+              Публичный сайт ведёт в рабочий продукт, документацию и форму связи без лишних промежуточных слоёв.
+            </p>
+          </div>
+          <div className="public-story-card__links">
+            <a href="https://crossplat.nerior.store" className="public-button public-button--solid">
+              Попробовать бесплатно
+            </a>
+            <a href="/contact" className="public-button public-button--ghost">
+              Связаться с нами
+            </a>
+          </div>
+        </article>
+      </section>
     </main>
   );
 }
