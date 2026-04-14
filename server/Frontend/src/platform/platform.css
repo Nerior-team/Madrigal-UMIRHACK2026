@@ -1,13 +1,13 @@
 .platform-shell,
 .platform-auth-layout {
-  --platform-bg: #f7f7f4;
-  --platform-panel: #ffffff;
-  --platform-panel-soft: #fbfbf8;
-  --platform-border: #e7e6df;
-  --platform-border-strong: #d9d7cf;
-  --platform-text: #151515;
-  --platform-text-muted: #6b695f;
-  --platform-accent: #111111;
+  --platform-bg: #000000;
+  --platform-panel: rgba(255, 255, 255, 0.02);
+  --platform-panel-soft: rgba(255, 255, 255, 0.03);
+  --platform-border: rgba(255, 255, 255, 0.12);
+  --platform-border-strong: rgba(255, 255, 255, 0.24);
+  --platform-text: rgba(255, 255, 255, 0.96);
+  --platform-text-muted: rgba(255, 255, 255, 0.58);
+  --platform-accent: #ffffff;
   min-height: 100vh;
   background: var(--platform-bg);
   color: var(--platform-text);
@@ -16,7 +16,7 @@
 
 .platform-shell {
   display: grid;
-  grid-template-columns: 280px minmax(0, 1fr);
+  grid-template-columns: 304px minmax(0, 1fr);
 }
 
 .platform-shell__sidebar {
@@ -26,9 +26,10 @@
   flex-direction: column;
   gap: 24px;
   height: 100vh;
-  padding: 24px 18px;
+  padding: 26px 20px;
   border-right: 1px solid var(--platform-border);
-  background: #fbfbf8;
+  background: rgba(255, 255, 255, 0.02);
+  backdrop-filter: blur(18px);
 }
 
 .platform-shell__brand,
@@ -47,9 +48,10 @@
   height: 38px;
   align-items: center;
   justify-content: center;
-  border-radius: 12px;
-  background: #101010;
-  color: #ffffff;
+  border-radius: 999px;
+  border: 1px solid var(--platform-border-strong);
+  background: #ffffff;
+  color: #111111;
   font-weight: 700;
 }
 
@@ -85,8 +87,8 @@
   flex-direction: column;
   gap: 3px;
   padding: 12px 14px;
-  border: 1px solid transparent;
-  border-radius: 14px;
+  border: 1px solid var(--platform-border);
+  border-radius: 18px;
   color: inherit;
   text-decoration: none;
   transition: background 140ms ease, border-color 140ms ease, transform 140ms ease;
@@ -105,7 +107,7 @@
 
 .platform-nav-link--active {
   border-color: var(--platform-border-strong);
-  background: #ffffff;
+  background: rgba(255, 255, 255, 0.05);
 }
 
 .platform-shell__account {
@@ -114,8 +116,8 @@
   gap: 8px;
   padding: 16px;
   border: 1px solid var(--platform-border);
-  border-radius: 18px;
-  background: #ffffff;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.03);
 }
 
 .platform-shell__account-actions {
@@ -125,7 +127,7 @@
 }
 
 .platform-shell__content {
-  padding: 28px;
+  padding: 28px 30px 72px;
 }
 
 .platform-page,
@@ -152,7 +154,7 @@
   display: grid;
   grid-template-columns: minmax(0, 1.4fr) auto;
   gap: 24px;
-  padding: 28px;
+  padding: 30px;
 }
 
 .platform-hero h1 {
@@ -191,7 +193,7 @@
 }
 
 .platform-stat-card {
-  padding: 18px 20px;
+  padding: 20px 22px;
 }
 
 .platform-stat-card strong {
@@ -201,7 +203,7 @@
 }
 
 .platform-section-card {
-  padding: 22px;
+  padding: 24px;
 }
 
 .platform-section-card__header {
@@ -241,7 +243,7 @@
   padding: 13px 14px;
   border: 1px solid var(--platform-border);
   border-radius: 14px;
-  background: #ffffff;
+  background: rgba(255, 255, 255, 0.03);
   color: var(--platform-text);
 }
 
@@ -291,12 +293,12 @@
   gap: 10px;
   padding: 16px;
   border: 1px solid var(--platform-border);
-  border-radius: 18px;
+  border-radius: 20px;
   background: var(--platform-panel-soft);
 }
 
 .platform-product-card--disabled {
-  background: #f2f2ee;
+  background: rgba(255, 255, 255, 0.015);
   color: var(--platform-text-muted);
 }
 
@@ -319,7 +321,7 @@
   gap: 6px;
   padding: 14px;
   border: 1px solid var(--platform-border);
-  border-radius: 14px;
+  border-radius: 18px;
   background: var(--platform-panel-soft);
   color: inherit;
   text-align: left;
@@ -330,7 +332,7 @@
 .platform-chip--selected,
 .platform-badge--active {
   border-color: var(--platform-border-strong);
-  background: #f0efe9;
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .platform-button,
@@ -342,7 +344,7 @@
   padding: 0 16px;
   border: 1px solid var(--platform-border-strong);
   border-radius: 999px;
-  background: #ffffff;
+  background: rgba(255, 255, 255, 0.04);
   color: var(--platform-text);
   text-decoration: none;
   cursor: pointer;
@@ -350,9 +352,9 @@
 }
 
 .platform-button--primary {
-  background: #121212;
-  border-color: #121212;
-  color: #ffffff;
+  background: #ffffff;
+  border-color: #ffffff;
+  color: #111111;
 }
 
 .platform-disabled-link {
@@ -367,14 +369,14 @@
   padding: 12px 14px;
   border-radius: 14px;
   border: 1px solid var(--platform-border);
-  background: #fafaf7;
+  background: rgba(255, 255, 255, 0.03);
 }
 
 .platform-feedback--error,
 .platform-loading-state--error {
-  border-color: #e5c7c7;
-  background: #fff5f5;
-  color: #8b3232;
+  border-color: rgba(255, 165, 165, 0.4);
+  background: rgba(255, 64, 64, 0.08);
+  color: #ffb4b4;
 }
 
 .platform-key-card {
@@ -418,7 +420,7 @@
   padding: 18px;
   font-size: 0.88rem;
   line-height: 1.6;
-  background: #fcfcfa;
+  background: rgba(255, 255, 255, 0.025);
 }
 
 .platform-code-block code,
@@ -433,7 +435,7 @@
   padding: 0 10px;
   border: 1px solid var(--platform-border);
   border-radius: 999px;
-  background: #fafaf7;
+  background: rgba(255, 255, 255, 0.03);
   color: var(--platform-text-muted);
   font-size: 0.82rem;
 }
@@ -455,8 +457,8 @@
 .platform-table__row {
   padding: 12px 14px;
   border: 1px solid var(--platform-border);
-  border-radius: 14px;
-  background: #ffffff;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.025);
 }
 
 .platform-loading-state {
@@ -476,7 +478,7 @@
   justify-content: space-between;
   gap: 32px;
   padding: 36px;
-  background: #f1f1ec;
+  background: rgba(255, 255, 255, 0.03);
   border-right: 1px solid var(--platform-border);
 }
 

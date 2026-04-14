@@ -18,17 +18,17 @@ export function PlatformAnalyticsPage({
   return (
     <div className="platform-page platform-page--analytics">
       <section className="platform-stats-grid">
-        <PlatformStatCard label="Services" value={String(PLATFORM_PRODUCTS.length)} detail="Products listed in the cabinet" />
-        <PlatformStatCard label="Live now" value={String(availableProducts)} detail="Products currently available for API access" />
-        <PlatformStatCard label="Total keys" value={String(stats.total)} detail="Keys linked to this account" />
-        <PlatformStatCard label="Active keys" value={String(stats.active)} detail="Currently usable keys" />
+        <PlatformStatCard label="Сервисы" value={String(PLATFORM_PRODUCTS.length)} detail="Продукты, показанные в кабинете" />
+        <PlatformStatCard label="Активны" value={String(availableProducts)} detail="Продукты с доступным API" />
+        <PlatformStatCard label="Всего ключей" value={String(stats.total)} detail="Ключи, связанные с этим аккаунтом" />
+        <PlatformStatCard label="Активные ключи" value={String(stats.active)} detail="Ключи, которые можно использовать сейчас" />
       </section>
 
       <section className="platform-two-column">
         <PlatformSectionCard
-          eyebrow="Products"
-          title="Availability snapshot"
-          detail="Usage is currently tracked only for services with live API access."
+          eyebrow="Продукты"
+          title="Срез доступности"
+          detail="Статистика usage сейчас собирается только по сервисам с живым API."
         >
           <div className="platform-product-grid">
             {PLATFORM_PRODUCTS.map((product) => (
@@ -52,16 +52,16 @@ export function PlatformAnalyticsPage({
                     {product.note}
                   </span>
                 </div>
-                <p>{product.status === "available" ? "Usage data is active for this service." : "Usage data will appear after launch."}</p>
+                <p>{product.status === "available" ? "Для этого сервиса уже собирается usage-статистика." : "Статистика появится после запуска."}</p>
               </article>
             ))}
           </div>
         </PlatformSectionCard>
 
         <PlatformSectionCard
-          eyebrow="Ranking"
-          title="Most-used keys"
-          detail="Ordered by the real `uses_count` field from the backend."
+          eyebrow="Рейтинг"
+          title="Самые используемые ключи"
+          detail="Сортировка идёт по реальному полю `uses_count` из backend."
         >
           <div className="platform-ranked-list">
             {stats.mostUsed.length ? (
@@ -69,22 +69,22 @@ export function PlatformAnalyticsPage({
                 <article key={item.id} className="platform-ranked-row">
                   <div>
                     <strong>{item.name}</strong>
-                    <span>{item.permission === "run" ? "Crossplat read + run" : "Crossplat read only"}</span>
+                    <span>{item.permission === "run" ? "Crossplat: чтение и запуск" : "Crossplat: только чтение"}</span>
                   </div>
                   <strong>{item.usesCount}</strong>
                 </article>
               ))
             ) : (
-              <p className="platform-empty-state">Usage appears after the first API requests land.</p>
+              <p className="platform-empty-state">Статистика появится после первых API-запросов.</p>
             )}
           </div>
         </PlatformSectionCard>
       </section>
 
       <PlatformSectionCard
-        eyebrow="Recency"
-        title="Latest activity"
-        detail="A compact view of when each key last touched the API."
+        eyebrow="Активность"
+        title="Последние обращения"
+        detail="Компактный срез по тому, когда каждый ключ в последний раз обращался к API."
       >
         <div className="platform-ranked-list">
           {stats.mostRecent.length ? (
@@ -92,35 +92,35 @@ export function PlatformAnalyticsPage({
               <article key={item.id} className="platform-ranked-row">
                 <div>
                   <strong>{item.name}</strong>
-                  <span>{item.lastUsedIp || "IP unavailable"}</span>
+                  <span>{item.lastUsedIp || "IP недоступен"}</span>
                 </div>
-                <strong>{item.lastUsedAt || "Unavailable"}</strong>
+                <strong>{item.lastUsedAt || "Нет данных"}</strong>
               </article>
             ))
           ) : (
-            <p className="platform-empty-state">No recent activity has been recorded yet.</p>
+            <p className="platform-empty-state">Последняя активность пока не зафиксирована.</p>
           )}
         </div>
       </PlatformSectionCard>
 
       <PlatformSectionCard
-        eyebrow="Inventory"
-        title="All keys"
-        detail="A flattened operational view across active and revoked Crossplat credentials."
+        eyebrow="Реестр"
+        title="Все ключи"
+        detail="Плоский операционный срез по активным и отозванным ключам Crossplat."
       >
         <div className="platform-table">
           <div className="platform-table__head">
-            <span>Name</span>
-            <span>Permission</span>
-            <span>Status</span>
-            <span>Calls</span>
-            <span>Machines</span>
+            <span>Название</span>
+            <span>Доступ</span>
+            <span>Статус</span>
+            <span>Вызовы</span>
+            <span>Машины</span>
           </div>
           {apiKeys.map((item) => (
             <div key={item.id} className="platform-table__row">
               <span>{item.name}</span>
-              <span>{item.permission === "run" ? "Run" : "Read"}</span>
-              <span>{item.isActive ? "Active" : "Revoked"}</span>
+              <span>{item.permission === "run" ? "Запуск" : "Чтение"}</span>
+              <span>{item.isActive ? "Активен" : "Отозван"}</span>
               <span>{item.usesCount}</span>
               <span>{item.machineIds.length}</span>
             </div>

@@ -12,15 +12,15 @@ type PlatformShellProps = PropsWithChildren<{
 
 function formatSyncLabel(value: string | null): string {
   if (!value) {
-    return "Waiting for first sync";
+    return "Ожидание первой синхронизации";
   }
 
   const timestamp = new Date(value);
   if (Number.isNaN(timestamp.getTime())) {
-    return "Sync time unavailable";
+    return "Время синхронизации недоступно";
   }
 
-  return `Synced ${new Intl.DateTimeFormat("en-GB", {
+  return `Синхронизировано ${new Intl.DateTimeFormat("ru-RU", {
     year: "numeric",
     month: "short",
     day: "2-digit",
@@ -47,7 +47,7 @@ export function PlatformShell({
             <span>{formatSyncLabel(generatedAt)}</span>
           </div>
         </a>
-        <nav className="platform-shell__nav" aria-label="API cabinet navigation">
+        <nav className="platform-shell__nav" aria-label="Навигация API-кабинета">
           {PLATFORM_ROUTE_ITEMS.map((item) => (
             <NavLink
               key={item.key}
@@ -60,17 +60,17 @@ export function PlatformShell({
           ))}
         </nav>
         <div className="platform-shell__account">
-          <span className="platform-shell__account-label">API access</span>
+          <span className="platform-shell__account-label">API доступ</span>
           <strong>{profile.email}</strong>
           <div className="platform-shell__account-actions">
             <a className="platform-inline-link" href="https://docs.nerior.store">
-              Open Docs
+              Открыть docs
             </a>
             <a className="platform-inline-link" href="https://crossplat.nerior.store/machines">
-              Open Crossplat
+              Открыть Crossplat
             </a>
             <button type="button" className="platform-inline-link" onClick={onSignOut}>
-              Sign out
+              Выйти
             </button>
           </div>
         </div>

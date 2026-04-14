@@ -15,28 +15,28 @@ export function PlatformOverviewPage({ dashboard, stats }: PlatformOverviewPageP
   return (
     <div className="platform-page platform-page--overview">
       <PlatformHero
-        kicker="API access"
-        title="Issue and control API keys across Nerior services."
-        subtitle="This cabinet handles API-key access, product availability, scope boundaries, and usage visibility. Documentation lives separately on docs.nerior.store."
+        kicker="API доступ"
+        title="Управление ключами доступа для сервисов Nerior."
+        subtitle="Кабинет отвечает за выпуск ключей, доступные продукты, scope-границы и usage-видимость. Документация вынесена отдельно на docs.nerior.store."
         primaryCtaHref="/keys"
-        primaryCtaLabel="Manage API keys"
+        primaryCtaLabel="Открыть ключи"
         secondaryCtaHref="https://docs.nerior.store"
-        secondaryCtaLabel="Open docs"
+        secondaryCtaLabel="Открыть docs"
       />
 
       <section className="platform-stats-grid">
-        <PlatformStatCard label="Services" value={String(PLATFORM_PRODUCTS.length)} detail="Products listed in the cabinet" />
-        <PlatformStatCard label="Live now" value={String(availableProducts)} detail="Products currently available for API access" />
-        <PlatformStatCard label="Keys" value={String(stats.total)} detail="Developer keys in your account" />
-        <PlatformStatCard label="Machines" value={String(dashboard.machineOptions.length)} detail="Crossplat scopes available today" />
-        <PlatformStatCard label="Calls" value={String(stats.totalUses)} detail="Total recorded API key usage" />
+        <PlatformStatCard label="Сервисы" value={String(PLATFORM_PRODUCTS.length)} detail="Продукты, показанные в кабинете" />
+        <PlatformStatCard label="Активны" value={String(availableProducts)} detail="Продукты с доступным API прямо сейчас" />
+        <PlatformStatCard label="Ключи" value={String(stats.total)} detail="Ключи, связанные с этим аккаунтом" />
+        <PlatformStatCard label="Машины" value={String(dashboard.machineOptions.length)} detail="Доступные scope Crossplat" />
+        <PlatformStatCard label="Вызовы" value={String(stats.totalUses)} detail="Общее число зафиксированных обращений" />
       </section>
 
       <section className="platform-two-column">
         <PlatformSectionCard
-          eyebrow="Products"
-          title="Service availability"
-          detail="Only services backed by live API contracts can be selected for new keys."
+          eyebrow="Продукты"
+          title="Доступность сервисов"
+          detail="Для новых ключей можно выбирать только сервисы с живыми API-контрактами."
         >
           <div className="platform-product-grid">
             {PLATFORM_PRODUCTS.map((product) => (
@@ -63,10 +63,10 @@ export function PlatformOverviewPage({ dashboard, stats }: PlatformOverviewPageP
                 <p>{product.description}</p>
                 {product.href ? (
                   <a className="platform-inline-link" href={product.href}>
-                    Open product
+                    Открыть продукт
                   </a>
                 ) : (
-                  <span className="platform-disabled-link">Unavailable</span>
+                  <span className="platform-disabled-link">Не доступно</span>
                 )}
               </article>
             ))}
@@ -74,43 +74,43 @@ export function PlatformOverviewPage({ dashboard, stats }: PlatformOverviewPageP
         </PlatformSectionCard>
 
         <PlatformSectionCard
-          eyebrow="Session"
-          title="API session is active"
-          detail="API access uses a separate sign-in flow and separate cookies from Crossplat."
+          eyebrow="Сессия"
+          title="API-сессия активна"
+          detail="API использует отдельный вход и отдельные cookies, независимо от Crossplat."
         >
           <div className="platform-auth-panel">
-            <span className="platform-badge platform-badge--active">Signed in</span>
-            <p>{`${dashboard.profile.email} can issue, revoke, and inspect scoped API keys.`}</p>
+            <span className="platform-badge platform-badge--active">Авторизовано</span>
+            <p>{`${dashboard.profile.email} может выпускать, отзывать и просматривать API-ключи с ограниченными scope.`}</p>
           </div>
         </PlatformSectionCard>
       </section>
 
       <section className="platform-two-column">
         <PlatformSectionCard
-          eyebrow="Workflow"
-          title="Crossplat API flow"
-          detail="The currently active product uses the real external routes already exposed by the backend."
+          eyebrow="Сценарий"
+          title="Поток работы с Crossplat API"
+          detail="Для активного продукта уже используются реальные external-роуты backend."
         >
           <ul className="platform-list">
-            <li>Create a scoped key for the machines you actually need.</li>
+            <li>Создайте ключ только для тех машин, которые действительно нужны.</li>
             <li>
-              Use the bearer token against <code>{dashboard.externalApiBaseUrl}</code>.
+              Используйте bearer-токен для <code>{dashboard.externalApiBaseUrl}</code>.
             </li>
-            <li>Inspect machine command templates before creating tasks.</li>
-            <li>Track execution through state, logs, summaries, and result exports.</li>
+            <li>Проверьте шаблоны команд машины перед созданием задачи.</li>
+            <li>Отслеживайте выполнение через state, логи, summary и export результатов.</li>
           </ul>
         </PlatformSectionCard>
 
         <PlatformSectionCard
-          eyebrow="Reference"
-          title="What to open next"
-          detail="Use the cabinet for access, and the public docs site for endpoint reference."
+          eyebrow="Навигация"
+          title="Что открыть дальше"
+          detail="Кабинет отвечает за доступ, а публичный docs-сайт за описание endpoint-ов."
         >
           <ul className="platform-list">
-            <li>{dashboard.endpointCount} live external endpoints are currently documented.</li>
-            <li>{stats.active} active keys are available right now.</li>
-            <li>{stats.runEnabled} keys can create tasks.</li>
-            <li>{stats.mostUsed[0] ? `${stats.mostUsed[0].name} is currently the most-used key.` : "Usage will appear here once the first API requests land."}</li>
+            <li>Сейчас описано {dashboard.endpointCount} live external endpoint-ов.</li>
+            <li>Сейчас доступно {stats.active} активных ключей.</li>
+            <li>{stats.runEnabled} ключей могут создавать задачи.</li>
+            <li>{stats.mostUsed[0] ? `${stats.mostUsed[0].name} сейчас является самым используемым ключом.` : "Usage появится здесь после первых API-запросов."}</li>
           </ul>
         </PlatformSectionCard>
       </section>

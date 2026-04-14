@@ -45,21 +45,21 @@ type PlatformApiKeysPageProps = {
 };
 
 const PERMISSION_OPTIONS = [
-  { value: "read", label: "Read only" },
-  { value: "run", label: "Read + run tasks" },
+  { value: "read", label: "Только чтение" },
+  { value: "run", label: "Чтение и запуск задач" },
 ] as const;
 
 const EXPIRY_OPTIONS = [
-  { value: "one_time", label: "One-time" },
-  { value: "day", label: "24 hours" },
-  { value: "week", label: "7 days" },
-  { value: "month", label: "30 days" },
-  { value: "year", label: "1 year" },
-  { value: "unlimited", label: "No expiry" },
+  { value: "one_time", label: "Одно использование" },
+  { value: "day", label: "24 часа" },
+  { value: "week", label: "7 дней" },
+  { value: "month", label: "30 дней" },
+  { value: "year", label: "1 год" },
+  { value: "unlimited", label: "Без срока" },
 ] as const;
 
 function formatKeyDate(value?: string | null): string {
-  return value ? formatMoscowDateTime(value) : "Not used yet";
+  return value ? formatMoscowDateTime(value) : "Ещё не использовался";
 }
 
 export function PlatformApiKeysPage({
@@ -91,9 +91,9 @@ export function PlatformApiKeysPage({
   return (
     <div className="platform-page platform-page--keys">
       <PlatformSectionCard
-        eyebrow="Products"
-        title="Service selection"
-        detail="API key issuance is live for Crossplat. Other Nerior services are listed here but are not available yet."
+        eyebrow="Продукты"
+        title="Доступные сервисы"
+        detail="Выпуск API-ключей уже работает для Crossplat. Остальные сервисы показаны заранее, но пока недоступны."
       >
         <div className="platform-product-grid">
           {PLATFORM_PRODUCTS.map((product) => (
@@ -125,63 +125,63 @@ export function PlatformApiKeysPage({
 
       <section className="platform-two-column platform-two-column--wide">
         <PlatformSectionCard
-          eyebrow="Create"
-          title="Issue a Crossplat API key"
-          detail="Scopes stay explicit: select machines first, then narrow command templates if needed."
+          eyebrow="Создание"
+          title="Выпуск API-ключа Crossplat"
+          detail="Scope остаётся явным: сначала выбираются машины, затем при необходимости сужаются шаблоны команд."
         >
           <div className="platform-form-grid">
             <label className="platform-field">
-              <span>Name</span>
+              <span>Название</span>
               <input
                 type="text"
                 value={form.name}
                 onChange={(event) => onFieldChange("name", event.target.value)}
-                placeholder="Production sync worker"
+                placeholder="Например, production sync worker"
               />
             </label>
 
             <label className="platform-field">
-              <span>Permission</span>
+              <span>Разрешение</span>
               <CustomSelect
                 value={form.permission}
                 options={[...PERMISSION_OPTIONS]}
                 onChange={(value) => onFieldChange("permission", value)}
-                ariaLabel="API key permission"
+                ariaLabel="Разрешение API-ключа"
                 className="platform-select"
               />
             </label>
 
             <label className="platform-field">
-              <span>Expiry</span>
+              <span>Срок действия</span>
               <CustomSelect
                 value={form.expiryPreset}
                 options={[...EXPIRY_OPTIONS]}
                 onChange={(value) => onFieldChange("expiryPreset", value)}
-                ariaLabel="API key expiry"
+                ariaLabel="Срок действия API-ключа"
                 className="platform-select"
               />
             </label>
 
             <label className="platform-field">
-              <span>Service</span>
+              <span>Сервис</span>
               <input type="text" value={activeProduct?.name ?? "Crossplat"} readOnly />
             </label>
 
             <label className="platform-field">
-              <span>Confirm with password</span>
+              <span>Подтвердите паролем</span>
               <input
                 type="password"
                 value={form.password}
                 onChange={(event) => onFieldChange("password", event.target.value)}
-                placeholder="Account password"
+                placeholder="Пароль аккаунта"
               />
             </label>
           </div>
 
           <div className="platform-scope-panel">
             <div className="platform-scope-panel__header">
-              <strong>Machine scope</strong>
-              <span>{selectedMachineTitles.length ? selectedMachineTitles.join(" / ") : "Select at least one Crossplat machine"}</span>
+              <strong>Scope машин</strong>
+              <span>{selectedMachineTitles.length ? selectedMachineTitles.join(" / ") : "Выберите хотя бы одну машину Crossplat"}</span>
             </div>
             <div className="platform-chip-grid">
               {machineOptions.map((machine) => {
@@ -202,11 +202,11 @@ export function PlatformApiKeysPage({
 
           <div className="platform-scope-panel">
             <div className="platform-scope-panel__header">
-              <strong>Command scope</strong>
+              <strong>Scope команд</strong>
               <span>
                 {commandScopeOptions.length
-                  ? "Optional allowlist, narrowed to the machines you selected."
-                  : "Command scopes appear after Crossplat machine selection."}
+                  ? "Необязательный allowlist, уже суженный до выбранных машин."
+                  : "Scope команд появится после выбора машин Crossplat."}
               </span>
             </div>
             <div className="platform-chip-grid">
@@ -231,7 +231,7 @@ export function PlatformApiKeysPage({
           {error ? <p className="platform-feedback platform-feedback--error">{error}</p> : null}
           {latestRawKey ? (
             <label className="platform-field">
-              <span>Copy now: the raw key is shown once</span>
+              <span>Скопируйте сейчас: raw key показывается один раз</span>
               <textarea readOnly value={latestRawKey} rows={3} />
             </label>
           ) : null}
@@ -243,15 +243,15 @@ export function PlatformApiKeysPage({
               onClick={onCreate}
               disabled={isSubmitting}
             >
-              {isSubmitting ? "Issuing key..." : "Issue key"}
+              {isSubmitting ? "Выпускаем ключ..." : "Выпустить ключ"}
             </button>
           </div>
         </PlatformSectionCard>
 
         <PlatformSectionCard
-          eyebrow="Inventory"
-          title="Existing keys"
-          detail="Usage and expiry metadata come directly from the backend API-key records."
+          eyebrow="Реестр"
+          title="Существующие ключи"
+          detail="Метаданные usage и expiry приходят напрямую из backend-записей API-ключей."
         >
           <div className="platform-key-list">
             {apiKeys.length ? (
@@ -260,10 +260,10 @@ export function PlatformApiKeysPage({
                   <div className="platform-key-card__header">
                     <div>
                       <h3>{item.name}</h3>
-                      <p>{item.permission === "run" ? "Read + run tasks" : "Read only"}</p>
+                      <p>{item.permission === "run" ? "Чтение и запуск задач" : "Только чтение"}</p>
                     </div>
                     <span className={item.isActive ? "platform-badge platform-badge--active" : "platform-badge"}>
-                      {item.isActive ? "Active" : "Revoked"}
+                      {item.isActive ? "Активен" : "Отозван"}
                     </span>
                   </div>
                   <dl className="platform-key-card__meta">
@@ -272,24 +272,24 @@ export function PlatformApiKeysPage({
                       <dd>{item.publicId}</dd>
                     </div>
                     <div>
-                      <dt>Usage</dt>
-                      <dd>{item.usesCount} calls</dd>
+                      <dt>Использование</dt>
+                      <dd>{item.usesCount} вызовов</dd>
                     </div>
                     <div>
-                      <dt>Last used</dt>
+                      <dt>Последнее использование</dt>
                       <dd>{formatKeyDate(item.lastUsedAt)}</dd>
                     </div>
                     <div>
-                      <dt>Last IP</dt>
-                      <dd>{item.lastUsedIp || "Unavailable"}</dd>
+                      <dt>Последний IP</dt>
+                      <dd>{item.lastUsedIp || "Недоступно"}</dd>
                     </div>
                     <div>
-                      <dt>Expiry</dt>
-                      <dd>{item.expiresAt ? formatMoscowDateTime(item.expiresAt) : "No expiry"}</dd>
+                      <dt>Срок действия</dt>
+                      <dd>{item.expiresAt ? formatMoscowDateTime(item.expiresAt) : "Без срока"}</dd>
                     </div>
                     <div>
-                      <dt>Scopes</dt>
-                      <dd>{`${item.machineIds.length} machines / ${item.allowedTemplateKeys.length || "all"} command sets`}</dd>
+                      <dt>Scope</dt>
+                      <dd>{`${item.machineIds.length} машин / ${item.allowedTemplateKeys.length || "все"} наборов команд`}</dd>
                     </div>
                   </dl>
 
@@ -301,14 +301,14 @@ export function PlatformApiKeysPage({
                         disabled={isRevoking}
                         onClick={() => onRevoke(item.id)}
                       >
-                        {isRevoking ? "Revoking..." : "Revoke key"}
+                        {isRevoking ? "Отзываем..." : "Отозвать ключ"}
                       </button>
                     </div>
                   ) : null}
                 </article>
               ))
             ) : (
-              <p className="platform-empty-state">No API keys yet. Issue the first key to unlock Crossplat access.</p>
+              <p className="platform-empty-state">API-ключей пока нет. Выпустите первый ключ, чтобы открыть доступ к Crossplat.</p>
             )}
           </div>
         </PlatformSectionCard>

@@ -11,20 +11,20 @@ export const PLATFORM_ROUTE_ITEMS: PlatformRouteItem[] = [
   {
     key: "overview",
     path: "/",
-    label: "Overview",
+    label: "Обзор",
     eyebrow: "API",
   },
   {
     key: "keys",
     path: "/keys",
-    label: "API Keys",
-    eyebrow: "Access",
+    label: "Ключи",
+    eyebrow: "Доступ",
   },
   {
     key: "analytics",
     path: "/analytics",
-    label: "Usage",
-    eyebrow: "Usage",
+    label: "Аналитика",
+    eyebrow: "Статистика",
   },
 ];
 

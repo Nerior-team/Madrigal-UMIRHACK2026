@@ -42,11 +42,11 @@ function extractApiErrorMessage(error: unknown, fallback: string): string {
 
 function validatePlatformPassword(password: string): string[] {
   const issues: string[] = [];
-  if (password.length < 12) issues.push("Use at least 12 characters.");
-  if (!/[a-z]/.test(password)) issues.push("Add a lowercase letter.");
-  if (!/[A-Z]/.test(password)) issues.push("Add an uppercase letter.");
-  if (!/\d/.test(password)) issues.push("Add a number.");
-  if (!/[^A-Za-z0-9]/.test(password)) issues.push("Add a symbol.");
+  if (password.length < 12) issues.push("Используйте минимум 12 символов.");
+  if (!/[a-z]/.test(password)) issues.push("Добавьте строчную букву.");
+  if (!/[A-Z]/.test(password)) issues.push("Добавьте заглавную букву.");
+  if (!/\d/.test(password)) issues.push("Добавьте цифру.");
+  if (!/[^A-Za-z0-9]/.test(password)) issues.push("Добавьте специальный символ.");
   return issues;
 }
 
@@ -69,30 +69,30 @@ export function PlatformAuthPage({ mode }: PlatformAuthPageProps) {
 
   const title =
     mode === "login"
-      ? "Sign in to Nerior API"
+      ? "Вход в Nerior API"
       : mode === "register"
-        ? "Create an API account"
+        ? "Создание API-аккаунта"
         : mode === "verify"
-          ? "Verify API access"
+          ? "Подтверждение доступа"
           : mode === "forgot-password"
-            ? "Reset your password"
-            : "Set a new password";
+            ? "Сброс пароля"
+            : "Новый пароль";
 
   const subtitle =
     mode === "login"
-      ? "API access uses its own session and sign-in flow."
+      ? "API использует отдельный вход и отдельную сессию."
       : mode === "register"
-        ? "Create access for API keys, product scopes, and usage visibility."
+        ? "Создайте доступ для API-ключей, продуктовых scope и usage-аналитики."
         : mode === "verify"
-          ? "Enter the email code or two-factor code to continue."
+          ? "Введите код из письма или код двухфакторной проверки."
           : mode === "forgot-password"
-            ? "We will send a reset link to your email."
-            : "Use the token from your email to set a new password.";
+            ? "Мы отправим ссылку для сброса на вашу почту."
+            : "Используйте токен из письма, чтобы задать новый пароль.";
 
   const handleLoginSubmit = async () => {
     const normalizedEmail = email.trim();
     if (!normalizedEmail || !password) {
-      setError("Enter your email and password.");
+      setError("Введите email и пароль.");
       return;
     }
 
@@ -113,35 +113,35 @@ export function PlatformAuthPage({ mode }: PlatformAuthPageProps) {
   const handleRegisterSubmit = async () => {
     const normalizedEmail = email.trim();
     if (!normalizedEmail || !password || !confirmPassword) {
-      setError("Complete all required fields.");
+      setError("Заполните все обязательные поля.");
       return;
     }
     if (!acceptTerms) {
-      setError("Accept the terms to continue.");
+      setError("Подтвердите согласие с условиями.");
       return;
     }
     if (password !== confirmPassword) {
-      setError("Password confirmation does not match.");
+      setError("Подтверждение пароля не совпадает.");
       return;
     }
 
     const issues = validatePlatformPassword(password);
     if (issues.length) {
-      setError(issues[0] ?? "Password does not meet the policy.");
+      setError(issues[0] ?? "Пароль не соответствует политике.");
       return;
     }
 
     await api.register(normalizedEmail, password);
     setPlatformPendingEmail(normalizedEmail);
     setPlatformPendingChallenge(null);
-    setNotice("Verification code sent. Complete email verification to continue.");
+    setNotice("Код подтверждения отправлен. Завершите верификацию email.");
     navigate(platformAuthPath("verify"), { replace: true, state: { next: nextPath } });
   };
 
   const handleVerifySubmit = async () => {
     const pendingEmail = email.trim() || getPlatformPendingEmail();
     if (!pendingEmail || !verificationCode.trim()) {
-      setError("Enter your email and verification code.");
+      setError("Введите email и код подтверждения.");
       return;
     }
 
@@ -159,7 +159,7 @@ export function PlatformAuthPage({ mode }: PlatformAuthPageProps) {
   const handleForgotPasswordSubmit = async () => {
     const normalizedEmail = email.trim();
     if (!normalizedEmail) {
-      setError("Enter your email.");
+      setError("Введите email.");
       return;
     }
     const response = await api.forgotPassword(normalizedEmail);
@@ -168,16 +168,16 @@ export function PlatformAuthPage({ mode }: PlatformAuthPageProps) {
 
   const handleResetPasswordSubmit = async () => {
     if (!resetToken.trim() || !password || !confirmPassword) {
-      setError("Enter the reset token and the new password.");
+      setError("Введите токен сброса и новый пароль.");
       return;
     }
     if (password !== confirmPassword) {
-      setError("Password confirmation does not match.");
+      setError("Подтверждение пароля не совпадает.");
       return;
     }
     const issues = validatePlatformPassword(password);
     if (issues.length) {
-      setError(issues[0] ?? "Password does not meet the policy.");
+      setError(issues[0] ?? "Пароль не соответствует политике.");
       return;
     }
 
@@ -208,14 +208,14 @@ export function PlatformAuthPage({ mode }: PlatformAuthPageProps) {
         extractApiErrorMessage(
           submitError,
           mode === "register"
-            ? "Failed to create the account."
+            ? "Не удалось создать аккаунт."
             : mode === "verify"
-              ? "Failed to verify the account."
+              ? "Не удалось подтвердить аккаунт."
               : mode === "forgot-password"
-                ? "Failed to send the reset email."
+                ? "Не удалось отправить письмо для сброса."
                 : mode === "reset-password"
-                  ? "Failed to reset the password."
-                  : "Failed to sign in.",
+                  ? "Не удалось сбросить пароль."
+                  : "Не удалось выполнить вход.",
         ),
       );
     } finally {
@@ -248,31 +248,31 @@ export function PlatformAuthPage({ mode }: PlatformAuthPageProps) {
 
           {(mode === "login" || mode === "register" || mode === "reset-password") && (
             <label className="platform-field">
-              <span>{mode === "reset-password" ? "New password" : "Password"}</span>
+              <span>{mode === "reset-password" ? "Новый пароль" : "Пароль"}</span>
               <input
                 type="password"
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
-                placeholder="Enter password"
+                placeholder="Введите пароль"
               />
             </label>
           )}
 
           {mode === "register" || mode === "reset-password" ? (
             <label className="platform-field">
-              <span>Confirm password</span>
+              <span>Подтвердите пароль</span>
               <input
                 type="password"
                 value={confirmPassword}
                 onChange={(event) => setConfirmPassword(event.target.value)}
-                placeholder="Confirm password"
+                placeholder="Повторите пароль"
               />
             </label>
           ) : null}
 
           {mode === "verify" ? (
             <label className="platform-field">
-              <span>Verification code</span>
+              <span>Код подтверждения</span>
               <input
                 type="text"
                 value={verificationCode}
@@ -284,12 +284,12 @@ export function PlatformAuthPage({ mode }: PlatformAuthPageProps) {
 
           {mode === "reset-password" ? (
             <label className="platform-field">
-              <span>Reset token</span>
+              <span>Токен сброса</span>
               <input
                 type="text"
                 value={resetToken}
                 onChange={(event) => setResetToken(event.target.value)}
-                placeholder="Paste token from email"
+                placeholder="Вставьте токен из письма"
               />
             </label>
           ) : null}
@@ -301,7 +301,7 @@ export function PlatformAuthPage({ mode }: PlatformAuthPageProps) {
                 checked={acceptTerms}
                 onChange={(event) => setAcceptTerms(event.target.checked)}
               />
-              <span>I agree to the Terms and Privacy Policy.</span>
+              <span>Я принимаю условия и политику конфиденциальности.</span>
             </label>
           ) : null}
 
@@ -310,7 +310,7 @@ export function PlatformAuthPage({ mode }: PlatformAuthPageProps) {
 
           {mode === "register" ? (
             <div className="platform-auth-form__hint">
-              Password requirements:
+              Требования к паролю:
               <ul className="platform-list">
                 {validatePlatformPassword(password || "short").map((issue) => (
                   <li key={issue}>{issue}</li>
@@ -321,24 +321,24 @@ export function PlatformAuthPage({ mode }: PlatformAuthPageProps) {
 
           <button type="submit" className="platform-button platform-button--primary" disabled={isSubmitting}>
             {isSubmitting
-              ? "Please wait..."
+              ? "Подождите..."
               : mode === "login"
-                ? "Sign in"
+                ? "Войти"
                 : mode === "register"
-                  ? "Create account"
+                  ? "Создать аккаунт"
                   : mode === "verify"
-                    ? "Verify"
+                    ? "Подтвердить"
                     : mode === "forgot-password"
-                      ? "Send reset link"
-                      : "Update password"}
+                      ? "Отправить ссылку"
+                      : "Обновить пароль"}
           </button>
         </form>
 
         <div className="platform-auth-card__links">
-          {mode !== "login" ? <Link to={platformAuthPath("login")}>Sign in</Link> : null}
-          {mode !== "register" ? <Link to={platformAuthPath("register")}>Create account</Link> : null}
+          {mode !== "login" ? <Link to={platformAuthPath("login")}>Войти</Link> : null}
+          {mode !== "register" ? <Link to={platformAuthPath("register")}>Создать аккаунт</Link> : null}
           {mode !== "forgot-password" ? (
-            <Link to={platformAuthPath("forgot-password")}>Forgot password?</Link>
+            <Link to={platformAuthPath("forgot-password")}>Забыли пароль?</Link>
           ) : null}
         </div>
       </div>
