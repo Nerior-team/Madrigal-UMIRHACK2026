@@ -1,4 +1,5 @@
 :root {
+  --n-nav-h: 52px;
   --public-bg: #000000;
   --public-text: rgba(255, 255, 255, 0.96);
   --public-muted: rgba(255, 255, 255, 0.56);

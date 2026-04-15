@@ -64,31 +64,25 @@ export function PublicRouter({ kind }: PublicRouterProps) {
 
   if (kind === "docs") {
     return (
-      <PublicShell title="Nerior" navItems={navItems}>
-        <Routes>
-          <Route path="*" element={<PublicDocsPage />} />
-        </Routes>
-      </PublicShell>
+      <Routes>
+        <Route path="*" element={<PublicDocsPage />} />
+      </Routes>
     );
   }
 
   if (kind === "community") {
     return (
-      <PublicShell title="Nerior" navItems={navItems}>
-        <Routes>
-          <Route path="*" element={<PublicCommunityPage />} />
-        </Routes>
-      </PublicShell>
+      <Routes>
+        <Route path="*" element={<PublicCommunityPage />} />
+      </Routes>
     );
   }
 
   if (kind === "help") {
     return (
-      <PublicShell title="Nerior" navItems={navItems}>
-        <Routes>
-          <Route path="*" element={<PublicHelpPage />} />
-        </Routes>
-      </PublicShell>
+      <Routes>
+        <Route path="*" element={<PublicHelpPage />} />
+      </Routes>
     );
   }
 

@@ -1,6 +1,14 @@
-import { HELP_GROUPS, HELP_PILLARS, HELP_SECTIONS } from "../site-content";
+import { HELP_GROUPS, HELP_SECTIONS } from "../site-content";
+import { PublicSubnav } from "../components/PublicSubnav";
 
 const HELP_LINKS = [
+  { label: "Первый вход", href: "/#entry" },
+  { label: "Аккаунт и доступ", href: "/#account" },
+  { label: "Crossplat", href: "/#crossplat" },
+  { label: "API", href: "/#api" },
+];
+
+const NEXT_STEPS = [
   {
     eyebrow: "Связаться с нами",
     title: "Форма обратной связи",
@@ -11,109 +19,176 @@ const HELP_LINKS = [
   {
     eyebrow: "Документация",
     title: "Глубокие технические материалы",
-    body: "Технические инструкции, reference и продуктовые материалы живут в docs, а help остаётся быстрым маршрутом входа.",
+    body: "Технические инструкции, reference и продуктовые материалы живут в docs. Help остаётся быстрым маршрутом входа и поддержки.",
     href: "https://docs.nerior.store",
     linkLabel: "Перейти в docs",
   },
   {
     eyebrow: "Сообщество",
     title: "Открытые обсуждения и публикации",
-    body: "Community и updates отвечают за анонсы и внешний контентный поток, а help не превращается в публичный журнал.",
+    body: "Community и updates отвечают за анонсы и внешний контентный поток. Help не превращается в публичный журнал.",
     href: "https://community.nerior.store",
     linkLabel: "Открыть community",
   },
-] as const;
+];
 
 export function PublicHelpPage() {
   return (
-    <main className="public-page public-page--help">
-      <section className="public-section">
-        <div className="public-section__header">
-          <div>
-            <span className="public-eyebrow">help.nerior.store</span>
-            <h1>Справочный центр</h1>
-            <p>
-              Публичная справочная поверхность для новых пользователей, команд и support-маршрутов. Здесь
-              собраны быстрые ответы, пути диагностики и переходы в связанные сервисы.
-            </p>
-          </div>
-        </div>
+    <>
+      <PublicSubnav brand="Справочный центр" brandHref="/" links={HELP_LINKS} />
 
-        <div className="public-feature-grid">
-          {HELP_PILLARS.map((item) => (
-            <article key={item.title} className="public-feature-card">
-              <h2>{item.title}</h2>
-              <p>{item.body}</p>
-            </article>
-          ))}
-        </div>
-      </section>
+      <main style={{ minHeight: "100vh", background: "#000", color: "#fff", paddingTop: "var(--n-nav-h)" }}>
+        <section style={{ maxWidth: "900px", margin: "0 auto", padding: "5rem 1.75rem 3.5rem" }}>
+          <p style={eyebrowStyle}>help.nerior.store</p>
+          <h1 style={heroTitleStyle}>Справочный центр</h1>
+          <p style={heroBodyStyle}>
+            Публичная справочная поверхность для новых пользователей, команд и support-маршрутов. Здесь собраны быстрые ответы,
+            пути диагностики и переходы в связанные сервисы.
+          </p>
+        </section>
 
-      <section className="public-section">
-        <div className="public-section__header">
-          <div>
-            <span className="public-eyebrow">Категории</span>
-            <h2>Справка уже разделена по аудитории и сценарию обращения.</h2>
-          </div>
-        </div>
+        <div style={{ borderTop: "1px solid rgba(255,255,255,0.08)", margin: "0 1.75rem" }} />
 
-        <div className="public-library-grid">
-          {HELP_GROUPS.map((group) => (
-            <article key={group.title} className="public-story-card">
-              <span className="public-eyebrow">Группа</span>
-              <h2>{group.title}</h2>
-              <ul className="public-card-list">
-                {group.items.map((item) => (
-                  <li key={item}>{item}</li>
-                ))}
-              </ul>
-            </article>
-          ))}
-        </div>
-      </section>
+        {HELP_SECTIONS.map((section, index) => {
+          const id =
+            index === 0 ? "entry" : index === 1 ? "account" : index === 2 ? "crossplat" : index === 3 ? "api" : `section-${index}`;
 
-      <section className="public-section">
-        <div className="public-section__header">
-          <div>
-            <span className="public-eyebrow">Маршруты</span>
-            <h2>У каждого вопроса есть продолжение: docs, community или прямой контакт.</h2>
-          </div>
-        </div>
-
-        <div className="public-link-grid">
-          {HELP_LINKS.map((item) => (
-            <article key={item.title} className="public-story-card">
-              <span className="public-eyebrow">{item.eyebrow}</span>
-              <h2>{item.title}</h2>
-              <p>{item.body}</p>
-              <div className="public-story-card__links">
-                <a href={item.href} className="public-inline-link">
-                  {item.linkLabel}
-                </a>
+          return (
+            <section
+              key={section.title}
+              id={id}
+              style={{
+                maxWidth: "900px",
+                margin: "0 auto",
+                padding: "4rem 1.75rem",
+                borderBottom: "1px solid rgba(255,255,255,0.07)",
+              }}
+            >
+              <div style={{ display: "grid", gridTemplateColumns: "220px 1fr", gap: "3rem", alignItems: "start" }}>
+                <h2 style={sectionTitleStyle}>{section.title}</h2>
+                <p style={leadParagraphStyle}>{section.body}</p>
               </div>
-            </article>
-          ))}
-        </div>
-      </section>
+            </section>
+          );
+        })}
 
-      <section className="public-section">
-        <div className="public-section__header">
-          <div>
-            <span className="public-eyebrow">Разделы</span>
-            <h2>Готовые блоки под статьи, FAQ, диагностику и маршруты поддержки.</h2>
+        <section style={{ maxWidth: "900px", margin: "0 auto", padding: "4rem 1.75rem", borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "220px 1fr", gap: "3rem", alignItems: "start" }}>
+            <h2 style={sectionTitleStyle}>Категории</h2>
+            <div style={{ display: "grid", gap: "1.25rem" }}>
+              {HELP_GROUPS.map((group) => (
+                <article
+                  key={group.title}
+                  style={{
+                    padding: "1.5rem",
+                    border: "1px solid rgba(255,255,255,0.08)",
+                    borderRadius: "0.375rem",
+                    display: "grid",
+                    gap: "0.9rem",
+                  }}
+                >
+                  <p style={eyebrowStyle}>Группа</p>
+                  <h3 style={{ margin: 0, fontSize: "1rem", lineHeight: 1.4 }}>{group.title}</h3>
+                  <ul style={listStyle}>
+                    {group.items.map((item) => (
+                      <li key={item}>{item}</li>
+                    ))}
+                  </ul>
+                </article>
+              ))}
+            </div>
           </div>
-        </div>
+        </section>
 
-        <div className="public-stack-grid">
-          {HELP_SECTIONS.map((section) => (
-            <article key={section.title} className="public-story-card">
-              <span className="public-eyebrow">Маршрут</span>
-              <h2>{section.title}</h2>
-              <p>{section.body}</p>
-            </article>
-          ))}
-        </div>
-      </section>
-    </main>
+        <section style={{ maxWidth: "900px", margin: "0 auto", padding: "4rem 1.75rem 5rem" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "220px 1fr", gap: "3rem", alignItems: "start" }}>
+            <h2 style={sectionTitleStyle}>Следующие маршруты</h2>
+            <div style={{ display: "grid", gap: "1.25rem" }}>
+              {NEXT_STEPS.map((item) => (
+                <article
+                  key={item.title}
+                  style={{
+                    paddingBottom: "1.25rem",
+                    borderBottom: "1px solid rgba(255,255,255,0.07)",
+                    display: "grid",
+                    gap: "0.55rem",
+                  }}
+                >
+                  <p style={eyebrowStyle}>{item.eyebrow}</p>
+                  <h3 style={{ margin: 0, fontSize: "1rem", lineHeight: 1.4 }}>{item.title}</h3>
+                  <p style={paragraphStyle}>{item.body}</p>
+                  <a href={item.href} style={inlineLinkStyle}>
+                    {item.linkLabel} -&gt;
+                  </a>
+                </article>
+              ))}
+            </div>
+          </div>
+        </section>
+      </main>
+    </>
   );
 }
+
+const eyebrowStyle = {
+  fontSize: "0.6875rem",
+  letterSpacing: "0.1em",
+  textTransform: "uppercase",
+  color: "rgba(255,255,255,0.3)",
+  marginBottom: "1rem",
+} as const;
+
+const heroTitleStyle = {
+  fontSize: "clamp(2rem, 5vw, 3.5rem)",
+  fontWeight: 700,
+  letterSpacing: "-0.03em",
+  lineHeight: 1.08,
+  marginBottom: "1.25rem",
+} as const;
+
+const heroBodyStyle = {
+  fontSize: "1.0625rem",
+  color: "rgba(255,255,255,0.5)",
+  lineHeight: 1.65,
+  maxWidth: "560px",
+} as const;
+
+const sectionTitleStyle = {
+  fontSize: "1rem",
+  fontWeight: 600,
+  color: "rgba(255,255,255,0.5)",
+  margin: 0,
+  lineHeight: 1.4,
+} as const;
+
+const leadParagraphStyle = {
+  fontSize: "0.9375rem",
+  color: "rgba(255,255,255,0.7)",
+  lineHeight: 1.7,
+  margin: 0,
+} as const;
+
+const paragraphStyle = {
+  fontSize: "0.9375rem",
+  color: "rgba(255,255,255,0.45)",
+  lineHeight: 1.7,
+  margin: 0,
+} as const;
+
+const inlineLinkStyle = {
+  fontSize: "0.875rem",
+  color: "rgba(255,255,255,0.5)",
+  borderBottom: "1px solid rgba(255,255,255,0.2)",
+  paddingBottom: "1px",
+  textDecoration: "none",
+  width: "fit-content",
+} as const;
+
+const listStyle = {
+  margin: 0,
+  paddingLeft: "1rem",
+  display: "grid",
+  gap: "0.5rem",
+  color: "rgba(255,255,255,0.5)",
+  lineHeight: 1.6,
+} as const;
