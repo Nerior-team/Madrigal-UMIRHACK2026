@@ -1,6 +1,5 @@
-﻿import { useEffect, useRef, useState } from "react";
-import { Link, NavLink } from "react-router-dom";
-import { ChevronRight, Menu } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import type { PublicNavItem } from "../site-content";
 
 type PublicTopbarProps = {
@@ -12,6 +11,10 @@ type PublicTopbarProps = {
   secondaryActionHref: string;
 };
 
+function isExternalHref(href: string): boolean {
+  return href.startsWith("http://") || href.startsWith("https://");
+}
+
 export function PublicTopbar({
   title,
   navItems,
@@ -20,9 +23,22 @@ export function PublicTopbar({
   secondaryActionLabel,
   secondaryActionHref,
 }: PublicTopbarProps) {
-  const [mobileOpen, setMobileOpen] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const closeTimer = useRef<number | null>(null);
+
+  function openDropdown(label: string) {
+    if (closeTimer.current !== null) {
+      window.clearTimeout(closeTimer.current);
+    }
+    setActiveDropdown(label);
+  }
+
+  function scheduleClose() {
+    if (closeTimer.current !== null) {
+      window.clearTimeout(closeTimer.current);
+    }
+    closeTimer.current = window.setTimeout(() => setActiveDropdown(null), 120);
+  }
 
   useEffect(() => {
     return () => {
@@ -32,107 +48,253 @@ export function PublicTopbar({
     };
   }, []);
 
-  function scheduleClose() {
-    if (closeTimer.current !== null) {
-      window.clearTimeout(closeTimer.current);
-    }
-    closeTimer.current = window.setTimeout(() => setActiveDropdown(null), 120);
-  }
-
-  function openDropdown(label: string) {
-    if (closeTimer.current !== null) {
-      window.clearTimeout(closeTimer.current);
-    }
-    setActiveDropdown(label);
-  }
-
-  function isExternal(href: string): boolean {
-    return href.startsWith("http://") || href.startsWith("https://");
-  }
+  const activeItem = navItems.find((item) => item.label === activeDropdown);
 
   return (
     <>
-      {activeDropdown ? <div className="public-topbar__backdrop" onMouseEnter={scheduleClose} /> : null}
-      <header className="public-topbar">
-        <div className="public-topbar__inner">
-          <Link to="/" className="public-topbar__brand">
-            {title}
-          </Link>
+      {activeDropdown ? (
+        <div
+          style={{ position: "fixed", inset: 0, zIndex: 30, backdropFilter: "none" }}
+          onMouseEnter={scheduleClose}
+        />
+      ) : null}
 
-          <button
-            type="button"
-            className="public-topbar__mobile-trigger"
-            onClick={() => setMobileOpen((current) => !current)}
-            aria-expanded={mobileOpen}
-            aria-label={"\u041e\u0442\u043a\u0440\u044b\u0442\u044c \u043c\u0435\u043d\u044e"}
+      <header
+        style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          right: 0,
+          zIndex: 50,
+          height: "var(--n-nav-h)",
+          background: "#000",
+          borderBottom: activeDropdown ? "none" : "1px solid rgba(255,255,255,0.08)",
+          display: "flex",
+          alignItems: "center",
+          paddingLeft: "1.75rem",
+          paddingRight: "1.75rem",
+          gap: "2rem",
+        }}
+      >
+        <Link
+          to="/"
+          style={{
+            fontSize: "1.0625rem",
+            fontWeight: 700,
+            letterSpacing: "0.04em",
+            color: "#fff",
+            flexShrink: 0,
+            textTransform: "uppercase",
+            textDecoration: "none",
+          }}
+        >
+          {title}
+        </Link>
+
+        <nav style={{ display: "flex", alignItems: "center", gap: 0, flex: 1 }}>
+          {navItems.map((item) => (
+            <div
+              key={item.label}
+              style={{ position: "relative" }}
+              onMouseEnter={() => (item.menu?.length ? openDropdown(item.label) : setActiveDropdown(null))}
+              onMouseLeave={item.menu?.length ? scheduleClose : undefined}
+            >
+              {isExternalHref(item.href) ? (
+                <a href={item.href} style={navLinkStyle}>
+                  {item.label}
+                </a>
+              ) : (
+                <Link
+                  to={item.href}
+                  style={navLinkStyle}
+                  onMouseEnter={() => {
+                    if (item.menu?.length) {
+                      openDropdown(item.label);
+                    }
+                  }}
+                >
+                  {item.label}
+                </Link>
+              )}
+            </div>
+          ))}
+        </nav>
+
+        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexShrink: 0 }}>
+          <a
+            href={secondaryActionHref}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "0.35rem",
+              padding: "0.375rem 1rem",
+              border: "1px solid rgba(255,255,255,0.3)",
+              borderRadius: "999px",
+              fontSize: "0.8125rem",
+              color: "#fff",
+              whiteSpace: "nowrap",
+              textDecoration: "none",
+              transition: "border-color 0.18s, background 0.18s",
+            }}
+            onMouseEnter={(event) => {
+              event.currentTarget.style.borderColor = "rgba(255,255,255,0.7)";
+            }}
+            onMouseLeave={(event) => {
+              event.currentTarget.style.borderColor = "rgba(255,255,255,0.3)";
+            }}
           >
-            <Menu size={18} />
-          </button>
-
-          <nav className={mobileOpen ? "public-topbar__nav is-open" : "public-topbar__nav"}>
-            {navItems.map((item) => (
-              <div
-                key={item.label}
-                className="public-nav-item"
-                onMouseEnter={() => (item.menu?.length ? openDropdown(item.label) : setActiveDropdown(null))}
-                onMouseLeave={item.menu?.length ? scheduleClose : undefined}
-              >
-                {isExternal(item.href) ? (
-                  <a href={item.href} className="public-nav-item__link">
-                    <span>{item.label}</span>
-                  </a>
-                ) : (
-                  <NavLink to={item.href} className="public-nav-item__link">
-                    <span>{item.label}</span>
-                  </NavLink>
-                )}
-
-                {item.menu?.length ? (
-                  <div
-                    className={activeDropdown === item.label ? "public-mega-menu is-open" : "public-mega-menu"}
-                    role="menu"
-                    aria-label={item.label}
-                    onMouseEnter={() => openDropdown(item.label)}
-                    onMouseLeave={scheduleClose}
-                  >
-                    <div className="public-mega-menu__label">
-                      {item.label === "\u041f\u0440\u043e\u0434\u0443\u043a\u0442\u044b"
-                        ? "\u0418\u0437\u0443\u0447\u0438\u0442\u044c \u043f\u0440\u043e\u0434\u0443\u043a\u0442\u044b"
-                        : "\u0418\u0437\u0443\u0447\u0438\u0442\u044c \u0440\u0430\u0437\u0434\u0435\u043b"}
-                    </div>
-                    <div className="public-mega-menu__items">
-                      {item.menu.map((menuItem) =>
-                        menuItem.disabled ? (
-                          <div key={menuItem.label} className="public-mega-menu__entry is-disabled">
-                            <span>{menuItem.label}</span>
-                            {menuItem.note ? <small>{menuItem.note}</small> : null}
-                          </div>
-                        ) : (
-                          <a key={menuItem.label} href={menuItem.href} className="public-mega-menu__entry">
-                            <span>{menuItem.label}</span>
-                            {menuItem.note ? <small>{menuItem.note}</small> : null}
-                          </a>
-                        ),
-                      )}
-                    </div>
-                  </div>
-                ) : null}
-              </div>
-            ))}
-          </nav>
-
-          <div className="public-topbar__actions">
-            <a href={secondaryActionHref} className="public-button public-button--ghost">
-              <span>{secondaryActionLabel}</span>
-              <ChevronRight size={16} />
-            </a>
-            <a href={primaryActionHref} className="public-button public-button--solid">
-              <span>{primaryActionLabel}</span>
-              <ChevronRight size={16} />
-            </a>
-          </div>
+            {secondaryActionLabel}
+            <span style={{ fontSize: "0.75rem", opacity: 0.7 }}>››</span>
+          </a>
+          <a
+            href={primaryActionHref}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "0.35rem",
+              padding: "0.375rem 1rem",
+              background: "#fff",
+              borderRadius: "999px",
+              fontSize: "0.8125rem",
+              color: "#000",
+              fontWeight: 500,
+              whiteSpace: "nowrap",
+              textDecoration: "none",
+              transition: "background 0.18s, color 0.18s",
+            }}
+            onMouseEnter={(event) => {
+              event.currentTarget.style.background = "#e8e8e8";
+            }}
+            onMouseLeave={(event) => {
+              event.currentTarget.style.background = "#fff";
+            }}
+          >
+            {primaryActionLabel}
+            <span style={{ fontSize: "0.7rem" }}>↗</span>
+          </a>
         </div>
       </header>
+
+      {activeItem?.menu?.length ? (
+        <div
+          style={{
+            position: "fixed",
+            top: "var(--n-nav-h)",
+            left: 0,
+            right: 0,
+            zIndex: 40,
+            background: "#000",
+            borderBottom: "1px solid rgba(255,255,255,0.08)",
+            padding: "1.25rem 1.75rem 1.5rem",
+            animation: "neriorDropdownIn 0.18s ease",
+          }}
+          onMouseEnter={() => {
+            if (closeTimer.current !== null) {
+              window.clearTimeout(closeTimer.current);
+            }
+          }}
+          onMouseLeave={scheduleClose}
+        >
+          <p
+            style={{
+              fontSize: "0.6875rem",
+              color: "rgba(255,255,255,0.35)",
+              letterSpacing: "0.06em",
+              textTransform: "uppercase",
+              marginBottom: "0.75rem",
+              marginTop: 0,
+            }}
+          >
+            {activeItem.label === "Продукты" ? "Изучить продукты" : "Изучить раздел"}
+          </p>
+          <ul
+            style={{
+              listStyle: "none",
+              margin: 0,
+              padding: 0,
+              display: "flex",
+              flexDirection: "column",
+              gap: "0.5rem",
+            }}
+          >
+            {activeItem.menu.map((menuItem) => (
+              <li key={menuItem.label}>
+                {menuItem.disabled ? (
+                  <span
+                    style={{
+                      display: "block",
+                      fontSize: "1.0625rem",
+                      fontWeight: 400,
+                      color: "rgba(255,255,255,0.38)",
+                      lineHeight: 1.4,
+                    }}
+                  >
+                    {menuItem.label}
+                  </span>
+                ) : isExternalHref(menuItem.href) ? (
+                  <a
+                    href={menuItem.href}
+                    style={dropdownLinkStyle}
+                    onMouseEnter={(event) => {
+                      event.currentTarget.style.color = "#fff";
+                    }}
+                    onMouseLeave={(event) => {
+                      event.currentTarget.style.color = "rgba(255,255,255,0.75)";
+                    }}
+                  >
+                    {menuItem.label}
+                  </a>
+                ) : (
+                  <Link
+                    to={menuItem.href}
+                    style={dropdownLinkStyle}
+                    onClick={() => setActiveDropdown(null)}
+                    onMouseEnter={(event) => {
+                      event.currentTarget.style.color = "#fff";
+                    }}
+                    onMouseLeave={(event) => {
+                      event.currentTarget.style.color = "rgba(255,255,255,0.75)";
+                    }}
+                  >
+                    {menuItem.label}
+                  </Link>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
+      <style>{`
+        @keyframes neriorDropdownIn {
+          from { opacity: 0; transform: translateY(-4px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
     </>
   );
 }
+
+const navLinkStyle: React.CSSProperties = {
+  display: "block",
+  padding: "0.25rem 0.85rem",
+  fontSize: "0.8125rem",
+  color: "rgba(255,255,255,0.75)",
+  background: "none",
+  border: "none",
+  fontFamily: "inherit",
+  cursor: "pointer",
+  transition: "color 0.15s",
+  whiteSpace: "nowrap",
+  textDecoration: "none",
+};
+
+const dropdownLinkStyle: React.CSSProperties = {
+  display: "block",
+  fontSize: "1.0625rem",
+  fontWeight: 400,
+  color: "rgba(255,255,255,0.75)",
+  transition: "color 0.15s",
+  lineHeight: 1.4,
+  textDecoration: "none",
+};

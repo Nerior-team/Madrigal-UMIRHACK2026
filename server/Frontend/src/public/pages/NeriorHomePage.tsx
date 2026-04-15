@@ -1,4 +1,4 @@
-import { ArrowUpRight } from "lucide-react";
+import { Link } from "react-router-dom";
 import { NERIOR_METRICS, PRODUCT_ITEMS } from "../site-content";
 
 const API_ROUTES = [
@@ -9,147 +9,332 @@ const API_ROUTES = [
 
 export function NeriorHomePage() {
   return (
-    <main className="public-page public-page--site">
-      <section className="public-hero public-hero--site">
-        <div className="public-hero__copy">
-          <span className="public-eyebrow">Nerior</span>
-          <h1>Инфраструктура для продуктов, которые работают.</h1>
-          <p>
-            Nerior собирает корпоративный сайт, продуктовые интерфейсы, документацию, API и support-контур в
-            одну экосистему, где каждая поверхность отвечает за свою задачу и не перегружает остальные.
-          </p>
-          <div className="public-hero__actions">
-            <a href="https://crossplat.nerior.store" className="public-button public-button--solid">
-              Открыть Crossplat
-            </a>
-            <a href="https://docs.nerior.store" className="public-button public-button--ghost">
-              Документация
-            </a>
-          </div>
+    <main style={{ minHeight: "100vh", background: "#000", color: "#fff" }}>
+      <section
+        style={{
+          maxWidth: "900px",
+          margin: "0 auto",
+          padding: "8rem 1.75rem 6rem",
+        }}
+      >
+        <p
+          style={{
+            fontSize: "0.75rem",
+            letterSpacing: "0.1em",
+            textTransform: "uppercase",
+            color: "rgba(255,255,255,0.4)",
+            marginBottom: "2rem",
+          }}
+        >
+          Nerior — экосистема цифровых сервисов
+        </p>
+        <h1
+          style={{
+            fontSize: "clamp(2.5rem, 6vw, 5rem)",
+            fontWeight: 700,
+            lineHeight: 1.08,
+            letterSpacing: "-0.03em",
+            margin: "0 0 2.25rem",
+            maxWidth: "780px",
+          }}
+        >
+          Инфраструктура для продуктов, которые работают
+        </h1>
+        <p
+          style={{
+            fontSize: "1.0625rem",
+            color: "rgba(255,255,255,0.55)",
+            lineHeight: 1.6,
+            maxWidth: "580px",
+            marginBottom: "2.75rem",
+          }}
+        >
+          Nerior строит раздельные сервисные поверхности — корпоративный сайт, продуктовые
+          интерфейсы, документацию, API и зоны поддержки — так, чтобы каждая решала свою задачу без
+          перегруза.
+        </p>
+        <div style={{ display: "flex", alignItems: "center", gap: "1rem", flexWrap: "wrap" }}>
+          <a
+            href="https://crossplat.nerior.store"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "0.4rem",
+              padding: "0.625rem 1.5rem",
+              background: "#fff",
+              color: "#000",
+              borderRadius: "999px",
+              fontWeight: 600,
+              fontSize: "0.875rem",
+              textDecoration: "none",
+            }}
+          >
+            Открыть Crossplat <span style={{ fontSize: "0.75rem" }}>↗</span>
+          </a>
+          <a
+            href="https://docs.nerior.store"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "0.4rem",
+              padding: "0.625rem 1.5rem",
+              border: "1px solid rgba(255,255,255,0.25)",
+              color: "#fff",
+              borderRadius: "999px",
+              fontSize: "0.875rem",
+              textDecoration: "none",
+            }}
+          >
+            Документация <span style={{ fontSize: "0.75rem", opacity: 0.6 }}>›</span>
+          </a>
         </div>
+      </section>
 
-        <div className="public-metrics-grid">
+      <div style={{ borderTop: "1px solid rgba(255,255,255,0.08)", margin: "0 1.75rem" }} />
+
+      <section style={{ maxWidth: "900px", margin: "0 auto", padding: "3.5rem 1.75rem 1rem" }}>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+            gap: "1px",
+            background: "rgba(255,255,255,0.08)",
+            border: "1px solid rgba(255,255,255,0.08)",
+          }}
+        >
           {NERIOR_METRICS.map((item) => (
-            <article key={item.label} className="public-metric-card">
-              <span>{item.label}</span>
-              <strong>{item.value}</strong>
+            <article
+              key={item.label}
+              style={{
+                padding: "1.5rem",
+                background: "#000",
+                minHeight: "128px",
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "space-between",
+              }}
+            >
+              <span style={{ fontSize: "0.8125rem", color: "rgba(255,255,255,0.45)" }}>{item.label}</span>
+              <strong style={{ fontSize: "1.75rem", color: "#fff", letterSpacing: "-0.04em" }}>{item.value}</strong>
             </article>
           ))}
         </div>
       </section>
 
-      <section id="products" className="public-section public-section--products">
-        <div className="public-section__header">
-          <div>
-            <span className="public-eyebrow">Продукты</span>
-            <h2>Каждый продукт живёт на своём поддомене и не смешивается с соседними сценариями.</h2>
-          </div>
-        </div>
-        <div className="public-product-grid">
+      <section id="products" style={{ maxWidth: "900px", margin: "0 auto", padding: "5rem 1.75rem" }}>
+        <p
+          style={{
+            fontSize: "0.6875rem",
+            letterSpacing: "0.1em",
+            textTransform: "uppercase",
+            color: "rgba(255,255,255,0.35)",
+            marginBottom: "2.5rem",
+          }}
+        >
+          Продуктовая линейка
+        </p>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+            gap: "1px",
+            background: "rgba(255,255,255,0.08)",
+            border: "1px solid rgba(255,255,255,0.08)",
+          }}
+        >
           {PRODUCT_ITEMS.map((product) => (
             <article
               key={product.name}
-              className={
-                product.status === "active"
-                  ? "public-product-card"
-                  : "public-product-card public-product-card--disabled"
-              }
+              style={{
+                padding: "2rem",
+                background: "#000",
+                opacity: product.status === "active" ? 1 : 0.4,
+              }}
             >
-              <div>
-                <span className="public-product-card__status">
-                  {product.status === "active" ? "Доступно" : "Не доступно в данный момент"}
-                </span>
-                <h3>{product.name}</h3>
-                <p>{product.description}</p>
-              </div>
+              <p
+                style={{
+                  fontSize: "0.6875rem",
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                  color: "rgba(255,255,255,0.35)",
+                  marginBottom: "0.75rem",
+                }}
+              >
+                {product.status === "active" ? "Активен" : "Не доступно в данный момент"}
+              </p>
+              <h3 style={{ fontSize: "1.25rem", fontWeight: 600, color: "#fff", marginBottom: "0.75rem" }}>{product.name}</h3>
+              <p
+                style={{
+                  fontSize: "0.875rem",
+                  color: "rgba(255,255,255,0.5)",
+                  lineHeight: 1.55,
+                  marginBottom: product.status === "active" ? "1.5rem" : 0,
+                }}
+              >
+                {product.description}
+              </p>
               {product.status === "active" ? (
-                <a href={product.href} className="public-inline-link">
-                  Открыть <ArrowUpRight size={16} />
+                <a
+                  href={product.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ display: "inline-flex", alignItems: "center", gap: "0.4rem", fontSize: "0.875rem", color: "#fff", textDecoration: "none" }}
+                >
+                  Открыть <span>↗</span>
                 </a>
-              ) : (
-                <span className="public-inline-link public-inline-link--muted">Скоро</span>
-              )}
+              ) : null}
             </article>
           ))}
         </div>
       </section>
 
-      <section className="public-section public-section--two-up">
-        <article className="public-story-card">
-          <span className="public-eyebrow">Бизнес</span>
-          <h2>Разделённый контур для команд, которым важны управляемость и ясная архитектура.</h2>
-          <p>
-            Основной сайт, рабочий продукт, документация, API и support вынесены в отдельные поверхности, чтобы
-            пользователю, команде и разработчику не приходилось работать в одном перегруженном интерфейсе.
-          </p>
-          <a href="/business" className="public-inline-link">
-            Перейти в раздел
-          </a>
-        </article>
+      <div style={{ borderTop: "1px solid rgba(255,255,255,0.08)", margin: "0 1.75rem" }} />
 
-        <article className="public-story-card">
-          <span className="public-eyebrow">Разработчикам</span>
-          <h2>Документация, API и сообщество вынесены в отдельные пространства с собственной навигацией.</h2>
-          <p>
-            Docs, API cabinet и community больше не прячутся внутри продукта. У каждого слоя свой контекст, свои
-            маршруты и своя задача.
-          </p>
-          <div className="public-story-card__links">
-            <a href="https://docs.nerior.store" className="public-inline-link">
-              Docs
-            </a>
-            <a href="https://api.nerior.store" className="public-inline-link">
-              API
-            </a>
-            <a href="https://community.nerior.store" className="public-inline-link">
-              Community
-            </a>
-          </div>
-        </article>
-      </section>
-
-      <section className="public-section public-section--two-up">
-        <article className="public-story-card">
-          <span className="public-eyebrow">Внешний API</span>
-          <h2>API-слой уже разделён по маршрутам и готов для отдельных ключей доступа.</h2>
-          <p>
-            Для интеграций используется отдельный кабинет на api.nerior.store, а документация по внешним маршрутам
-            и сценариям доступа вынесена в docs.nerior.store.
-          </p>
-          <a href="https://api.nerior.store" className="public-inline-link">
-            Открыть API cabinet
-          </a>
-        </article>
-
-        <div className="public-route-stack">
-          {API_ROUTES.map((route) => (
-            <article key={route.code} className="public-route-card">
-              <code>{route.code}</code>
-              <span>{route.label}</span>
-            </article>
-          ))}
-        </div>
-      </section>
-
-      <section className="public-section">
-        <article className="public-cta-strip">
-          <div>
-            <span className="public-eyebrow">Следующий шаг</span>
-            <h2>Попробуйте Crossplat или свяжитесь с нами по продукту, внедрению и интеграции.</h2>
-            <p>
-              Публичный сайт ведёт в рабочий продукт, документацию и форму связи без лишних промежуточных слоёв.
+      <section style={{ maxWidth: "900px", margin: "0 auto", padding: "5rem 1.75rem" }}>
+        <div style={{ display: "flex", gap: "4rem", flexWrap: "wrap", alignItems: "flex-start" }}>
+          <div style={{ flex: "1 1 320px" }}>
+            <p
+              style={{
+                fontSize: "0.6875rem",
+                letterSpacing: "0.1em",
+                textTransform: "uppercase",
+                color: "rgba(255,255,255,0.35)",
+                marginBottom: "1.5rem",
+              }}
+            >
+              Разработчикам
             </p>
+            <h2
+              style={{
+                fontSize: "clamp(1.5rem, 3vw, 2.25rem)",
+                fontWeight: 700,
+                letterSpacing: "-0.02em",
+                lineHeight: 1.15,
+                marginBottom: "1.25rem",
+              }}
+            >
+              Внешний API и документация
+            </h2>
+            <p
+              style={{
+                fontSize: "0.9375rem",
+                color: "rgba(255,255,255,0.5)",
+                lineHeight: 1.6,
+                marginBottom: "1.75rem",
+              }}
+            >
+              API-кабинет на <code style={codeStyle}>api.nerior.store</code> даёт доступ к машинам,
+              задачам и результатам. Документация и руководства живут на{" "}
+              <code style={codeStyle}>docs.nerior.store</code>.
+            </p>
+            <Link
+              to="/developers"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "0.4rem",
+                fontSize: "0.875rem",
+                color: "rgba(255,255,255,0.6)",
+                borderBottom: "1px solid rgba(255,255,255,0.2)",
+                paddingBottom: "2px",
+                textDecoration: "none",
+              }}
+            >
+              Подробнее для разработчиков
+            </Link>
           </div>
-          <div className="public-story-card__links">
-            <a href="https://crossplat.nerior.store" className="public-button public-button--solid">
-              Попробовать бесплатно
-            </a>
-            <a href="/contact" className="public-button public-button--ghost">
-              Связаться с нами
-            </a>
+          <div style={{ flex: "1 1 260px", display: "flex", flexDirection: "column", gap: "0.75rem", paddingTop: "3.25rem" }}>
+            {API_ROUTES.map((route) => (
+              <div
+                key={route.code}
+                style={{
+                  padding: "0.875rem 1rem",
+                  background: "rgba(255,255,255,0.04)",
+                  border: "1px solid rgba(255,255,255,0.07)",
+                  borderRadius: "0.375rem",
+                }}
+              >
+                <code style={{ fontSize: "0.75rem", color: "#b5f542", display: "block", marginBottom: "0.25rem" }}>
+                  {route.code}
+                </code>
+                <span style={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.35)" }}>{route.label}</span>
+              </div>
+            ))}
           </div>
-        </article>
+        </div>
+      </section>
+
+      <div style={{ borderTop: "1px solid rgba(255,255,255,0.08)", margin: "0 1.75rem" }} />
+
+      <section
+        style={{
+          maxWidth: "900px",
+          margin: "0 auto",
+          padding: "5rem 1.75rem 7rem",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "flex-start",
+          gap: "1.5rem",
+        }}
+      >
+        <h2
+          style={{
+            fontSize: "clamp(1.75rem, 4vw, 3rem)",
+            fontWeight: 700,
+            letterSpacing: "-0.025em",
+            lineHeight: 1.1,
+            margin: 0,
+          }}
+        >
+          Готовы начать?
+        </h2>
+        <p style={{ fontSize: "1rem", color: "rgba(255,255,255,0.5)", margin: 0, maxWidth: "480px", lineHeight: 1.6 }}>
+          Оставьте заявку или попробуйте Crossplat прямо сейчас.
+        </p>
+        <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
+          <a
+            href="https://crossplat.nerior.store"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              padding: "0.625rem 1.5rem",
+              background: "#fff",
+              color: "#000",
+              borderRadius: "999px",
+              fontWeight: 600,
+              fontSize: "0.875rem",
+              textDecoration: "none",
+            }}
+          >
+            Попробовать бесплатно ↗
+          </a>
+          <Link
+            to="/contact"
+            style={{
+              padding: "0.625rem 1.5rem",
+              border: "1px solid rgba(255,255,255,0.25)",
+              color: "#fff",
+              borderRadius: "999px",
+              fontSize: "0.875rem",
+              textDecoration: "none",
+            }}
+          >
+            Связаться с нами
+          </Link>
+        </div>
       </section>
     </main>
   );
 }
+
+const codeStyle: React.CSSProperties = {
+  color: "rgba(255,255,255,0.7)",
+  background: "rgba(255,255,255,0.07)",
+  padding: "0.1em 0.3em",
+  borderRadius: "3px",
+  fontSize: "0.875em",
+};
