@@ -53,10 +53,7 @@ export function PublicTopbar({
   return (
     <>
       {activeDropdown ? (
-        <div
-          style={{ position: "fixed", inset: 0, zIndex: 30, backdropFilter: "none" }}
-          onMouseEnter={scheduleClose}
-        />
+        <div style={{ position: "fixed", inset: 0, zIndex: 30, backdropFilter: "none" }} onMouseEnter={scheduleClose} />
       ) : null}
 
       <header
@@ -123,19 +120,7 @@ export function PublicTopbar({
         <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexShrink: 0 }}>
           <a
             href={secondaryActionHref}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "0.35rem",
-              padding: "0.375rem 1rem",
-              border: "1px solid rgba(255,255,255,0.3)",
-              borderRadius: "999px",
-              fontSize: "0.8125rem",
-              color: "#fff",
-              whiteSpace: "nowrap",
-              textDecoration: "none",
-              transition: "border-color 0.18s, background 0.18s",
-            }}
+            style={actionGhostStyle}
             onMouseEnter={(event) => {
               event.currentTarget.style.borderColor = "rgba(255,255,255,0.7)";
             }}
@@ -144,24 +129,11 @@ export function PublicTopbar({
             }}
           >
             {secondaryActionLabel}
-            <span style={{ fontSize: "0.75rem", opacity: 0.7 }}>››</span>
+            <span style={{ fontSize: "0.75rem", opacity: 0.7 }}>&gt;&gt;</span>
           </a>
           <a
             href={primaryActionHref}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "0.35rem",
-              padding: "0.375rem 1rem",
-              background: "#fff",
-              borderRadius: "999px",
-              fontSize: "0.8125rem",
-              color: "#000",
-              fontWeight: 500,
-              whiteSpace: "nowrap",
-              textDecoration: "none",
-              transition: "background 0.18s, color 0.18s",
-            }}
+            style={actionSolidStyle}
             onMouseEnter={(event) => {
               event.currentTarget.style.background = "#e8e8e8";
             }}
@@ -170,7 +142,7 @@ export function PublicTopbar({
             }}
           >
             {primaryActionLabel}
-            <span style={{ fontSize: "0.7rem" }}>↗</span>
+            <span style={{ fontSize: "0.7rem" }}>-&gt;</span>
           </a>
         </div>
       </header>
@@ -220,17 +192,7 @@ export function PublicTopbar({
             {activeItem.menu.map((menuItem) => (
               <li key={menuItem.label}>
                 {menuItem.disabled ? (
-                  <span
-                    style={{
-                      display: "block",
-                      fontSize: "1.0625rem",
-                      fontWeight: 400,
-                      color: "rgba(255,255,255,0.38)",
-                      lineHeight: 1.4,
-                    }}
-                  >
-                    {menuItem.label}
-                  </span>
+                  <span style={dropdownDisabledStyle}>{menuItem.label}</span>
                 ) : isExternalHref(menuItem.href) ? (
                   <a
                     href={menuItem.href}
@@ -289,6 +251,35 @@ const navLinkStyle: React.CSSProperties = {
   textDecoration: "none",
 };
 
+const actionGhostStyle: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  gap: "0.35rem",
+  padding: "0.375rem 1rem",
+  border: "1px solid rgba(255,255,255,0.3)",
+  borderRadius: "999px",
+  fontSize: "0.8125rem",
+  color: "#fff",
+  whiteSpace: "nowrap",
+  textDecoration: "none",
+  transition: "border-color 0.18s, background 0.18s",
+};
+
+const actionSolidStyle: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  gap: "0.35rem",
+  padding: "0.375rem 1rem",
+  background: "#fff",
+  borderRadius: "999px",
+  fontSize: "0.8125rem",
+  color: "#000",
+  fontWeight: 500,
+  whiteSpace: "nowrap",
+  textDecoration: "none",
+  transition: "background 0.18s, color 0.18s",
+};
+
 const dropdownLinkStyle: React.CSSProperties = {
   display: "block",
   fontSize: "1.0625rem",
@@ -297,4 +288,12 @@ const dropdownLinkStyle: React.CSSProperties = {
   transition: "color 0.15s",
   lineHeight: 1.4,
   textDecoration: "none",
+};
+
+const dropdownDisabledStyle: React.CSSProperties = {
+  display: "block",
+  fontSize: "1.0625rem",
+  fontWeight: 400,
+  color: "rgba(255,255,255,0.38)",
+  lineHeight: 1.4,
 };
