@@ -24,10 +24,10 @@ const INITIAL_STATE: FormState = {
 };
 
 const FEATURES = [
-  { icon: "◆", text: "Запросы по Crossplat, будущим продуктам и общей экосистеме Nerior" },
-  { icon: "◀", text: "Форма подключена к реальному backend-контракту без локальных фейков" },
-  { icon: "◉", text: "Заявка уходит дальше в рабочий канал обработки, а не остаётся только на фронте" },
-  { icon: "◎", text: "Телефон и размер компании принимают только цифры, как и требуется по валидации" },
+  { icon: "*", text: "Запросы по Crossplat, будущим продуктам и общей экосистеме Nerior" },
+  { icon: "*", text: "Форма подключена к реальному backend-контракту без локальных фейков" },
+  { icon: "*", text: "Заявка уходит дальше в рабочий канал обработки, а не остаётся только на фронте" },
+  { icon: "*", text: "Телефон и размер компании принимают только цифры, как и требуется по валидации" },
 ];
 
 export function PublicContactPage() {
@@ -91,8 +91,7 @@ export function PublicContactPage() {
             </h1>
 
             <p style={{ fontSize: "0.9375rem", color: "rgba(255,255,255,0.5)", marginBottom: "2.5rem", lineHeight: 1.5 }}>
-              Запросы по продукту, внедрению, документации, API и будущим сервисам экосистемы
-              Nerior.
+              Запросы по продукту, внедрению, документации, API и будущим сервисам экосистемы Nerior.
             </p>
 
             <div>
@@ -110,8 +109,7 @@ export function PublicContactPage() {
             <div style={{ marginTop: "3rem" }}>
               <p style={sectionEyebrowStyle}>Куда идти дальше</p>
               <p style={{ fontSize: "0.9375rem", color: "rgba(255,255,255,0.4)", lineHeight: 1.5 }}>
-                Если нужен self-service путь, сначала посмотрите документацию, сообщество или
-                справочный центр.
+                Если нужен self-service путь, сначала посмотрите документацию, сообщество или справочный центр.
               </p>
             </div>
           </div>
@@ -131,24 +129,13 @@ export function PublicContactPage() {
                 </select>
               </Field>
               <Field label="Электронная почта*">
-                <input
-                  value={form.email}
-                  onChange={(event) => setField("email", event.target.value)}
-                  type="email"
-                  autoComplete="email"
-                  style={inputStyle}
-                />
+                <input value={form.email} onChange={(event) => setField("email", event.target.value)} type="email" autoComplete="email" style={inputStyle} />
               </Field>
             </div>
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
               <Field label="Имя*">
-                <input
-                  value={form.name}
-                  onChange={(event) => setField("name", event.target.value)}
-                  autoComplete="name"
-                  style={inputStyle}
-                />
+                <input value={form.name} onChange={(event) => setField("name", event.target.value)} autoComplete="name" style={inputStyle} />
               </Field>
               <Field label="Номер телефона*">
                 <input

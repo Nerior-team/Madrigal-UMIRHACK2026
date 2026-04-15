@@ -49,8 +49,7 @@ export function PublicDevelopersPage() {
         <p style={eyebrowStyle}>Разработчикам</p>
         <h1 style={heroTitleStyle}>Разработческие поверхности Nerior</h1>
         <p style={heroBodyStyle}>
-          У Nerior есть четыре отдельные developer-facing зоны. Каждая решает свою задачу и живёт
-          на отдельном хосте.
+          У Nerior есть четыре отдельные developer-facing зоны. Каждая решает свою задачу и живёт на отдельном хосте.
         </p>
       </section>
 
@@ -88,7 +87,7 @@ export function PublicDevelopersPage() {
                 <code style={hostCodeStyle}>{zone.host}</code>
               </div>
               <p style={{ fontSize: "0.9375rem", color: "rgba(255,255,255,0.5)", lineHeight: 1.6, margin: 0 }}>{zone.desc}</p>
-              <span style={{ color: "rgba(255,255,255,0.25)", fontSize: "1rem", paddingTop: "0.2rem" }}>↗</span>
+              <span style={{ color: "rgba(255,255,255,0.25)", fontSize: "1rem", paddingTop: "0.2rem" }}>-&gt;</span>
             </a>
           ))}
         </div>
@@ -97,7 +96,7 @@ export function PublicDevelopersPage() {
       <div style={dividerStyle} />
 
       <section style={{ maxWidth: "900px", margin: "0 auto", padding: "4.5rem 1.75rem 7rem" }}>
-        <p style={{ ...eyebrowStyle, marginBottom: "1.75rem" }}>Внешний API — маршруты</p>
+        <p style={{ ...eyebrowStyle, marginBottom: "1.75rem" }}>Внешний API - маршруты</p>
         <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
           {API_ROUTES.map((route, index) => (
             <div
@@ -136,22 +135,12 @@ export function PublicDevelopersPage() {
           ))}
         </div>
         <p style={{ marginTop: "1.75rem", fontSize: "0.875rem", color: "rgba(255,255,255,0.3)", lineHeight: 1.6 }}>
-          Полная документация по API — на{" "}
-          <a
-            href="https://docs.nerior.store/api"
-            target="_blank"
-            rel="noopener noreferrer"
-            style={inlineAnchorStyle}
-          >
+          Полная документация по API - на{" "}
+          <a href="https://docs.nerior.store/api" target="_blank" rel="noopener noreferrer" style={inlineAnchorStyle}>
             docs.nerior.store/api
           </a>
           . Ключи доступа выдаются в кабинете{" "}
-          <a
-            href="https://api.nerior.store"
-            target="_blank"
-            rel="noopener noreferrer"
-            style={inlineAnchorStyle}
-          >
+          <a href="https://api.nerior.store" target="_blank" rel="noopener noreferrer" style={inlineAnchorStyle}>
             api.nerior.store
           </a>
           .

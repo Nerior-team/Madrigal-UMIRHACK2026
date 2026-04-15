@@ -129,7 +129,7 @@ export function PublicArticlePage() {
         <article style={{ maxWidth: "720px", margin: "0 auto", padding: "4rem 1.75rem 8rem" }}>
           <div style={{ marginBottom: "2.5rem" }}>
             <Link to="/updates" style={{ fontSize: "0.8125rem", color: "rgba(255,255,255,0.4)", textDecoration: "none" }}>
-              ← Обновления
+              &lt;- Обновления
             </Link>
           </div>
           <h1
@@ -144,9 +144,7 @@ export function PublicArticlePage() {
           >
             Статья не найдена
           </h1>
-          <p style={{ fontSize: "1rem", color: "rgba(255,255,255,0.4)", marginBottom: "2.5rem" }}>
-            {error ?? "Контент ещё не загружен."}
-          </p>
+          <p style={{ fontSize: "1rem", color: "rgba(255,255,255,0.4)", marginBottom: "2.5rem" }}>{error ?? "Контент ещё не загружен."}</p>
         </article>
       </main>
     );
@@ -157,7 +155,7 @@ export function PublicArticlePage() {
       <article style={{ maxWidth: "720px", margin: "0 auto", padding: "4rem 1.75rem 8rem" }}>
         <div style={{ marginBottom: "2.5rem" }}>
           <Link to="/updates" style={{ fontSize: "0.8125rem", color: "rgba(255,255,255,0.4)", textDecoration: "none" }}>
-            ← Обновления
+            &lt;- Обновления
           </Link>
         </div>
 
@@ -189,9 +187,7 @@ export function PublicArticlePage() {
           {article.title}
         </h1>
 
-        <p style={{ fontSize: "1rem", color: "rgba(255,255,255,0.45)", marginBottom: "2.5rem", lineHeight: 1.65 }}>
-          {article.summary}
-        </p>
+        <p style={{ fontSize: "1rem", color: "rgba(255,255,255,0.45)", marginBottom: "2.5rem", lineHeight: 1.65 }}>{article.summary}</p>
 
         {article.preview_image_url || article.preview_video_url ? (
           <div

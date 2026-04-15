@@ -56,9 +56,8 @@ export function PublicBusinessPage() {
         <p style={eyebrowStyle}>Бизнес</p>
         <h1 style={heroTitleStyle}>Раздельные сервисные поверхности для каждой задачи</h1>
         <p style={heroBodyStyle}>
-          Nerior строит экосистему, в которой каждая поверхность решает одну задачу без перегруза.
-          Корпоративная витрина, продуктовые интерфейсы, документация, API и зоны поддержки
-          разделены по хостам и ролям.
+          Nerior строит экосистему, в которой каждая поверхность решает одну задачу без перегруза. Корпоративная витрина,
+          продуктовые интерфейсы, документация, API и зоны поддержки разделены по хостам и ролям.
         </p>
         <Link to="/contact" style={primaryLinkStyle}>
           Связаться с отделом продаж
@@ -137,12 +136,12 @@ export function PublicBusinessPage() {
             <p style={eyebrowStyle}>Операционная дисциплина</p>
             <h2 style={subsectionTitleStyle}>Внедрение и сопровождение</h2>
             <p style={sectionBodyStyle}>
-              Каждая зона инфраструктуры изолирована по ответственности. Продуктовые сессии не
-              смешиваются, а доступ к интеграциям вынесен в отдельный кабинет.
+              Каждая зона инфраструктуры изолирована по ответственности. Продуктовые сессии не смешиваются, а доступ к
+              интеграциям вынесен в отдельный кабинет.
             </p>
             <p style={sectionBodyStyle}>
-              API-кабинет выдаёт ключи с ограниченными scopes и временем жизни, а документация и
-              support-слои живут отдельно от продуктового интерфейса.
+              API-кабинет выдаёт ключи с ограниченными scopes и временем жизни, а документация и support-слои живут отдельно от
+              продуктового интерфейса.
             </p>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
@@ -156,9 +155,7 @@ export function PublicBusinessPage() {
                 }}
               >
                 <h4 style={{ fontSize: "0.9375rem", fontWeight: 600, color: "#fff", marginBottom: "0.4rem" }}>{item.title}</h4>
-                <p style={{ fontSize: "0.875rem", color: "rgba(255,255,255,0.45)", lineHeight: 1.55, margin: 0 }}>
-                  {item.desc}
-                </p>
+                <p style={{ fontSize: "0.875rem", color: "rgba(255,255,255,0.45)", lineHeight: 1.55, margin: 0 }}>{item.desc}</p>
               </div>
             ))}
           </div>

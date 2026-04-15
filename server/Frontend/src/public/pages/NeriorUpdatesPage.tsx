@@ -222,11 +222,7 @@ export function NeriorUpdatesPage() {
                   }}
                 >
                   {item.preview_image_url ? (
-                    <img
-                      src={item.preview_image_url}
-                      alt={item.title}
-                      style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
-                    />
+                    <img src={item.preview_image_url} alt={item.title} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
                   ) : null}
                 </div>
                 <div style={{ display: "grid", gap: "0.5rem" }}>
@@ -255,13 +251,9 @@ function EmptyState({
 }) {
   return (
     <div style={{ borderTop: "1px solid rgba(255,255,255,0.08)", paddingTop: "3.5rem", textAlign: "left" }}>
-      <p style={{ fontSize: "1rem", color: "rgba(255,255,255,0.3)", lineHeight: 1.6, maxWidth: "480px" }}>
-        {title}
-      </p>
+      <p style={{ fontSize: "1rem", color: "rgba(255,255,255,0.3)", lineHeight: 1.6, maxWidth: "480px" }}>{title}</p>
       {description ? (
-        <p style={{ fontSize: "0.9375rem", color: "rgba(255,255,255,0.45)", lineHeight: 1.65, maxWidth: "560px" }}>
-          {description}
-        </p>
+        <p style={{ fontSize: "0.9375rem", color: "rgba(255,255,255,0.45)", lineHeight: 1.65, maxWidth: "560px" }}>{description}</p>
       ) : null}
     </div>
   );

@@ -26,7 +26,7 @@ export function NeriorHomePage() {
             marginBottom: "2rem",
           }}
         >
-          Nerior — экосистема цифровых сервисов
+          Nerior - экосистема цифровых сервисов
         </p>
         <h1
           style={{
@@ -49,9 +49,8 @@ export function NeriorHomePage() {
             marginBottom: "2.75rem",
           }}
         >
-          Nerior строит раздельные сервисные поверхности — корпоративный сайт, продуктовые
-          интерфейсы, документацию, API и зоны поддержки — так, чтобы каждая решала свою задачу без
-          перегруза.
+          Nerior строит раздельные сервисные поверхности - корпоративный сайт, продуктовые интерфейсы, документацию, API и зоны
+          поддержки - так, чтобы каждая решала свою задачу без перегруза.
         </p>
         <div style={{ display: "flex", alignItems: "center", gap: "1rem", flexWrap: "wrap" }}>
           <a
@@ -71,7 +70,7 @@ export function NeriorHomePage() {
               textDecoration: "none",
             }}
           >
-            Открыть Crossplat <span style={{ fontSize: "0.75rem" }}>↗</span>
+            Открыть Crossplat <span style={{ fontSize: "0.75rem" }}>-&gt;</span>
           </a>
           <a
             href="https://docs.nerior.store"
@@ -89,7 +88,7 @@ export function NeriorHomePage() {
               textDecoration: "none",
             }}
           >
-            Документация <span style={{ fontSize: "0.75rem", opacity: 0.6 }}>›</span>
+            Документация <span style={{ fontSize: "0.75rem", opacity: 0.6 }}>&gt;</span>
           </a>
         </div>
       </section>
@@ -184,7 +183,7 @@ export function NeriorHomePage() {
                   rel="noopener noreferrer"
                   style={{ display: "inline-flex", alignItems: "center", gap: "0.4rem", fontSize: "0.875rem", color: "#fff", textDecoration: "none" }}
                 >
-                  Открыть <span>↗</span>
+                  Открыть <span>-&gt;</span>
                 </a>
               ) : null}
             </article>
@@ -227,9 +226,8 @@ export function NeriorHomePage() {
                 marginBottom: "1.75rem",
               }}
             >
-              API-кабинет на <code style={codeStyle}>api.nerior.store</code> даёт доступ к машинам,
-              задачам и результатам. Документация и руководства живут на{" "}
-              <code style={codeStyle}>docs.nerior.store</code>.
+              API-кабинет на <code style={codeStyle}>api.nerior.store</code> даёт доступ к машинам, задачам и результатам.
+              Документация и руководства живут на <code style={codeStyle}>docs.nerior.store</code>.
             </p>
             <Link
               to="/developers"
@@ -258,9 +256,7 @@ export function NeriorHomePage() {
                   borderRadius: "0.375rem",
                 }}
               >
-                <code style={{ fontSize: "0.75rem", color: "#b5f542", display: "block", marginBottom: "0.25rem" }}>
-                  {route.code}
-                </code>
+                <code style={{ fontSize: "0.75rem", color: "#b5f542", display: "block", marginBottom: "0.25rem" }}>{route.code}</code>
                 <span style={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.35)" }}>{route.label}</span>
               </div>
             ))}
@@ -310,7 +306,7 @@ export function NeriorHomePage() {
               textDecoration: "none",
             }}
           >
-            Попробовать бесплатно ↗
+            Попробовать бесплатно -&gt;
           </a>
           <Link
             to="/contact"
