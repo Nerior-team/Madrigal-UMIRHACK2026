@@ -1,6 +1,6 @@
 from collections.abc import Generator
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.core.config import get_settings
@@ -41,3 +41,30 @@ def init_database() -> None:
     from app.db.metadata import Base
 
     Base.metadata.create_all(bind=engine)
+    with engine.begin() as connection:
+        connection.execute(
+            text(
+                """
+                ALTER TABLE community_discussions
+                ADD COLUMN IF NOT EXISTS author_user_id VARCHAR(36),
+                ADD COLUMN IF NOT EXISTS image_data_url TEXT,
+                ADD COLUMN IF NOT EXISTS like_count INTEGER NOT NULL DEFAULT 0
+                """
+            )
+        )
+        connection.execute(
+            text(
+                """
+                ALTER TABLE community_comments
+                ADD COLUMN IF NOT EXISTS author_user_id VARCHAR(36)
+                """
+            )
+        )
+        connection.execute(
+            text(
+                """
+                ALTER TABLE community_reviews
+                ADD COLUMN IF NOT EXISTS author_user_id VARCHAR(36)
+                """
+            )
+        )

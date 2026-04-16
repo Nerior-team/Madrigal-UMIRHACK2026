@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 
 type PublicSubnavLink = {
@@ -10,13 +11,14 @@ type PublicSubnavProps = {
   brand: string;
   brandHref: string;
   links: PublicSubnavLink[];
+  actions?: ReactNode;
 };
 
 function isExternalHref(href: string): boolean {
   return href.startsWith("http://") || href.startsWith("https://");
 }
 
-export function PublicSubnav({ brand, brandHref, links }: PublicSubnavProps) {
+export function PublicSubnav({ brand, brandHref, links, actions }: PublicSubnavProps) {
   return (
     <header
       style={{
@@ -57,6 +59,19 @@ export function PublicSubnav({ brand, brandHref, links }: PublicSubnavProps) {
           ),
         )}
       </nav>
+
+      {actions ? (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "0.75rem",
+            flexShrink: 0,
+          }}
+        >
+          {actions}
+        </div>
+      ) : null}
 
       <a
         href="https://nerior.store"

@@ -12,6 +12,7 @@ from app.core.security import hash_token
 from app.db.session import get_db_session
 from app.domains.access.repository import AccessRepository
 from app.domains.auth.repository import AuthRepository
+from app.domains.auth.web_apps import resolve_web_app_config
 from app.domains.commands.repository import CommandRepository
 from app.domains.community.repository import CommunityRepository
 from app.domains.groups.repository import GroupRepository
@@ -20,12 +21,11 @@ from app.domains.integrations.external_api.service import ExternalApiClientConte
 from app.domains.integrations.telegram.repository import TelegramRepository
 from app.domains.machines.repository import MachineRepository
 from app.domains.notifications.repository import NotificationRepository
-from app.domains.publications.repository import PublicationRepository
 from app.domains.profile.repository import ProfileRepository
+from app.domains.publications.repository import PublicationRepository
 from app.domains.reports.repository import ReportsRepository
 from app.domains.results.repository import ResultRepository
 from app.domains.tasks.repository import TaskRepository
-from app.domains.auth.web_apps import resolve_web_app_config
 from app.infra.crypto.request_signing import build_request_target, sign_request
 from app.infra.redis import limits as redis_limits
 from app.shared.time import utc_now
@@ -115,6 +115,18 @@ def get_current_access_token(
     raise AppError("unauthorized", "Требуется авторизация.", 401)
 
 
+def get_optional_access_token(
+    request: Request,
+    authorization: Annotated[str | None, Header(alias="Authorization")] = None,
+) -> str | None:
+    session_cookie = request.cookies.get(resolve_web_app_config(request).cookie_name)
+    if authorization and authorization.startswith("Bearer "):
+        return authorization.removeprefix("Bearer ").strip()
+    if session_cookie:
+        return session_cookie
+    return None
+
+
 def get_current_session(
     repository: Annotated[AuthRepository, Depends(get_repository)],
     access_token: Annotated[str, Depends(get_current_access_token)],
@@ -122,6 +134,18 @@ def get_current_session(
     session = repository.get_session_by_access_hash(hash_token(access_token, purpose="access"))
     if session is None or session.revoked_at is not None or session.access_expires_at < utc_now():
         raise AppError("unauthorized", "Сессия недействительна.", 401)
+    return session
+
+
+def get_optional_current_session(
+    repository: Annotated[AuthRepository, Depends(get_repository)],
+    access_token: Annotated[str | None, Depends(get_optional_access_token)],
+):
+    if access_token is None:
+        return None
+    session = repository.get_session_by_access_hash(hash_token(access_token, purpose="access"))
+    if session is None or session.revoked_at is not None or session.access_expires_at < utc_now():
+        return None
     return session
 
 
@@ -133,6 +157,15 @@ def get_current_user(
     if user is None:
         raise AppError("unauthorized", "Пользователь не найден.", 401)
     return user
+
+
+def get_optional_current_user(
+    repository: Annotated[AuthRepository, Depends(get_repository)],
+    current_session=Depends(get_optional_current_session),
+):
+    if current_session is None:
+        return None
+    return repository.get_user_by_id(current_session.user_id)
 
 
 @dataclass(slots=True)

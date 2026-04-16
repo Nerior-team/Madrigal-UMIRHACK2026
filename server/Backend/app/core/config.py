@@ -59,6 +59,7 @@ class Settings(BaseSettings):
     support_email: str
     contact_form_recipient_email: str | None = None
     brand_display_name: str
+    community_root_admin_email: str = "i@karpovstepan.ru"
 
     telegram_bot_token: str
     telegram_webhook_secret: str
@@ -91,6 +92,7 @@ class Settings(BaseSettings):
         "email_from",
         "support_email",
         "brand_display_name",
+        "community_root_admin_email",
         "telegram_bot_token",
         "telegram_webhook_secret",
         "telegram_bot_username",

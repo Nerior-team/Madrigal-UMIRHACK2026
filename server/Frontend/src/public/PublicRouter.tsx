@@ -77,6 +77,7 @@ export function PublicRouter({ kind }: PublicRouterProps) {
         <Route path="/" element={<Navigate to="/updates" replace />} />
         <Route path="/updates" element={<PublicCommunityPage section="updates" />} />
         <Route path="/discussions" element={<PublicCommunityPage section="discussions" />} />
+        <Route path="/reviews" element={<PublicCommunityPage section="reviews" />} />
         <Route path="/materials" element={<PublicCommunityPage section="materials" />} />
         <Route path="/channels" element={<PublicCommunityPage section="channels" />} />
         <Route path="*" element={<Navigate to="/updates" replace />} />
