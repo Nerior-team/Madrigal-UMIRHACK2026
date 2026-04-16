@@ -93,7 +93,10 @@ export function PublicRouter({ kind }: PublicRouterProps) {
         <Route path="/updates" element={<NeriorUpdatesPage />} />
         <Route path="/updates/:slug" element={<PublicArticlePage />} />
         <Route path="/business" element={<PublicBusinessPage />} />
-        <Route path="/company" element={<PublicCompanyPage />} />
+        <Route path="/company" element={<Navigate to="/company/about" replace />} />
+        <Route path="/company/about" element={<PublicCompanyPage />} />
+        <Route path="/company/careers" element={<PublicCompanyPage />} />
+        <Route path="/company/stories" element={<PublicCompanyPage />} />
         <Route path="/developers" element={<PublicDevelopersPage />} />
         <Route path="/contact" element={<PublicContactPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
