@@ -12,19 +12,25 @@ INTEREST_LABELS = {
     "other": "Другое",
 }
 
+MODE_LABELS = {
+    "client": "Клиент",
+    "business": "Бизнес",
+}
+
 
 class PublicContactService:
     def submit(self, payload: PublicContactRequest) -> PublicContactResponse:
         settings = get_settings()
         recipient = settings.effective_contact_form_recipient_email
         interest_label = INTEREST_LABELS[payload.interest]
+        mode_label = MODE_LABELS[payload.mode]
 
         transport = get_mail_transport()
         transport.send(
             to_email=recipient,
-            subject=f"[Nerior] Новый запрос: {interest_label}",
-            html_body=self._build_html(payload, interest_label),
-            text_body=self._build_text(payload, interest_label),
+            subject=f"[Nerior] Новый запрос: {mode_label} / {interest_label}",
+            html_body=self._build_html(payload, interest_label, mode_label),
+            text_body=self._build_text(payload, interest_label, mode_label),
         )
 
         return PublicContactResponse(
@@ -32,15 +38,28 @@ class PublicContactService:
             detail="Запрос отправлен. Мы свяжемся с вами после обработки.",
         )
 
-    def _build_html(self, payload: PublicContactRequest, interest_label: str) -> str:
+    def _build_html(
+        self,
+        payload: PublicContactRequest,
+        interest_label: str,
+        mode_label: str,
+    ) -> str:
         rows = [
+            ("Тип обращения", mode_label),
             ("Что интересует", interest_label),
-            ("Имя", payload.name),
+            ("Имя", payload.first_name),
+            ("Фамилия", payload.last_name),
             ("Email", payload.email),
             ("Телефон", payload.phone),
-            ("Компания", payload.company_name),
-            ("Размер компании", payload.company_size),
+            ("Маркетинг", "Да" if payload.marketing else "Нет"),
         ]
+        if payload.mode == "business":
+            rows.extend(
+                [
+                    ("Компания", payload.company_name or "—"),
+                    ("Размер компании", payload.company_size or "—"),
+                ]
+            )
 
         rows_html = "".join(
             f"""
@@ -72,19 +91,29 @@ class PublicContactService:
         </html>
         """
 
-    def _build_text(self, payload: PublicContactRequest, interest_label: str) -> str:
-        return "\n".join(
-            [
-                "Новый запрос с публичного сайта Nerior",
-                "",
-                f"Что интересует: {interest_label}",
-                f"Имя: {payload.name}",
-                f"Email: {payload.email}",
-                f"Телефон: {payload.phone}",
-                f"Компания: {payload.company_name}",
-                f"Размер компании: {payload.company_size}",
-                "",
-                "Сообщение:",
-                payload.message,
-            ]
-        )
+    def _build_text(
+        self,
+        payload: PublicContactRequest,
+        interest_label: str,
+        mode_label: str,
+    ) -> str:
+        lines = [
+            "Новый запрос с публичного сайта Nerior",
+            "",
+            f"Тип обращения: {mode_label}",
+            f"Что интересует: {interest_label}",
+            f"Имя: {payload.first_name}",
+            f"Фамилия: {payload.last_name}",
+            f"Email: {payload.email}",
+            f"Телефон: {payload.phone}",
+            f"Маркетинг: {'Да' if payload.marketing else 'Нет'}",
+        ]
+        if payload.mode == "business":
+            lines.extend(
+                [
+                    f"Компания: {payload.company_name or '—'}",
+                    f"Размер компании: {payload.company_size or '—'}",
+                ]
+            )
+        lines.extend(["", "Сообщение:", payload.message])
+        return "\n".join(lines)

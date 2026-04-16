@@ -24,6 +24,7 @@ CSRF_EXEMPT_API_PATHS = {
     ("POST", "/api/v1/auth/password/forgot"),
     ("POST", "/api/v1/auth/password/reset"),
     ("POST", "/api/v1/auth/refresh"),
+    ("POST", "/api/v1/public/contact"),
 }
 UNSAFE_HTTP_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
 

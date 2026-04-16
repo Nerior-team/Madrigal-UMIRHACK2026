@@ -1,26 +1,32 @@
 import { apiFetch } from "../core/http";
 
 export type PublicContactPayload = {
+  mode: "client" | "business";
   interest: "crossplat" | "smart-planner" | "karpik" | "other";
-  name: string;
+  firstName: string;
+  lastName: string;
   email: string;
   phone: string;
-  companyName: string;
-  companySize: string;
+  companyName?: string;
+  companySize?: string;
   message: string;
+  marketing: boolean;
 };
 
 export async function submitPublicContact(payload: PublicContactPayload): Promise<{ detail: string }> {
   return apiFetch("/public/contact", {
     method: "POST",
     body: JSON.stringify({
+      mode: payload.mode,
       interest: payload.interest,
-      name: payload.name,
+      first_name: payload.firstName,
+      last_name: payload.lastName,
       email: payload.email,
       phone: payload.phone,
-      company_name: payload.companyName,
-      company_size: payload.companySize,
+      company_name: payload.companyName ?? null,
+      company_size: payload.companySize ?? null,
       message: payload.message,
+      marketing: payload.marketing,
     }),
   });
 }
