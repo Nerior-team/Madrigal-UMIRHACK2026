@@ -1008,6 +1008,12 @@
   margin-top: 16px;
 }
 
+.public-community-modal__header strong,
+.public-community-auth-modal,
+.public-community-auth-modal p {
+  color: var(--public-text);
+}
+
 @media (max-width: 1180px) {
   .public-section--two-up,
   .public-product-grid,

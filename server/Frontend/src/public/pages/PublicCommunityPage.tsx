@@ -149,6 +149,14 @@ function buildAuthHref(): string {
   return `https://nerior.store/login?next=${next}`;
 }
 
+function redirectToNeriorAuth(): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.location.assign(buildAuthHref());
+}
+
 function toLocalDateTime(value?: string | null): string {
   if (!value) return "";
   const date = new Date(value);
@@ -487,12 +495,12 @@ export function PublicCommunityPage({ section }: PublicCommunityPageProps) {
         </form>
       </CommunityModal>
 
-      <CommunityModal open={authModalOpen} title="Требуется авторизация" onClose={() => setAuthModalOpen(false)}>
-        <div className="public-community-auth-modal">
-          <p>Для продолжения необходимо авторизоваться в сети Nerior.</p>
-          <div className="public-community-form__actions"><a className="public-button public-button--solid" href={buildAuthHref()}>Авторизоваться</a><button type="button" className="public-button public-button--ghost" onClick={() => setAuthModalOpen(false)}>Закрыть</button></div>
-        </div>
-      </CommunityModal>
+        <CommunityModal open={authModalOpen} title="Требуется авторизация" onClose={() => setAuthModalOpen(false)}>
+          <div className="public-community-auth-modal">
+            <p>Для продолжения необходимо авторизоваться в сети Nerior.</p>
+            <div className="public-community-form__actions"><button type="button" className="public-button public-button--solid" onClick={redirectToNeriorAuth}>Авторизоваться</button><button type="button" className="public-button public-button--ghost" onClick={() => setAuthModalOpen(false)}>Закрыть</button></div>
+          </div>
+        </CommunityModal>
 
       <CommunityModal open={adminOpen} title="Админ" onClose={() => setAdminOpen(false)} wide>
         <div className="public-chip-row">{[{ value: "members", label: "Пользователи" }, { value: "publications", label: "Публикации" }, { value: "moderation", label: "Модерация" }].map((tab) => <button key={tab.value} type="button" className={`public-chip ${adminTab === tab.value ? "is-active" : ""}`} onClick={() => setAdminTab(tab.value as AdminTab)}>{tab.label}</button>)}</div>
