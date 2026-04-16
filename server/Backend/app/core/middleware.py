@@ -26,6 +26,7 @@ CSRF_EXEMPT_API_PATHS = {
     ("POST", "/api/v1/auth/refresh"),
     ("POST", "/api/v1/public/contact"),
 }
+CSRF_EXEMPT_API_PREFIXES = ("/api/v1/public/",)
 UNSAFE_HTTP_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
 
 
@@ -38,6 +39,7 @@ def install_security_middleware(app: FastAPI) -> None:
             request.url.path.startswith("/api/")
             and request.method in UNSAFE_HTTP_METHODS
             and (request.method, request.url.path) not in CSRF_EXEMPT_API_PATHS
+            and not request.url.path.startswith(CSRF_EXEMPT_API_PREFIXES)
         ):
             authorization = request.headers.get("Authorization")
             session_cookie = request.cookies.get(settings.backend_cookie_name)

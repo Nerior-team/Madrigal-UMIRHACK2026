@@ -13,6 +13,7 @@ from app.db.session import get_db_session
 from app.domains.access.repository import AccessRepository
 from app.domains.auth.repository import AuthRepository
 from app.domains.commands.repository import CommandRepository
+from app.domains.community.repository import CommunityRepository
 from app.domains.groups.repository import GroupRepository
 from app.domains.integrations.external_api.repository import ExternalApiRepository
 from app.domains.integrations.external_api.service import ExternalApiClientContext, ExternalApiService
@@ -80,6 +81,10 @@ def get_notification_repository(db: Annotated[Session, Depends(get_db_session)])
 
 def get_publication_repository(db: Annotated[Session, Depends(get_db_session)]) -> PublicationRepository:
     return PublicationRepository(db)
+
+
+def get_community_repository(db: Annotated[Session, Depends(get_db_session)]) -> CommunityRepository:
+    return CommunityRepository(db)
 
 
 def build_client_context(request: Request):

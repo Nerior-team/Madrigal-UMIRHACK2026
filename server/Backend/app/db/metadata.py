@@ -1,4 +1,5 @@
 from app.db.base import Base
+from app.domains.community import models as community_models  # noqa: F401
 from app.domains.access import models as access_models  # noqa: F401
 from app.domains.commands import models as command_models  # noqa: F401
 from app.domains.auth import models as auth_models  # noqa: F401
