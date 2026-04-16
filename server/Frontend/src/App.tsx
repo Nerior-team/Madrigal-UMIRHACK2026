@@ -254,6 +254,16 @@ function sanitizeAuthReturnTarget(value: string | null): string | null {
   }
 }
 
+function isCrossplatHost(hostname: string): boolean {
+  const normalized = hostname.trim().toLowerCase();
+  return (
+    normalized === "crossplat.nerior.store" ||
+    normalized === "crossplat.localhost" ||
+    normalized === "localhost" ||
+    normalized === "127.0.0.1"
+  );
+}
+
 function matchesIsoDateRange(value: string, range: ResultDateRange): boolean {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) {
@@ -781,6 +791,10 @@ export function App() {
   const completeAuthFlow = () => {
     if (authReturnTarget) {
       window.location.assign(authReturnTarget);
+      return;
+    }
+    if (typeof window !== "undefined" && !isCrossplatHost(window.location.hostname)) {
+      window.location.assign(`${CROSSPLAT_BASE_URL}/machines`);
       return;
     }
     setScreen("machines");

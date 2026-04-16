@@ -1,7 +1,10 @@
 import { useEffect, type ReactNode } from "react";
+import { useLocation } from "react-router-dom";
 import { resolveHostApp } from "./platform-host";
 import { HostApp } from "./host-app";
 import type { PlatformSessionStatus } from "../platform/session";
+import { AppRouter } from "./router";
+import { AUTH_ROUTE_PATHS } from "./route-constants";
 
 type RootRouterProps = {
   hostname?: string;
@@ -49,6 +52,12 @@ export function RootRouter({
   initialApiSessionStatus,
   disableApiSessionBootstrap = false,
 }: RootRouterProps) {
+  const location = useLocation();
+  const kind = resolveHostApp(hostname);
+  const isPublicAuthRoute =
+    kind === "nerior-site" &&
+    AUTH_ROUTE_PATHS.includes(location.pathname as (typeof AUTH_ROUTE_PATHS)[number]);
+
   useEffect(() => {
     if (typeof document === "undefined") {
       return;
@@ -57,9 +66,13 @@ export function RootRouter({
     document.title = getHostDocumentTitle(hostname);
   }, [hostname]);
 
+  if (isPublicAuthRoute) {
+    return <AppRouter renderApp={renderCrossplatApp} />;
+  }
+
   return (
     <HostApp
-      kind={resolveHostApp(hostname)}
+      kind={kind}
       renderCrossplatApp={renderCrossplatApp}
       renderApiApp={renderApiApp}
       initialApiSessionStatus={initialApiSessionStatus}

@@ -51,7 +51,20 @@ describe("RootRouter", () => {
       </MemoryRouter>,
     );
 
-    expect(screen.getByRole("heading", { name: /системы, продукты/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /инфраструктура для продуктов, которые работают/i })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Обновления" })).toBeInTheDocument();
+  });
+
+  it("renders the auth router on the public host auth routes", () => {
+    render(
+      <MemoryRouter initialEntries={["/login?next=https%3A%2F%2Fcommunity.nerior.store%2Fdiscussions"]}>
+        <RootRouter
+          hostname="nerior.store"
+          renderCrossplatApp={renderCrossplatStub}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByTestId("crossplat-app-stub")).toBeInTheDocument();
   });
 });
