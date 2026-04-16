@@ -118,7 +118,18 @@ export function NeriorHomePage() {
               }}
             >
               <span style={{ fontSize: "0.8125rem", color: "rgba(255,255,255,0.45)" }}>{item.label}</span>
-              <strong style={{ fontSize: "1.75rem", color: "#fff", letterSpacing: "-0.04em" }}>{item.value}</strong>
+              <strong
+                style={{
+                  fontSize: item.label === "Фокус" ? "1.25rem" : "1.75rem",
+                  color: "#fff",
+                  letterSpacing: item.label === "Фокус" ? "-0.02em" : "-0.04em",
+                  lineHeight: 1.05,
+                  overflowWrap: "anywhere",
+                  wordBreak: "break-word",
+                }}
+              >
+                {item.value}
+              </strong>
             </article>
           ))}
         </div>

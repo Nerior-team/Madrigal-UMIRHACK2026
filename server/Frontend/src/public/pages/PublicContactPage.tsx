@@ -166,7 +166,7 @@ export function PublicContactPage() {
             </p>
 
             <p style={{ fontSize: "0.9375rem", color: "rgba(255,255,255,0.5)", marginBottom: "2.5rem", lineHeight: 1.5 }}>
-              {mode === "client" ? "Вы представляете компанию?" : "Это личный запрос, а не корпоративное обращение?"}{" "}
+              Используйте нашу форму для{" "}
               <button
                 type="button"
                 onClick={() => setMode(mode === "client" ? "business" : "client")}
@@ -182,7 +182,7 @@ export function PublicContactPage() {
                   textUnderlineOffset: "3px",
                 }}
               >
-                {mode === "client" ? "Переключиться на бизнес-форму" : "Переключиться на форму для клиентов"}
+                {mode === "client" ? "бизнеса" : "клиентов"}
               </button>
             </p>
 

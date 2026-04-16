@@ -17,18 +17,24 @@ export type DocsPage = {
 };
 
 export const DOCS_TOP_TABS: DocsTopTab[] = [
-  { key: "general", label: "Общее", href: "/" },
+  { key: "general", label: "Общее", href: "/general" },
   { key: "crossplat", label: "Crossplat", href: "/crossplat" },
   { key: "smart-planner", label: "Smart-Planner", href: "/smart-planner" },
   { key: "karpik", label: "Karpik", href: "/karpik" },
 ];
 
 export const DOCS_PAGES: DocsPage[] = [
-  { href: "/", tab: "general", sidebarLabel: "Обзор", title: "Общая документация", docKeys: ["Общее\\01_Обзор.txt"] },
+  { href: "/general", tab: "general", sidebarLabel: "Обзор", title: "Общая документация", docKeys: ["Общее\\01_Обзор.txt"] },
   { href: "/general/crossplat", tab: "general", sidebarLabel: "Что такое Crossplat", title: "Что такое Crossplat", docKeys: ["Общее\\02_Что_такое_Crossplat.txt"] },
   { href: "/general/smart-planner", tab: "general", sidebarLabel: "Что такое Smart-Planner", title: "Что такое Smart-Planner", docKeys: ["Общее\\03_Что_такое_Smart_Planner.txt"] },
   { href: "/general/karpik", tab: "general", sidebarLabel: "Что такое Karpik", title: "Что такое Karpik", docKeys: ["Общее\\04_Что_такое_Karpik.txt"] },
-  { href: "/general/api", tab: "general", sidebarLabel: "Работа с API", title: "Работа с API", docKeys: ["Общее\\05_Работа_с_API.txt", "API\\01_Единая_модель_API_ключей.txt"] },
+  {
+    href: "/general/api",
+    tab: "general",
+    sidebarLabel: "Работа с API",
+    title: "Работа с API",
+    docKeys: ["Общее\\05_Работа_с_API.txt", "API\\01_Единая_модель_API_ключей.txt"],
+  },
   { href: "/general/requests", tab: "general", sidebarLabel: "Запросы", title: "Запросы", docKeys: ["Общее\\06_Запросы.txt"] },
   { href: "/general/results", tab: "general", sidebarLabel: "Результаты", title: "Результаты", docKeys: ["Общее\\07_Результаты.txt"] },
   { href: "/general/scenarios", tab: "general", sidebarLabel: "Практические сценарии", title: "Практические сценарии", docKeys: ["Общее\\08_Практические_сценарии.txt"] },
@@ -70,7 +76,8 @@ export const DOCS_PAGES: DocsPage[] = [
 ];
 
 export const DOCS_ALIAS_MAP: Record<string, string> = {
-  "/getting-started": "/",
+  "/": "/general",
+  "/getting-started": "/general",
   "/api": "/general/api",
   "/guides": "/general/scenarios",
   "/reference": "/crossplat/reference",

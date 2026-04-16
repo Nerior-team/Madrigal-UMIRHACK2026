@@ -122,10 +122,12 @@ export function PublicTopbar({
             href={secondaryActionHref}
             style={actionGhostStyle}
             onMouseEnter={(event) => {
-              event.currentTarget.style.borderColor = "rgba(255,255,255,0.7)";
+              event.currentTarget.style.color = "#fff";
+              event.currentTarget.style.background = "rgba(255,255,255,0.06)";
             }}
             onMouseLeave={(event) => {
-              event.currentTarget.style.borderColor = "rgba(255,255,255,0.3)";
+              event.currentTarget.style.color = "rgba(255,255,255,0.76)";
+              event.currentTarget.style.background = "transparent";
             }}
           >
             {secondaryActionLabel}
@@ -256,13 +258,13 @@ const actionGhostStyle: React.CSSProperties = {
   alignItems: "center",
   gap: "0.35rem",
   padding: "0.375rem 1rem",
-  border: "1px solid rgba(255,255,255,0.3)",
+  border: "none",
   borderRadius: "999px",
   fontSize: "0.8125rem",
-  color: "#fff",
+  color: "rgba(255,255,255,0.76)",
   whiteSpace: "nowrap",
   textDecoration: "none",
-  transition: "border-color 0.18s, background 0.18s",
+  transition: "color 0.18s, background 0.18s",
 };
 
 const actionSolidStyle: React.CSSProperties = {

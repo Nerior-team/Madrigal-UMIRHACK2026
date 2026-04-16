@@ -65,6 +65,7 @@ export function PublicRouter({ kind }: PublicRouterProps) {
   if (kind === "docs") {
     return (
       <Routes>
+        <Route path="/" element={<Navigate to="/general" replace />} />
         <Route path="*" element={<PublicDocsPage />} />
       </Routes>
     );
