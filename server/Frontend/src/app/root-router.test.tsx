@@ -67,4 +67,17 @@ describe("RootRouter", () => {
 
     expect(screen.getByTestId("crossplat-app-stub")).toBeInTheDocument();
   });
+
+  it("renders the auth router on the community host auth routes", () => {
+    render(
+      <MemoryRouter initialEntries={["/login?next=https%3A%2F%2Fcommunity.nerior.store%2Freviews"]}>
+        <RootRouter
+          hostname="community.nerior.store"
+          renderCrossplatApp={renderCrossplatStub}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByTestId("crossplat-app-stub")).toBeInTheDocument();
+  });
 });

@@ -142,11 +142,11 @@ function extractErrorMessage(error: unknown, fallback: string): string {
 
 function buildAuthHref(): string {
   if (typeof window === "undefined") {
-    return "https://nerior.store/login";
+    return "https://community.nerior.store/login";
   }
 
   const next = encodeURIComponent(window.location.href);
-  return `https://nerior.store/login?next=${next}`;
+  return `${window.location.origin}/login?next=${next}`;
 }
 
 function redirectToNeriorAuth(): void {
@@ -497,7 +497,7 @@ export function PublicCommunityPage({ section }: PublicCommunityPageProps) {
 
         <CommunityModal open={authModalOpen} title="Требуется авторизация" onClose={() => setAuthModalOpen(false)}>
           <div className="public-community-auth-modal">
-            <p>Для продолжения необходимо авторизоваться в сети Nerior.</p>
+            <p style={{ color: "var(--public-text)" }}>Для продолжения необходимо авторизоваться в сети Nerior.</p>
             <div className="public-community-form__actions"><button type="button" className="public-button public-button--solid" onClick={redirectToNeriorAuth}>Авторизоваться</button><button type="button" className="public-button public-button--ghost" onClick={() => setAuthModalOpen(false)}>Закрыть</button></div>
           </div>
         </CommunityModal>
@@ -562,7 +562,7 @@ function CardGridSection({ title, body, items }: { title: string; body: string; 
 
 function CommunityModal({ open, title, onClose, wide = false, children }: { open: boolean; title: string; onClose: () => void; wide?: boolean; children: React.ReactNode }) {
   if (!open) return null;
-  return <div className="public-community-modal" role="dialog" aria-modal="true"><div className="public-community-modal__backdrop" onClick={onClose} /><div className={`public-community-modal__dialog ${wide ? "is-wide" : ""}`}><div className="public-community-modal__header"><strong>{title}</strong><button type="button" className="public-community-action-link" onClick={onClose}>Закрыть</button></div><div className="public-community-modal__body">{children}</div></div></div>;
+  return <div className="public-community-modal" role="dialog" aria-modal="true"><div className="public-community-modal__backdrop" onClick={onClose} /><div className={`public-community-modal__dialog ${wide ? "is-wide" : ""}`}><div className="public-community-modal__header"><strong style={{ color: "var(--public-text)" }}>{title}</strong><button type="button" className="public-community-action-link" onClick={onClose}>Закрыть</button></div><div className="public-community-modal__body">{children}</div></div></div>;
 }
 
 function flattenComments(comments: CommunityComment[]): CommunityComment[] {

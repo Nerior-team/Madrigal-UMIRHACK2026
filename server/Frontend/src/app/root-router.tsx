@@ -55,7 +55,7 @@ export function RootRouter({
   const location = useLocation();
   const kind = resolveHostApp(hostname);
   const isPublicAuthRoute =
-    kind === "nerior-site" &&
+    (kind === "nerior-site" || kind === "community") &&
     AUTH_ROUTE_PATHS.includes(location.pathname as (typeof AUTH_ROUTE_PATHS)[number]);
 
   useEffect(() => {
