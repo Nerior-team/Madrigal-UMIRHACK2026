@@ -1,6 +1,7 @@
 from .repository import CommunityRepository
 from .schemas import (
     CommunityAdminContextRead,
+    CommunityAuthorRead,
     CommunityCommentCreate,
     CommunityCommentRead,
     CommunityCommentReactionWrite,
@@ -25,6 +26,7 @@ from .schemas import (
 
 __all__ = [
     "CommunityAdminContextRead",
+    "CommunityAuthorRead",
     "CommunityCommentCreate",
     "CommunityCommentRead",
     "CommunityCommentReactionWrite",
