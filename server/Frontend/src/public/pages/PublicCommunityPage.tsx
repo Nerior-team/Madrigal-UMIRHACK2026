@@ -141,7 +141,12 @@ function extractErrorMessage(error: unknown, fallback: string): string {
 }
 
 function buildAuthHref(): string {
-  return "https://crossplat.nerior.store/login";
+  if (typeof window === "undefined") {
+    return "https://crossplat.nerior.store/login";
+  }
+
+  const next = encodeURIComponent(window.location.href);
+  return `https://crossplat.nerior.store/login?next=${next}`;
 }
 
 function toLocalDateTime(value?: string | null): string {

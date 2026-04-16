@@ -780,7 +780,7 @@
 .public-community-select {
   min-height: 38px;
   padding: 0 14px;
-  border-radius: 999px;
+  border-radius: 12px;
   border: 1px solid var(--public-line);
   background: transparent;
   color: var(--public-text);

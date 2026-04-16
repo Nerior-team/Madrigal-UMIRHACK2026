@@ -237,6 +237,23 @@ function getDateRangeEnd(value: string): Date | null {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
+function sanitizeAuthReturnTarget(value: string | null): string | null {
+  if (!value) return null;
+
+  try {
+    const parsed = new URL(value, CROSSPLAT_BASE_URL);
+    const isNeriorHost =
+      parsed.hostname === "nerior.store" ||
+      parsed.hostname.endsWith(".nerior.store");
+    if (!isNeriorHost || parsed.protocol !== "https:") {
+      return null;
+    }
+    return parsed.toString();
+  } catch {
+    return null;
+  }
+}
+
 function matchesIsoDateRange(value: string, range: ResultDateRange): boolean {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) {
@@ -746,7 +763,28 @@ export function App() {
     () => new URLSearchParams(location.search).get("token")?.trim() ?? "",
     [location.search],
   );
+  const authReturnTarget = useMemo(
+    () => sanitizeAuthReturnTarget(new URLSearchParams(location.search).get("next")),
+    [location.search],
+  );
   const resolvedResetToken = resetTokenFromUrl || manualResetToken.trim();
+
+  const buildAuthRoute = (nextMode: AuthMode) => {
+    const params = new URLSearchParams();
+    if (authReturnTarget) {
+      params.set("next", authReturnTarget);
+    }
+    const query = params.toString();
+    return `${authPath(nextMode)}${query ? `?${query}` : ""}`;
+  };
+
+  const completeAuthFlow = () => {
+    if (authReturnTarget) {
+      window.location.assign(authReturnTarget);
+      return;
+    }
+    setScreen("machines");
+  };
 
   const setScreen = (nextScreen: AppScreen) => {
     if (nextScreen === "auth") {
@@ -760,7 +798,7 @@ export function App() {
   const setAuthMode = (nextMode: AuthMode) => {
     setAuthNotice(null);
     setAuthError(null);
-    navigate(authPath(nextMode));
+    navigate(buildAuthRoute(nextMode));
   };
 
   const setWorkspaceTab = (nextTab: WorkspaceTab) => {
@@ -2309,15 +2347,15 @@ export function App() {
     setAuthError(null);
 
     if (authMode === "login") {
-      try {
-        const response = await apiClient.login(email, password);
-        if (response.requiresConfirmation) {
-          setAuthChallengeId(response.challengeId ?? null);
-          setAuthMode("confirm");
-          return;
-        }
-        setAuthChallengeId(null);
-        setScreen("machines");
+        try {
+          const response = await apiClient.login(email, password);
+          if (response.requiresConfirmation) {
+            setAuthChallengeId(response.challengeId ?? null);
+            setAuthMode("confirm");
+            return;
+          }
+          setAuthChallengeId(null);
+          completeAuthFlow();
       } catch (error) {
         setAuthError(
           extractApiErrorMessage(error, "Не удалось выполнить вход."),
@@ -2368,7 +2406,7 @@ export function App() {
         );
       }
       setAuthChallengeId(null);
-      setScreen("machines");
+      completeAuthFlow();
     } catch (error) {
       setAuthError(
         extractApiErrorMessage(error, "Не удалось подтвердить вход."),
@@ -2422,7 +2460,7 @@ export function App() {
       setPassword("");
       setConfirmPassword("");
       setManualResetToken("");
-      navigate(authPath("login"), { replace: true });
+      navigate(buildAuthRoute("login"), { replace: true });
       setAuthNotice(response.message);
     } catch (error) {
       setAuthError(

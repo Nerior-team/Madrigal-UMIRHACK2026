@@ -10,6 +10,7 @@ from app.api.deps import (
 from app.core.exceptions import AppError
 from app.domains.community import (
     CommunityAdminContextRead,
+    CommunityAuthorRead,
     CommunityCommentCreate,
     CommunityCommentRead,
     CommunityCommentReactionWrite,
@@ -34,6 +35,18 @@ from app.domains.community import (
 )
 
 router = APIRouter(prefix="/public/community", tags=["community"])
+
+
+def _serialize_author(author) -> CommunityAuthorRead:
+    return CommunityAuthorRead(
+        user_id=author.user_id,
+        display_name=author.display_name,
+        email=author.email,
+        avatar_data_url=author.avatar_data_url,
+        is_verified=author.is_verified,
+        role_tag=author.role_tag,
+        is_admin=author.is_admin,
+    )
 
 
 def _serialize_member(
@@ -121,7 +134,7 @@ def _build_comment_tree(
             id=comment.id,
             discussion_id=comment.discussion_id,
             parent_id=comment.parent_id,
-            author=author,
+            author=_serialize_author(author),
             body=comment.body,
             like_count=comment.like_count,
             dislike_count=comment.dislike_count,
@@ -173,7 +186,7 @@ def _build_discussion_read(
         id=discussion.id,
         product=discussion.product,
         category=discussion.category,
-        author=author,
+        author=_serialize_author(author),
         title=discussion.title,
         body=discussion.body,
         image_data_url=discussion.image_data_url,
@@ -219,7 +232,7 @@ def _build_review_read(repository: CommunityRepository, review) -> CommunityRevi
     return CommunityReviewRead(
         id=review.id,
         product=review.product,
-        author=author,
+        author=_serialize_author(author),
         role_title=review.role_title,
         rating=review.rating,
         advantages=review.advantages,
@@ -352,7 +365,7 @@ def create_comment(
         id=comment.id,
         discussion_id=comment.discussion_id,
         parent_id=comment.parent_id,
-        author=author,
+        author=_serialize_author(author),
         body=comment.body,
         like_count=comment.like_count,
         dislike_count=comment.dislike_count,
